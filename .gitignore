@@ -1,0 +1,27 @@
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Data & Results (Large files)
+data/
+
+# Virtual Environments
+venv/
+.env/
+.venv/
+
+# IDEs
+.vscode/
+.idea/
+
+# COLMAP
+*.db
+*.db-journal
+
+# Rules Management
+.private/
+
+# System
+.DS_Store
