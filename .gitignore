@@ -6,6 +6,7 @@ __pycache__/
 
 # Data & Results (Large files)
 data/
+outputs/
 
 # Virtual Environments
 venv/
@@ -19,9 +20,6 @@ venv/
 # COLMAP
 *.db
 *.db-journal
-
-# Rules Management
-.private/
 
 # System
 .DS_Store
