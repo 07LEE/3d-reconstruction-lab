@@ -4,6 +4,28 @@ import sys
 from pathlib import Path
 from hloc import extract_features, match_features, reconstruction, pairs_from_exhaustive, pairs_from_retrieval
 import torch
+import time
+from datetime import datetime
+
+def log_performance(image_dir, output_dir, strategy, time_extract, time_pairs, time_match, time_sfm, time_total):
+    log_dir = Path("outputs")
+    log_dir.mkdir(parents=True, exist_ok=True)
+    log_file = log_dir / "performance_log.txt"
+    
+    timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    with open(log_file, "a") as f:
+        f.write(f"\n========================================\n")
+        f.write(f"Timestamp: {timestamp}\n")
+        f.write(f"Pipeline: hloc SfM ({strategy})\n")
+        f.write(f"Input: {image_dir}\n")
+        f.write(f"Output: {output_dir}\n")
+        f.write(f"----------------------------------------\n")
+        f.write(f"Feature Extraction (SuperPoint): {time_extract:.2f} s\n")
+        f.write(f"Pairs Generation: {time_pairs:.2f} s\n")
+        f.write(f"Feature Matching (SuperGlue): {time_match:.2f} s\n")
+        f.write(f"Sparse Reconstruction: {time_sfm:.2f} s\n")
+        f.write(f"Total Elapsed Time: {time_total:.2f} s\n")
+        f.write(f"========================================\n")
 
 def generate_sequential_pairs(image_dir, output_pairs_path, overlap=10):
     """Generates sequential pairs for video frames.
@@ -55,15 +77,26 @@ def run_hloc_pipeline(image_dir, output_dir, weights_dir, strategy='sequential',
     
     print(f"--- hloc 3D Reconstruction Pipeline ({strategy}) ---")
     
+    start_total = time.time()
+    time_extract = 0.0
+    time_pairs = 0.0
+    time_match = 0.0
+    time_sfm = 0.0
+    
     # 1. Feature Extraction
+    start_time = time.time()
     if not features.exists():
         print(f"\n[Step 1/4] Extracting features (SuperPoint, resize_max={feature_conf['preprocessing']['resize_max']})...")
         extract_features.main(feature_conf, images, feature_path=features)
+        time_extract = time.time() - start_time
+        print(f"Feature Extraction elapsed: {time_extract:.2f} seconds")
     else:
         print("\n[Step 1/4] Features already exist. Skipping extraction.")
+        time_extract = 0.0
 
     # 2. Pairs Generation
     print(f"\n[Step 2/4] Generating image pairs ({strategy})...")
+    start_time = time.time()
     if strategy == 'exhaustive':
         pairs_from_exhaustive.main(sfm_pairs, image_list=None, features=features)
     elif strategy == 'sequential':
@@ -71,18 +104,31 @@ def run_hloc_pipeline(image_dir, output_dir, weights_dir, strategy='sequential',
     else:
         print(f"Error: Unknown strategy {strategy}")
         sys.exit(1)
+    time_pairs = time.time() - start_time
+    print(f"Pairs Generation elapsed: {time_pairs:.2f} seconds")
 
     # 3. Feature Matching
     print("\n[Step 3/4] Matching features (SuperGlue)...")
+    start_time = time.time()
     match_features.main(matcher_conf, sfm_pairs, features=features, matches=matches)
+    time_match = time.time() - start_time
+    print(f"Feature Matching elapsed: {time_match:.2f} seconds")
 
     # 4. Sparse Reconstruction
     print("\n[Step 4/4] Performing sparse reconstruction...")
+    start_time = time.time()
     # Increase the number of registered images threshold for better results if needed
     reconstruction.main(sfm_dir, images, sfm_pairs, features, matches)
+    time_sfm = time.time() - start_time
+    print(f"Sparse Reconstruction elapsed: {time_sfm:.2f} seconds")
+
+    time_total = time.time() - start_total
 
     print(f"\n✅ hloc Reconstruction ({strategy}) completed!")
     print(f"Results saved at: {sfm_dir}")
+    
+    # Log to file
+    log_performance(image_dir, output_dir, strategy, time_extract, time_pairs, time_match, time_sfm, time_total)
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="hloc SfM Pipeline Script")
@@ -99,3 +145,4 @@ if __name__ == "__main__":
         sys.exit(1)
 
     run_hloc_pipeline(args.image_dir, args.output_dir, args.weights_dir, args.strategy, args.overlap)
+
