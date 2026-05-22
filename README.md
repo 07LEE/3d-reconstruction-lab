@@ -90,3 +90,18 @@ Comprehensive framework for neural rendering experiments.
 - **Memory Management**:
   - `export PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True` is used to prevent fragmentation.
   - `--data_device cpu` is recommended for large-scale datasets on limited VRAM hardware to enable high-resolution training without OOM errors.
+
+## Third-Party Submodules
+
+This project enforces a highly-structured and clean dependency architecture. All external packages are tracked as official Git submodules in the `third_party/` directory to preserve structural integrity:
+
+- `third_party/fastmap`: Fast image feature matching framework.
+- `third_party/gaussian-grouping`: Identity embedding framework for object segmentation.
+- `third_party/gaussian-splatting`: Customized 3DGS training engine.
+  - *Fork Integration*: Linked to the personal workspace repository [07LEE/gaussian-splatting](https://github.com/07LEE/gaussian-splatting) for custom patches and cloud backups.
+  - *Workflow*: When making custom code edits in `gaussian-splatting/`, developers must commit internally and `git push` to their personal fork.
+- `third_party/hloc`: Visual localization toolbox for structure-from-motion pipelines.
+
+### Build Pollution Defense (ignore = dirty)
+
+To prevent CUDA/C++ build artifacts and compilations from polluting the parent workspace git status, all submodules are registered with the `ignore = dirty` attribute in `.gitmodules`. This guarantees that `git status` on the parent repository `3DRC` remains clean (`working tree clean`) even during high-intensity training and compilation.
