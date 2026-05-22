@@ -1,0 +1,16 @@
+[submodule "third_party/fastmap"]
+	path = third_party/fastmap
+	url = https://github.com/pals-ttic/fastmap
+	ignore = dirty
+[submodule "third_party/gaussian-grouping"]
+	path = third_party/gaussian-grouping
+	url = https://github.com/lkeab/gaussian-grouping.git
+	ignore = dirty
+[submodule "third_party/gaussian-splatting"]
+	path = third_party/gaussian-splatting
+	url = https://github.com/graphdeco-inria/gaussian-splatting.git
+	ignore = dirty
+[submodule "third_party/hloc"]
+	path = third_party/hloc
+	url = https://github.com/cvg/Hierarchical-Localization/
+	ignore = dirty
