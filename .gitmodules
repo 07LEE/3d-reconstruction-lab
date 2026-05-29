@@ -14,3 +14,6 @@
 	path = third_party/hloc
 	url = https://github.com/cvg/Hierarchical-Localization/
 	ignore = dirty
+[submodule "third_party/vggt"]
+	path = third_party/vggt
+	url = https://github.com/facebookresearch/vggt
