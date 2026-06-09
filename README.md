@@ -1,14 +1,15 @@
-# 3D Reconstruction Test Workspace (3DRC)
+# 3D Reconstruction Test Workspace
 
 A research workspace dedicated to testing 3D reconstruction algorithms, from state-of-the-art SfM to 3D Gaussian Splatting (3DGS).
 
 ## Environment Architecture
 
-This project utilizes two specialized virtual environments to ensure stability and compatibility:
+This project utilizes virtual environments to ensure stability and compatibility:
 
-1. **`3drc` (SfM Environment)**: Focused on camera registration and sparse reconstruction using COLMAP and hloc.
-2. **`nerfstudio` (Nerfstudio Environment)**: Advanced neural rendering framework for large scenes.
-3. **`gs_original` (Inria 3DGS Environment)**: Optimized environment for the original 3D Gaussian Splatting implementation with Blackwell (RTX 50) support.
+1. `3drc` (SfM Environment): Focused on camera registration and sparse reconstruction using COLMAP and hloc.
+2. `nerfstudio` (Nerfstudio Environment): Advanced neural rendering framework for large scenes.
+3. `gs_original` (Inria 3DGS Environment): Optimized environment for the original 3D Gaussian Splatting implementation with Blackwell (RTX 50) support.
+4. `sugar` (SuGaR Environment): Specialized environment for Surface-Aligned Gaussian Splatting and high-quality mesh extraction.
 
 ## Execution Pipeline
 
@@ -38,6 +39,14 @@ View the trained 3D model using the specialized viewer.
 ./scripts/03_view_result.sh
 ```
 
+### Step 4: SuGaR Mesh Reconstruction
+
+Extract a high-quality 3D mesh from the optimized 3DGS checkpoint using surface alignment regularization.
+
+```bash
+./scripts/04_train_sugar.sh
+```
+
 ## Advanced Features
 
 ### Nerfstudio Integration
@@ -54,10 +63,10 @@ ns-train splatfacto --data data/nerfstudio_data
 
 Highly optimized for performance and quality, specifically patched for Blackwell (sm_120) hardware.
 
-- **Environment**: `gs_original`
-- **Location**: `third_party/gaussian-splatting`
-- **Hardware Patch**: `rasterizer_impl.h` modified to include `<cstdint>` for CUDA 12.8 compatibility.
-- **Execution**:
+- Environment: `gs_original`
+- Location: `third_party/gaussian-splatting`
+- Hardware Patch: `rasterizer_impl.h` modified to include `<cstdint>` for CUDA 12.8 compatibility.
+- Execution:
 
   ```bash
   # Standard Training (2x/4x downsampled for memory efficiency)
@@ -72,9 +81,21 @@ Highly optimized for performance and quality, specifically patched for Blackwell
 
 Comprehensive framework for neural rendering experiments.
 
-- **Environment**: `nerfstudio`
-- **Execution**:
+- Environment: `nerfstudio`
+- Execution:
   - `./ns_run.sh train splatfacto --data data/nerfstudio_data`
+
+### SuGaR Mesh Extraction (CVPR 2024)
+
+Enforces surface alignment constraints on 3D Gaussians to enable fast and clean mesh reconstruction via Poisson reconstruction.
+
+- Environment: `sugar` or `gs_original`
+- Location: `third_party/sugar`
+- Execution:
+
+  ```bash
+  ./scripts/04_train_sugar.sh
+  ```
 
 ## Directory Structure
 
@@ -86,8 +107,8 @@ Comprehensive framework for neural rendering experiments.
 
 ## Hardware Insights (Blackwell RTX 50-series)
 
-- **CUDA Compatibility**: Patched `diff-gaussian-rasterization` to fix header issues in CUDA 12.x.
-- **Memory Management**:
+- CUDA Compatibility: Patched `diff-gaussian-rasterization` to fix header issues in CUDA 12.x.
+- Memory Management:
   - `export PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True` is used to prevent fragmentation.
   - `--data_device cpu` is recommended for large-scale datasets on limited VRAM hardware to enable high-resolution training without OOM errors.
 
@@ -101,6 +122,7 @@ This project enforces a highly-structured and clean dependency architecture. All
   - *Fork Integration*: Linked to the personal workspace repository [07LEE/gaussian-splatting](https://github.com/07LEE/gaussian-splatting) for custom patches and cloud backups.
   - *Workflow*: When making custom code edits in `gaussian-splatting/`, developers must commit internally and `git push` to their personal fork.
 - `third_party/hloc`: Visual localization toolbox for structure-from-motion pipelines.
+- `third_party/sugar`: Surface-Aligned Gaussian Splatting tool for 3D mesh reconstruction.
 
 ### Build Pollution Defense (ignore = dirty)
 

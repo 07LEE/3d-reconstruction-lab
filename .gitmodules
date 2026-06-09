@@ -17,3 +17,6 @@
 [submodule "third_party/vggt"]
 	path = third_party/vggt
 	url = https://github.com/facebookresearch/vggt
+[submodule "third_party/sugar"]
+	path = third_party/sugar
+	url = https://github.com/Anttwo/SuGaR.git
