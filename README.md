@@ -6,10 +6,20 @@ A research workspace dedicated to testing 3D reconstruction algorithms, from sta
 
 This project utilizes virtual environments to ensure stability and compatibility:
 
-1. `3drc` (SfM Environment): Focused on camera registration and sparse reconstruction using COLMAP and hloc.
-2. `nerfstudio` (Nerfstudio Environment): Advanced neural rendering framework for large scenes.
-3. `gs_original` (Inria 3DGS Environment): Optimized environment for the original 3D Gaussian Splatting implementation with Blackwell (RTX 50) support.
-4. `sugar` (SuGaR Environment): Specialized environment for Surface-Aligned Gaussian Splatting and high-quality mesh extraction.
+1. `3drc` (SfM & Rendering Environment): Integrated environment for camera registration, sparse reconstruction (COLMAP, hloc, vggt) and neural rendering (nerfstudio).
+2. `gs_original` (Unified 3DGS & Optimization Environment): Unified environment for all 3D Gaussian Splatting algorithms, including Inria 3DGS, Planar-GS, SuGaR mesh extraction, and Gaussian Grouping segmentation.
+
+## Pipeline Model Mapping
+
+| Tool | Pipeline Step | Core Role | Methodology |
+| --- | --- | --- | --- |
+| COLMAP | Step 1 (SfM) | Camera pose estimation and sparse reconstruction | SIFT feature extraction and incremental triangulation SfM |
+| hloc | Step 1 (SfM) | Deep learning-based camera pose estimation | SuperPoint feature extraction and SuperGlue graph matching |
+| VGGT-Omega | Step 1 (SfM) | Immediate feed-forward camera pose and point cloud generation | Feed-forward Visual Geometry Grounded Transformer model |
+| 3DGS (Inria) | Step 2 (Training) | High-fidelity 3D scene representation optimization | Differentiable 3D Gaussian rasterization |
+| Planar-GS | Step 2 (Training) | Planar constraint optimization for textureless flat surfaces | Planar Regularization Loss guided 3DGS training |
+| SuGaR | Step 4 (Mesh Extraction) | Polygon mesh and OBJ file extraction from points | Surface-Aligned Gaussian Regularization and Poisson reconstruction |
+| Gaussian Grouping | Step 5 (Segmentation) | 3D object instance grouping and segmentation | Identity Embedding learning lifted from 2D SAM masks |
 
 ## Execution Pipeline
 
@@ -17,17 +27,25 @@ The project provides automated scripts for each step from data processing to vis
 
 ### Step 1: Camera Pose Estimation (SfM)
 
-High-precision image matching to determine camera positions in 3D space.
+High-precision image matching to determine camera positions in 3D space. Supports hloc, sfm, fastmap, and vggt methods.
 
 ```bash
+# Default hloc method
 ./scripts/01_sfm_hloc.sh
+
+# Or run with alternative methods: sfm, fastmap, vggt
+./scripts/01_sfm_hloc.sh vggt
 ```
 
 ### Step 2: High-Density 3DGS Training
 
-Performs training with Blackwell GPU (RTX 50) optimization and high-density parameters.
+Performs training with Blackwell GPU (RTX 50) optimization. Supports original 3DGS and Planar-GS models via TRAIN_METHOD variable.
 
 ```bash
+# Default original 3DGS training
+./scripts/02_train_3dgs.sh
+
+# Or switch to Planar-GS in configs/default_config.sh (set TRAIN_METHOD="planar")
 ./scripts/02_train_3dgs.sh
 ```
 
@@ -45,6 +63,14 @@ Extract a high-quality 3D mesh from the optimized 3DGS checkpoint using surface 
 
 ```bash
 ./scripts/04_train_sugar.sh
+```
+
+### Step 5: Gaussian Grouping Object Segmentation
+
+Perform joint reconstruction and segmentation from SAM-based 2D masks.
+
+```bash
+./scripts/05_train_grouping.sh
 ```
 
 ## Advanced Features
@@ -71,7 +97,7 @@ Highly optimized for performance and quality, specifically patched for Blackwell
   ```bash
   # Standard Training (2x/4x downsampled for memory efficiency)
   python train.py -s ../../data/nerfstudio_data -r 2 --model_path ../../outputs/gs_result
-
+  
   # High-Resolution / Large Dataset Training (Memory Swap Mode)
   # Uses system RAM instead of VRAM for image storage
   python train.py -s ../../data/nerfstudio_data -r 1 --data_device cpu --model_path ../../outputs/gs_original_res
@@ -89,20 +115,49 @@ Comprehensive framework for neural rendering experiments.
 
 Enforces surface alignment constraints on 3D Gaussians to enable fast and clean mesh reconstruction via Poisson reconstruction.
 
-- Environment: `sugar` or `gs_original`
+- Environment: `gs_original`
 - Location: `third_party/sugar`
 - Execution:
-
+  
   ```bash
   ./scripts/04_train_sugar.sh
   ```
 
+### VGGT (Visual Geometry Grounded Transformer)
+
+Feed-forward neural network for camera pose estimation and immediate point cloud generation.
+
+- Environment: `3drc`
+- Location: `third_party/vggt`
+- Execution: Enables exporting depth, point maps, and cameras directly into COLMAP-compatible structures.
+
+### Gaussian Grouping (ECCV 2024)
+
+Joint reconstruction and segmentation of 3D objects using identity embeddings lifted from 2D SAM masks.
+
+- Environment: `gs_original`
+- Location: `third_party/gaussian-grouping`
+- Execution:
+  
+  ```bash
+  ./scripts/05_train_grouping.sh
+  ```
+
+### Planar-GS
+
+Enforces geometry planar regularization on flat surfaces to reconstruct flat objects (walls, desks, floors) without holes or noise.
+
+- Environment: `gs_original`
+- Location: `third_party/planar-gs`
+- Execution: Configure TRAIN_METHOD="planar" in configs/default_config.sh, then run ./scripts/02_train_3dgs.sh
+
 ## Directory Structure
 
 - `src/`: Core pipeline scripts and utilities.
+- `configs/`: Central configuration scripts containing pipeline hyperparameter parameters.
 - `data/`: Datasets and SfM outputs.
-  - `data/nerfstudio_data/`: Unified data for rendering engines (contains `sparse` and `images`).
-- `third_party/`: Unified directory for external tools (`hloc`, `gaussian-splatting`).
+- `data/nerfstudio_data/`: Unified data for rendering engines (contains `sparse` and `images`).
+- `third_party/`: Unified directory for external tools (`hloc`, `gaussian-splatting`, `sugar`, `vggt`, `gaussian-grouping`).
 - `outputs/`: 3DGS/NeRF trained models and point clouds.
 
 ## Hardware Insights (Blackwell RTX 50-series)
@@ -111,6 +166,27 @@ Enforces surface alignment constraints on 3D Gaussians to enable fast and clean 
 - Memory Management:
   - `export PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True` is used to prevent fragmentation.
   - `--data_device cpu` is recommended for large-scale datasets on limited VRAM hardware to enable high-resolution training without OOM errors.
+
+## Setup Instructions for Unified Environment
+
+To optimize disk space, all Gaussian Splatting tasks are unified under the `gs_original` environment. Run the following setup steps to compile the CUDA extensions for SuGaR and Gaussian Grouping inside the `gs_original` environment:
+
+```bash
+# 1. Activate the unified environment
+conda activate gs_original
+
+# 2. Build and install SuGaR extensions
+cd third_party/sugar
+pip install -e .
+
+# 3. Build and install Gaussian Grouping extensions
+cd ../gaussian-grouping
+pip install -e .
+
+# 4. Build and install DEVA tracking module inside grouping
+cd Tracking-Anything-with-DEVA
+pip install -e .
+```
 
 ## Third-Party Submodules
 
@@ -122,7 +198,9 @@ This project enforces a highly-structured and clean dependency architecture. All
   - *Fork Integration*: Linked to the personal workspace repository [07LEE/gaussian-splatting](https://github.com/07LEE/gaussian-splatting) for custom patches and cloud backups.
   - *Workflow*: When making custom code edits in `gaussian-splatting/`, developers must commit internally and `git push` to their personal fork.
 - `third_party/hloc`: Visual localization toolbox for structure-from-motion pipelines.
+- `third_party/planar-gs`: Planar-constrained 3D Gaussian Splatting engine for flat surfaces.
 - `third_party/sugar`: Surface-Aligned Gaussian Splatting tool for 3D mesh reconstruction.
+- `third_party/vggt`: Visual Geometry Grounded Transformer model for visual geometry prediction.
 
 ### Build Pollution Defense (ignore = dirty)
 
