@@ -3,27 +3,39 @@
 # [Step 02] Inria 3D Gaussian Splatting Training
 # Blackwell (RTX 50) optimization and high-density parameters
 
+CONFIG_PATH="configs/default_config.sh"
+if [ -f "$CONFIG_PATH" ]; then
+    source "$CONFIG_PATH"
+fi
+
 CONDA_PATH=$(conda info --base)
 source "$CONDA_PATH/etc/profile.d/conda.sh"
 conda activate gs_original
 
-# 1. Hardware Optimization (Blackwell Architecture)
-export TORCH_CUDA_ARCH_LIST="12.0"
-export PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True
+# 1. Update SfM data link
+echo "Updating SfM data links in ${DATA_DIR}/sparse/0..."
+rm -rf "${DATA_DIR}/sparse/0"
+mkdir -p "${DATA_DIR}/sparse/0"
+cp -r "${HLOC_RECON}/sfm/models/0/"* "${DATA_DIR}/sparse/0/"
 
-# 2. Update SfM data link
-echo "Updating SfM data links in nerfstudio_data/sparse/0..."
-rm -rf data/nerfstudio_data/sparse/0
-mkdir -p data/nerfstudio_data/sparse/0
-cp -r data/hloc_reconstruction/sfm/models/0/* data/nerfstudio_data/sparse/0/
+# 2. Training Execution
+if [ "$TRAIN_METHOD" = "planar" ]; then
+    echo "Starting Planar-GS (Planar Gaussian Splatting) Training..."
+    python third_party/planar-gs/train.py \
+        -s "$DATA_DIR" \
+        --model_path "${OUTPUT_DIR}/gs_final_precision" \
+        -r "$DOWNSAMPLE_RATE" \
+        --data_device "$DATA_DEVICE" \
+        --densify_grad_threshold "$DENSIFY_GRAD_THRESHOLD" \
+        --planar_weight "$PLANAR_REG_WEIGHT"
+else
+    echo "Starting High-Density Original 3DGS Training..."
+    python third_party/gaussian-splatting/train.py \
+        -s "$DATA_DIR" \
+        --model_path "${OUTPUT_DIR}/gs_final_precision" \
+        -r "$DOWNSAMPLE_RATE" \
+        --data_device "$DATA_DEVICE" \
+        --densify_grad_threshold "$DENSIFY_GRAD_THRESHOLD"
+fi
 
-# 3. Training Execution
-echo "Starting High-Density 3DGS Training..."
-python third_party/gaussian-splatting/train.py \
-    -s data/nerfstudio_data \
-    --model_path outputs/gs_final_precision \
-    -r 2 \
-    --data_device cpu \
-    --densify_grad_threshold 0.0002
-
-echo "3DGS Training Completed! Results saved in outputs/gs_final_precision"
+echo "Training (${TRAIN_METHOD}) Completed! Results saved in ${OUTPUT_DIR}/gs_final_precision"
