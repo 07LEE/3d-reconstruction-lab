@@ -10,7 +10,7 @@ fi
 
 CONDA_PATH=$(conda info --base 2>/dev/null || echo "$HOME/miniconda3")
 source "$CONDA_PATH/etc/profile.d/conda.sh"
-conda activate gs_original
+conda activate 3drc
 
 PROJECT_ROOT=$(pwd)
 

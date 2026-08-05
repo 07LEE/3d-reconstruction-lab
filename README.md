@@ -4,10 +4,9 @@ A research workspace dedicated to testing 3D reconstruction algorithms, from sta
 
 ## Environment Architecture
 
-This project utilizes virtual environments to ensure stability and compatibility:
+This project utilizes a single unified virtual environment (`3drc`) for all pipeline steps (SfM, 3DGS, SuGaR, Gaussian Grouping):
 
-1. `3drc` (SfM & Rendering Environment): Integrated environment for camera registration, sparse reconstruction (COLMAP, hloc, vggt) and neural rendering (nerfstudio).
-2. `gs_original` (Unified 3DGS & Optimization Environment): Unified environment for all 3D Gaussian Splatting algorithms, including Inria 3DGS, Planar-GS, SuGaR mesh extraction, and Gaussian Grouping segmentation.
+- `3drc` (Unified Environment): Integrated environment for camera registration (COLMAP, hloc, VI-SfM, VGGT), 3D Gaussian Splatting (3DGS, Planar-GS), SuGaR mesh extraction, and Gaussian Grouping segmentation.
 
 ### Quick Setup
 

@@ -10,7 +10,7 @@ fi
 
 CONDA_PATH=$(conda info --base)
 source "$CONDA_PATH/etc/profile.d/conda.sh"
-conda activate gs_original
+conda activate 3drc
 
 # 1. Update SfM data link
 echo "Updating SfM data links in ${DATA_DIR}/sparse/0..."
