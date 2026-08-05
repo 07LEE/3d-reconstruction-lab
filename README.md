@@ -9,6 +9,14 @@ This project utilizes virtual environments to ensure stability and compatibility
 1. `3drc` (SfM & Rendering Environment): Integrated environment for camera registration, sparse reconstruction (COLMAP, hloc, vggt) and neural rendering (nerfstudio).
 2. `gs_original` (Unified 3DGS & Optimization Environment): Unified environment for all 3D Gaussian Splatting algorithms, including Inria 3DGS, Planar-GS, SuGaR mesh extraction, and Gaussian Grouping segmentation.
 
+### Quick Setup
+
+Run the automated setup script to synchronize submodules and install dependencies:
+
+```bash
+./scripts/00_setup_environment.sh
+```
+
 ## Pipeline Model Mapping
 
 | Tool | Pipeline Step | Core Role | Methodology |
