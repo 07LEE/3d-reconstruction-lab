@@ -10,7 +10,7 @@ fi
 
 CONDA_PATH=$(conda info --base)
 source "$CONDA_PATH/etc/profile.d/conda.sh"
-conda activate gs_original
+conda activate 3drc
 
 DEFAULT_PATH="${OUTPUT_DIR}/gs_final_precision/point_cloud/iteration_30000/point_cloud.ply"
 

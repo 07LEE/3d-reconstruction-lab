@@ -1,4 +1,4 @@
-# 3DRC Project Dependency Requirements
+# 3DRC Unified Project Dependency Requirements
 
 numpy>=1.23.0
 scipy>=1.9.0
@@ -11,3 +11,6 @@ pycolmap>=0.3.0
 torchvision
 pyyaml
 plyfile
+ninja
+submodules/diff-gaussian-rasterization
+submodules/simple-knn
