@@ -1,11 +1,18 @@
+"""hloc (SuperPoint + SuperGlue) SfM Pipeline Module."""
+
 import argparse
 import os
 import sys
-from pathlib import Path
-from hloc import extract_features, match_features, reconstruction, pairs_from_exhaustive, pairs_from_retrieval
-import torch
 import time
 from datetime import datetime
+from pathlib import Path
+import torch
+
+# Add third_party/hloc to sys.path
+sys.path.append(str(Path(__file__).resolve().parent.parent.parent / "third_party" / "hloc"))
+sys.path.append(str(Path(__file__).resolve().parent.parent.parent / "third_party"))
+
+from hloc import extract_features, match_features, reconstruction, pairs_from_exhaustive, pairs_from_retrieval
 
 def log_performance(image_dir, output_dir, strategy, time_extract, time_pairs, time_match, time_sfm, time_total):
     log_dir = Path("outputs")
@@ -28,13 +35,6 @@ def log_performance(image_dir, output_dir, strategy, time_extract, time_pairs, t
         f.write(f"========================================\n")
 
 def generate_sequential_pairs(image_dir, output_pairs_path, overlap=10):
-    """Generates sequential pairs for video frames.
-    
-    Args:
-        image_dir (Path): Path to images.
-        output_pairs_path (Path): Path to save pairs.txt.
-        overlap (int): Number of subsequent frames to match with.
-    """
     images = sorted([f.name for f in image_dir.iterdir() if f.suffix.lower() in ['.jpg', '.png', '.jpeg']])
     print(f"Found {len(images)} images. Generating sequential pairs with overlap {overlap}...")
     
@@ -50,15 +50,6 @@ def generate_sequential_pairs(image_dir, output_pairs_path, overlap=10):
     print(f"Generated {len(pairs)} pairs.")
 
 def run_hloc_pipeline(image_dir, output_dir, weights_dir, strategy='sequential', overlap=10):
-    """Performs SfM reconstruction using hloc.
-
-    Args:
-        image_dir (str): Path to images.
-        output_dir (str): Path to output.
-        weights_dir (str): Path to weights.
-        strategy (str): 'exhaustive' or 'sequential'.
-        overlap (int): Overlap for sequential matching.
-    """
     images = Path(image_dir)
     outputs = Path(output_dir)
     weights = Path(weights_dir)
@@ -72,16 +63,12 @@ def run_hloc_pipeline(image_dir, output_dir, weights_dir, strategy='sequential',
     sfm_dir = outputs / 'sfm'
     
     feature_conf = extract_features.confs['superpoint_aachen']
-    feature_conf['preprocessing']['resize_max'] = 2400  # 원본 디테일을 살리기 위해 해상도 상향
+    feature_conf['preprocessing']['resize_max'] = 2400
     matcher_conf = match_features.confs['superglue']
     
     print(f"--- hloc 3D Reconstruction Pipeline ({strategy}) ---")
     
     start_total = time.time()
-    time_extract = 0.0
-    time_pairs = 0.0
-    time_match = 0.0
-    time_sfm = 0.0
     
     # 1. Feature Extraction
     start_time = time.time()
@@ -117,17 +104,15 @@ def run_hloc_pipeline(image_dir, output_dir, weights_dir, strategy='sequential',
     # 4. Sparse Reconstruction
     print("\n[Step 4/4] Performing sparse reconstruction...")
     start_time = time.time()
-    # Increase the number of registered images threshold for better results if needed
     reconstruction.main(sfm_dir, images, sfm_pairs, features, matches)
     time_sfm = time.time() - start_time
     print(f"Sparse Reconstruction elapsed: {time_sfm:.2f} seconds")
 
     time_total = time.time() - start_total
 
-    print(f"\n✅ hloc Reconstruction ({strategy}) completed!")
+    print(f"\nhloc Reconstruction ({strategy}) completed!")
     print(f"Results saved at: {sfm_dir}")
     
-    # Log to file
     log_performance(image_dir, output_dir, strategy, time_extract, time_pairs, time_match, time_sfm, time_total)
 
 if __name__ == "__main__":
@@ -145,4 +130,3 @@ if __name__ == "__main__":
         sys.exit(1)
 
     run_hloc_pipeline(args.image_dir, args.output_dir, args.weights_dir, args.strategy, args.overlap)
-

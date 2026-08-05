@@ -8,7 +8,7 @@ if [ -z "$TYPE" ]; then
     exit 1
 fi
 
-# Conda 환경 로드 및 활성화 시도
+# Load and activate Conda environment
 CONDA_PATH="/home/lee/miniconda3/bin/conda"
 if [ -f "$CONDA_PATH" ]; then
     eval "$($CONDA_PATH 'shell.bash' 'hook')"

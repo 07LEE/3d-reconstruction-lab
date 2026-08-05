@@ -17,6 +17,12 @@
 [submodule "third_party/vggt"]
 	path = third_party/vggt
 	url = https://github.com/facebookresearch/vggt
+	ignore = dirty
 [submodule "third_party/sugar"]
 	path = third_party/sugar
 	url = https://github.com/Anttwo/SuGaR.git
+	ignore = dirty
+[submodule "third_party/planar-gs"]
+	path = third_party/planar-gs
+	url = https://github.com/vlasav/planar-gs
+	ignore = dirty
