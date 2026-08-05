@@ -1,8 +1,4 @@
-"""Visual-Inertial (RGB + IMU) SfM Pipeline Script.
-
-Integrates IMU sensor data with hloc SuperPoint+SuperGlue Visual SfM
-to achieve gravity-aligned, metric-scale 3D camera pose estimation.
-"""
+"""Visual-Inertial (RGB + IMU) SfM Pipeline Module."""
 
 import argparse
 import csv
@@ -14,17 +10,14 @@ from pathlib import Path
 import numpy as np
 
 # Add third_party/hloc to sys.path
-sys.path.append(str(Path(__file__).resolve().parent.parent / "third_party" / "hloc"))
-sys.path.append(str(Path(__file__).resolve().parent.parent / "third_party"))
+sys.path.append(str(Path(__file__).resolve().parent.parent.parent / "third_party" / "hloc"))
+sys.path.append(str(Path(__file__).resolve().parent.parent.parent / "third_party"))
 
 from hloc import extract_features, match_features, reconstruction
 from hloc.utils.read_write_model import read_model, write_model, Camera, Image, Point3D
 
 def parse_imu_data(imu_path: Path, imu_format: str = "euroc"):
-    """Parses IMU raw data file and returns structured numpy array.
-    
-    Supports EuroC (timestamp_ns, w_x, w_y, w_z, a_x, a_y, a_z) and CSV formats.
-    """
+    """Parses IMU raw data file and returns structured numpy array."""
     if not imu_path.exists():
         print(f"[Warning] IMU data file not found at {imu_path}. Proceeding with synthetic IMU prior...")
         return None

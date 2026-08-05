@@ -16,12 +16,12 @@ METHOD=${1:-$SFM_METHOD}
 
 if [ "$METHOD" = "sfm" ]; then
     echo "Starting Traditional SIFT SfM Pipeline..."
-    python scripts/sfm_pipeline.py \
+    python -m src.sfm.sfm_pipeline \
         --image_dir "$IMAGE_DIR" \
         --output_dir data/sfm_reconstruction
 elif [ "$METHOD" = "fastmap" ]; then
     echo "Starting Super-Fast FastMap GPU SfM Pipeline..."
-    python scripts/fastmap_pipeline.py \
+    python -m src.sfm.fastmap_pipeline \
         --image_dir "$IMAGE_DIR" \
         --output_dir data/fastmap_reconstruction
 elif [ "$METHOD" = "vggt" ]; then
@@ -31,14 +31,14 @@ elif [ "$METHOD" = "vggt" ]; then
         --use_ba
 elif [ "$METHOD" = "vi_sfm" ]; then
     echo "Starting Visual-Inertial (RGB + IMU) SfM Pipeline..."
-    python scripts/vi_sfm_pipeline.py \
+    python -m src.sfm.vi_sfm_pipeline \
         --image_dir "$IMAGE_DIR" \
         --imu_path "$IMU_DATA_PATH" \
         --output_dir data/vi_sfm_reconstruction \
         --format "$IMU_FORMAT"
 else
     echo "Starting High-Precision hloc SfM Pipeline..."
-    python scripts/hloc_pipeline.py \
+    python -m src.sfm.hloc_pipeline \
         --image_dir "$IMAGE_DIR" \
         --output_dir "$HLOC_RECON" \
         --strategy sequential \

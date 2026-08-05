@@ -24,7 +24,21 @@ This project utilizes virtual environments to ensure stability and compatibility
 
 ## Execution Pipeline
 
-The project provides automated scripts for each step from data processing to visualization.
+The project provides unified CLI launchers (`./scripts/run_3drc.sh` and `python 3drc.py`) as well as individual scripts for each pipeline step.
+
+### Quick Start with Unified CLI
+
+```bash
+# Run Step 1 SfM (Visual-Inertial or hloc)
+./scripts/run_3drc.sh sfm vi_sfm
+python 3drc.py sfm --method vi_sfm
+
+# Run Step 2 3DGS Training
+./scripts/run_3drc.sh train 3dgs
+
+# Run End-to-End Automated Pipeline (Step 1 -> 2 -> 3)
+./scripts/run_3drc.sh pipeline vi_sfm
+```
 
 ### Step 1: Camera Pose Estimation (SfM)
 
