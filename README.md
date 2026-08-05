@@ -16,6 +16,7 @@ This project utilizes virtual environments to ensure stability and compatibility
 | COLMAP | Step 1 (SfM) | Camera pose estimation and sparse reconstruction | SIFT feature extraction and incremental triangulation SfM |
 | hloc | Step 1 (SfM) | Deep learning-based camera pose estimation | SuperPoint feature extraction and SuperGlue graph matching |
 | VGGT-Omega | Step 1 (SfM) | Immediate feed-forward camera pose and point cloud generation | Feed-forward Visual Geometry Grounded Transformer model |
+| vi_sfm | Step 1 (SfM) | Visual-Inertial (RGB + IMU) camera pose estimation | SuperPoint/Glue matching with IMU gravity alignment |
 | 3DGS (Inria) | Step 2 (Training) | High-fidelity 3D scene representation optimization | Differentiable 3D Gaussian rasterization |
 | Planar-GS | Step 2 (Training) | Planar constraint optimization for textureless flat surfaces | Planar Regularization Loss guided 3DGS training |
 | SuGaR | Step 4 (Mesh Extraction) | Polygon mesh and OBJ file extraction from points | Surface-Aligned Gaussian Regularization and Poisson reconstruction |
@@ -27,11 +28,14 @@ The project provides automated scripts for each step from data processing to vis
 
 ### Step 1: Camera Pose Estimation (SfM)
 
-High-precision image matching to determine camera positions in 3D space. Supports hloc, sfm, fastmap, and vggt methods.
+High-precision image matching to determine camera positions in 3D space. Supports hloc, sfm, fastmap, vggt, and vi_sfm (RGB+IMU) methods.
 
 ```bash
 # Default hloc method
 ./scripts/01_sfm_hloc.sh
+
+# Or run with Visual-Inertial (RGB + IMU) method:
+./scripts/01_sfm_hloc.sh vi_sfm
 
 # Or run with alternative methods: sfm, fastmap, vggt
 ./scripts/01_sfm_hloc.sh vggt
@@ -74,6 +78,19 @@ Perform joint reconstruction and segmentation from SAM-based 2D masks.
 ```
 
 ## Advanced Features
+
+### Visual-Inertial (RGB + IMU) Integration
+
+For datasets containing IMU sensor measurements alongside RGB images, the `vi_sfm` pipeline provides key advantages:
+
+- **Metric Scale Recovery**: Absolute meter-scale 3D reconstruction.
+- **Gravity Alignment**: Automatic $Z$-axis alignment with the world gravity vector.
+- **Motion Blur Robustness**: Stable trajectory tracking during rapid sensor movements.
+
+```bash
+# Execute Step 1 Visual-Inertial SfM Pipeline
+./scripts/01_sfm_hloc.sh vi_sfm
+```
 
 ### Nerfstudio Integration
 

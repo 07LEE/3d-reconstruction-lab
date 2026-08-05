@@ -13,7 +13,10 @@ export TORCH_CUDA_ARCH_LIST="12.0"
 export PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True
 
 # SfM parameters
-SFM_METHOD="hloc"  # Options: sfm, fastmap, hloc
+SFM_METHOD="hloc"  # Options: sfm, fastmap, hloc, vi_sfm
+IMU_DATA_PATH="data/imu_data.csv"
+IMU_FORMAT="euroc"  # Options: euroc, tum, custom_csv
+
 
 # 3DGS training parameters
 TRAIN_METHOD="3dgs"  # Options: 3dgs, planar
