@@ -40,7 +40,11 @@ export CUDA_HOME="/usr/lib/nvidia-cuda-toolkit"
 export PATH="/usr/lib/nvidia-cuda-toolkit/bin:$PATH"
 export TORCH_CUDA_ARCH_LIST="8.9"
 export CC="/usr/bin/gcc-12"
-export CXX="/usr/bin/g++-12"
+# Apply automatic submodule patches if available
+if [ -d "patches" ] && [ -f "patches/gaussian_splatting_fix.patch" ]; then
+    echo "Applying submodule patches..."
+    (cd third_party/gaussian-splatting && git apply ../../patches/gaussian_splatting_fix.patch 2>/dev/null || true)
+fi
 
 # Build C++ CUDA Rasterizer Submodules if available
 if [ -d "third_party/gaussian-splatting/submodules/diff-gaussian-rasterization" ]; then
