@@ -74,15 +74,7 @@ Performs training with Blackwell GPU (RTX 50) optimization. Supports original 3D
 ./scripts/02_train_3dgs.sh
 ```
 
-### Step 3: Result Visualization
-
-View the trained 3D model using the specialized viewer.
-
-```bash
-./scripts/03_view_result.sh
-```
-
-### Step 4: SuGaR Mesh Reconstruction
+### Step 3: SuGaR Mesh Reconstruction
 
 Extract a high-quality 3D mesh from the optimized 3DGS checkpoint using surface alignment regularization.
 
