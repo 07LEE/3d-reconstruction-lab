@@ -8,8 +8,12 @@ IMAGE_DIR="data/images"
 OUTPUT_DIR="outputs"
 HLOC_RECON="data/hloc_reconstruction"
 
-# Hardware Setup (Blackwell Compatibility sm_120 / sm_90)
-export TORCH_CUDA_ARCH_LIST="12.0"
+# Hardware Setup (Architecture & C++ ABI compatibility: RTX 30/40/50)
+export CUDA_HOME="/usr/lib/nvidia-cuda-toolkit"
+export PATH="/usr/lib/nvidia-cuda-toolkit/bin:$PATH"
+export CC="/usr/bin/gcc-12"
+export CXX="/usr/bin/g++-12"
+export TORCH_CUDA_ARCH_LIST="8.9"
 export PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True
 
 # SfM parameters
@@ -20,8 +24,8 @@ IMU_FORMAT="euroc"  # Options: euroc, tum, custom_csv
 
 # 3DGS training parameters
 TRAIN_METHOD="3dgs"  # Options: 3dgs, planar
-DOWNSAMPLE_RATE=2  # Equivalent to -r 2
-DATA_DEVICE="cpu"  # VRAM optimization: cpu or cuda
+DOWNSAMPLE_RATE=1  # Full original resolution (-r 1)
+DATA_DEVICE="cpu"  # Keep images in System RAM to prevent VRAM OOM for 1,000+ frames
 DENSIFY_GRAD_THRESHOLD=0.0002
 
 # Planar-GS parameters
