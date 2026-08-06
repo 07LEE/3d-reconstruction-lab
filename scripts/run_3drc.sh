@@ -17,10 +17,9 @@ show_help() {
     echo "Commands:"
     echo "  sfm [method]     Run Step 1 Camera Pose Estimation (hloc, vi_sfm, vggt, fastmap, sfm)"
     echo "  train [method]   Run Step 2 High-Density 3DGS Training (3dgs, planar)"
-    echo "  view             Run Step 3 Result Visualization"
-    echo "  sugar            Run Step 4 SuGaR Mesh Reconstruction"
-    echo "  grouping         Run Step 5 Gaussian Grouping Object Segmentation"
-    echo "  pipeline [method] Run End-to-End Pipeline (SfM -> Train -> View)"
+    echo "  sugar            Run Step 3 SuGaR Mesh Reconstruction"
+    echo "  grouping         Run Step 4 Gaussian Grouping Object Segmentation"
+    echo "  pipeline [method] Run End-to-End Pipeline (SfM -> Train)"
     echo "  help             Show this help message"
     echo ""
     echo "Examples:"
@@ -45,24 +44,19 @@ case "$COMMAND" in
         fi
         ./scripts/02_train_3dgs.sh
         ;;
-    view)
-        echo "[3DRC CLI] Executing Step 3: Result Visualization..."
-        ./scripts/03_view_result.sh
-        ;;
     sugar)
-        echo "[3DRC CLI] Executing Step 4: SuGaR Mesh Reconstruction..."
-        ./scripts/04_train_sugar.sh
+        echo "[3DRC CLI] Executing Step 3: SuGaR Mesh Reconstruction..."
+        ./scripts/03_train_sugar.sh
         ;;
     grouping)
-        echo "[3DRC CLI] Executing Step 5: Gaussian Grouping..."
-        ./scripts/05_train_grouping.sh
+        echo "[3DRC CLI] Executing Step 4: Gaussian Grouping..."
+        ./scripts/04_train_grouping.sh
         ;;
     pipeline)
         SFM_OPT=${2:-"hloc"}
         echo "[3DRC CLI] Starting End-to-End Automated Pipeline (SfM: ${SFM_OPT})..."
         ./scripts/01_sfm_hloc.sh "$SFM_OPT"
         ./scripts/02_train_3dgs.sh
-        ./scripts/03_view_result.sh
         echo "[3DRC CLI] End-to-End Automated Pipeline Execution Finished!"
         ;;
     help|*)
