@@ -8,11 +8,16 @@ IMAGE_DIR="data/images"
 OUTPUT_DIR="outputs"
 HLOC_RECON="data/hloc_reconstruction"
 
-# Hardware Setup (Architecture & C++ ABI compatibility: RTX 30/40/50)
-export CUDA_HOME="/usr/lib/nvidia-cuda-toolkit"
-export PATH="/usr/lib/nvidia-cuda-toolkit/bin:$PATH"
-export CC="/usr/bin/gcc-12"
-export CXX="/usr/bin/g++-12"
+# Hardware Setup (Dynamic detection with fallback guards)
+if [ -z "$CUDA_HOME" ] && [ -d "/usr/lib/nvidia-cuda-toolkit" ]; then
+    export CUDA_HOME="/usr/lib/nvidia-cuda-toolkit"
+    export PATH="/usr/lib/nvidia-cuda-toolkit/bin:$PATH"
+fi
+
+if command -v /usr/bin/gcc-12 >/dev/null 2>&1; then
+    export CC="/usr/bin/gcc-12"
+    export CXX="/usr/bin/g++-12"
+fi
 export TORCH_CUDA_ARCH_LIST="8.9"
 export PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True
 
