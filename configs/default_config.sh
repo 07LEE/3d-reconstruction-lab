@@ -29,7 +29,7 @@ IMU_FORMAT="euroc"  # Options: euroc, tum, custom_csv
 
 # 3DGS training parameters
 TRAIN_METHOD="3dgs"  # Options: 3dgs, planar
-DOWNSAMPLE_RATE=1  # Full original resolution (-r 1)
+DOWNSAMPLE_RATE=4  # Equivalent to -r 4
 DATA_DEVICE="cpu"  # Keep images in System RAM to prevent VRAM OOM for 1,000+ frames
 DENSIFY_GRAD_THRESHOLD=0.0002
 
