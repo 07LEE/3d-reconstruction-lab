@@ -79,15 +79,15 @@ Performs training with Blackwell GPU (RTX 50) optimization. Supports original 3D
 Extract a high-quality 3D mesh from the optimized 3DGS checkpoint using surface alignment regularization.
 
 ```bash
-./scripts/04_train_sugar.sh
+./scripts/03_train_sugar.sh
 ```
 
-### Step 5: Gaussian Grouping Object Segmentation
+### Step 4: Gaussian Grouping Object Segmentation
 
 Perform joint reconstruction and segmentation from SAM-based 2D masks.
 
 ```bash
-./scripts/05_train_grouping.sh
+./scripts/04_train_grouping.sh
 ```
 
 ## Advanced Features
