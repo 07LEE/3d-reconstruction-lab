@@ -21,7 +21,8 @@ apply_patch_dir() {
           git apply "${patch}"
           echo "  -> Successfully applied: ${pbasename}"
         else
-          echo "  -> Warning: Patch ${pbasename} cannot be checked or applied"
+          echo "  -> [FAIL] Patch ${pbasename} cannot be checked or applied"
+          exit 1
         fi
       fi
     done
