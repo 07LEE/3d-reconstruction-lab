@@ -31,8 +31,8 @@ Apply submodule patches and verify environment integrity:
 | VGGT-Omega | Step 1 (SfM) | Immediate feed-forward camera pose and point cloud generation | Feed-forward Visual Geometry Grounded Transformer model |
 | vi_sfm | Step 1 (SfM) | Visual-Inertial (RGB + IMU) camera pose estimation | SuperPoint/Glue matching with IMU gravity alignment |
 | 3DGS (Inria) | Step 2 (Training) | High-fidelity 3D scene representation optimization | Differentiable 3D Gaussian rasterization |
-| SuGaR | Step 4 (Mesh Extraction) | Polygon mesh and OBJ file extraction from points | Surface-Aligned Gaussian Regularization and Poisson reconstruction |
-| Gaussian Grouping | Step 5 (Segmentation) | 3D object instance grouping and segmentation | Identity Embedding learning lifted from 2D SAM masks |
+| SuGaR | Step 3 (Mesh Extraction) | Polygon mesh and OBJ file extraction from points | Surface-Aligned Gaussian Regularization and Poisson reconstruction |
+| Gaussian Grouping | Step 4 (Segmentation) | 3D object instance grouping and segmentation | Identity Embedding learning lifted from 2D SAM masks |
 
 ## Execution Pipeline
 
@@ -46,9 +46,9 @@ The project provides unified CLI launchers (`./scripts/run_3drc.sh` and `python 
 python 3drc.py sfm --method vi_sfm
 
 # Run Step 2 3DGS Training
-./scripts/run_3drc.sh train 3dgs
+./scripts/run_3drc.sh train
 
-# Run End-to-End Automated Pipeline (Step 1 -> 2 -> 3)
+# Run End-to-End Automated Pipeline (Step 1 -> 2)
 ./scripts/run_3drc.sh pipeline vi_sfm
 ```
 
@@ -69,13 +69,9 @@ High-precision image matching to determine camera positions in 3D space. Support
 
 ### Step 2: High-Density 3DGS Training
 
-Performs training with Blackwell GPU (RTX 50) optimization. Supports original 3DGS and Planar-GS models via TRAIN_METHOD variable.
+Performs training with Blackwell GPU (RTX 50) optimization.
 
 ```bash
-# Default original 3DGS training
-./scripts/02_train_3dgs.sh
-
-# Or switch to Planar-GS in configs/default_config.sh (set TRAIN_METHOD="planar")
 ./scripts/02_train_3dgs.sh
 ```
 
