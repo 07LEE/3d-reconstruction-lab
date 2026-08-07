@@ -9,7 +9,7 @@ OUTPUT_DIR="outputs"
 HLOC_RECON="data/hloc_reconstruction"
 
 # Hardware Setup (Dynamic detection with fallback guards)
-if [ -z "$CUDA_HOME" ] && [ -d "/usr/lib/nvidia-cuda-toolkit" ]; then
+if [ -z "${CUDA_HOME:-}" ] && [ -d "/usr/lib/nvidia-cuda-toolkit" ]; then
     export CUDA_HOME="/usr/lib/nvidia-cuda-toolkit"
     export PATH="/usr/lib/nvidia-cuda-toolkit/bin:$PATH"
 fi
