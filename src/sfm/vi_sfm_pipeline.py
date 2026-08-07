@@ -13,6 +13,7 @@ import numpy as np
 sys.path.append(str(Path(__file__).resolve().parent.parent.parent / "third_party" / "hloc"))
 sys.path.append(str(Path(__file__).resolve().parent.parent.parent / "third_party"))
 
+import pycolmap
 from hloc import extract_features, match_features, reconstruction
 from hloc.utils.read_write_model import read_model, write_model, Camera, Image, Point3D, qvec2rotmat, rotmat2qvec
 
@@ -127,12 +128,9 @@ def run_vi_sfm_pipeline(image_dir: str, imu_path: str, output_dir: str, imu_form
     print("[VI-SfM] Matching features via SuperGlue...")
     match_features.main(matcher_conf, pairs_path, features=features_path, matches=matches_path)
 
-    print("[VI-SfM] Performing Sparse Reconstruction (CameraMode: SINGLE)...")
-    try:
-        import pycolmap
-        cam_mode = pycolmap.CameraMode.SINGLE
-    except Exception:
-        cam_mode = "SINGLE"
+    mode_str = os.environ.get("CAMERA_MODE", "SINGLE").upper()
+    cam_mode = getattr(pycolmap.CameraMode, mode_str, pycolmap.CameraMode.SINGLE)
+    print(f"[VI-SfM] Performing Sparse Reconstruction (CameraMode: {cam_mode.name})...")
     reconstruction.main(sfm_dir, img_path, pairs_path, features_path, matches_path, camera_mode=cam_mode)
 
     align_reconstruction_to_gravity(sfm_dir, gravity_vec)
