@@ -8,13 +8,18 @@ if [ -z "$TYPE" ]; then
     exit 1
 fi
 
-# Dynamic Conda environment activation
+# Dynamic Conda environment activation for COLMAP GUI
 CONDA_PATH=$(conda info --base 2>/dev/null || echo "$HOME/miniconda3")
 if [ -f "$CONDA_PATH/etc/profile.d/conda.sh" ]; then
     source "$CONDA_PATH/etc/profile.d/conda.sh"
     set +u
-    conda activate gs_train 2>/dev/null || true
+    conda activate 3drc
     set -u
+    [ "${CONDA_DEFAULT_ENV:-}" = "3drc" ] || { echo "[FATAL] Conda environment '3drc' activation failed!"; exit 1; }
+fi
+
+if ! command -v colmap >/dev/null 2>&1 && [ -x "$CONDA_PATH/bin/colmap" ]; then
+    export PATH="$CONDA_PATH/bin:$PATH"
 fi
 
 if [ "$TYPE" = "fastmap" ]; then

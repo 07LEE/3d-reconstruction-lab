@@ -22,8 +22,8 @@ git submodule update --init --recursive
 
 # 2. Apply Submodule Patches
 echo -e "\n[Step 2/4] Applying Submodule Patches..."
-chmod +x scripts/*.sh
-./scripts/apply_patches.sh
+chmod +x scripts/*.sh scripts/utils/*.sh 2>/dev/null || true
+./scripts/utils/apply_patches.sh
 
 # 3. Check Conda Environments
 CONDA_PATH=$(conda info --base 2>/dev/null || echo "$HOME/miniconda3")
@@ -61,7 +61,7 @@ fi
 
 # Verify patch & environment integrity
 echo -e "\nVerifying Patch and Environment Integrity..."
-./scripts/verify_patches.sh
+./scripts/utils/verify_patches.sh
 
 echo -e "\n=================================================="
 echo " 3DRC Environment Setup Completed Successfully!"

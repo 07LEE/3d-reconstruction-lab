@@ -16,8 +16,9 @@ CONDA_PATH=$(conda info --base 2>/dev/null || echo "$HOME/miniconda3")
 if [ -f "$CONDA_PATH/etc/profile.d/conda.sh" ]; then
     source "$CONDA_PATH/etc/profile.d/conda.sh"
     set +u
-    conda activate gs_group 2>/dev/null || true
+    conda activate gs_group
     set -u
+    [ "${CONDA_DEFAULT_ENV:-}" = "gs_group" ] || { echo "[FATAL] Conda environment 'gs_group' activation failed!"; exit 1; }
 fi
 
 PROJECT_ROOT=$(pwd)

@@ -16,8 +16,9 @@ CONDA_PATH=$(conda info --base 2>/dev/null || echo "$HOME/miniconda3")
 if [ -f "$CONDA_PATH/etc/profile.d/conda.sh" ]; then
     source "$CONDA_PATH/etc/profile.d/conda.sh"
     set +u
-    conda activate gs_train 2>/dev/null || true
+    conda activate gs_train
     set -u
+    [ "${CONDA_DEFAULT_ENV:-}" = "gs_train" ] || { echo "[FATAL] Conda environment 'gs_train' activation failed!"; exit 1; }
 fi
 
 METHOD=${1:-$SFM_METHOD}

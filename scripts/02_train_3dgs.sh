@@ -16,7 +16,7 @@ conda activate gs_train
 set -u
 
 # Run patch & environment verification inside activated gs_train environment
-"$(dirname "$0")/verify_patches.sh" || { echo "[FATAL] Patch verification failed!"; exit 1; }
+"$(dirname "$0")/utils/verify_patches.sh" || { echo "[FATAL] Patch verification failed!"; exit 1; }
 
 # Guard: Ensure SfM reconstruction model exists before cleaning/updating
 SRC="${HLOC_RECON}/sfm/models/0"
