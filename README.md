@@ -4,16 +4,22 @@ A research workspace dedicated to testing 3D reconstruction algorithms, from sta
 
 ## Environment Architecture
 
-This project utilizes a single unified virtual environment (`3drc`) for all pipeline steps (SfM, 3DGS, SuGaR, Gaussian Grouping):
+This project utilizes isolated Conda environments to prevent binary extension ABI conflicts between 3DGS variants:
 
-- `3drc` (Unified Environment): Integrated environment for camera registration (COLMAP, hloc, VI-SfM, VGGT), 3D Gaussian Splatting (3DGS, Planar-GS), SuGaR mesh extraction, and Gaussian Grouping segmentation.
+- `gs_train`: Inria 3DGS training environment with `dr_aa` antialiasing rasterizer and custom patches.
+- `gs_sugar`: SuGaR mesh extraction environment with SuGaR rasterizer extensions.
+- `gs_group`: Gaussian Grouping segmentation environment.
 
-### Quick Setup
+### Quick Setup & Patch Verification
 
-Run the automated setup script to synchronize submodules and install dependencies:
+Apply submodule patches and verify environment integrity:
 
 ```bash
-./scripts/00_setup_environment.sh
+# 1. Apply tracked patches to submodules
+./scripts/apply_patches.sh
+
+# 2. Verify patch application and rasterizer compatibility
+./scripts/verify_patches.sh
 ```
 
 ## Pipeline Model Mapping
@@ -25,7 +31,6 @@ Run the automated setup script to synchronize submodules and install dependencie
 | VGGT-Omega | Step 1 (SfM) | Immediate feed-forward camera pose and point cloud generation | Feed-forward Visual Geometry Grounded Transformer model |
 | vi_sfm | Step 1 (SfM) | Visual-Inertial (RGB + IMU) camera pose estimation | SuperPoint/Glue matching with IMU gravity alignment |
 | 3DGS (Inria) | Step 2 (Training) | High-fidelity 3D scene representation optimization | Differentiable 3D Gaussian rasterization |
-| Planar-GS | Step 2 (Training) | Planar constraint optimization for textureless flat surfaces | Planar Regularization Loss guided 3DGS training |
 | SuGaR | Step 4 (Mesh Extraction) | Polygon mesh and OBJ file extraction from points | Surface-Aligned Gaussian Regularization and Poisson reconstruction |
 | Gaussian Grouping | Step 5 (Segmentation) | 3D object instance grouping and segmentation | Identity Embedding learning lifted from 2D SAM masks |
 
