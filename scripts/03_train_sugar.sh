@@ -27,6 +27,10 @@ PROJECT_ROOT=$(pwd)
 # Move to sugar directory
 cd third_party/sugar || exit 1
 
+# Create main outputs subdirectories
+mkdir -p "$PROJECT_ROOT/${OUTPUT_DIR}/sugar_mesh"
+mkdir -p "$PROJECT_ROOT/${OUTPUT_DIR}/sugar"
+
 # Execute SuGaR Pipeline
 echo "Starting SuGaR Mesh Extraction..."
 python train_full_pipeline.py \
@@ -37,4 +41,13 @@ python train_full_pipeline.py \
     --export_obj True \
     --refinement_time "$SUGAR_REFINEMENT"
 
-echo "SuGaR Pipeline Completed! Results are saved in third_party/sugar/output"
+# Sync output files to main outputs directory
+echo "Syncing extracted SuGaR results to main $OUTPUT_DIR directory..."
+if [ -d "output" ]; then
+    cp -r output/* "$PROJECT_ROOT/${OUTPUT_DIR}/sugar/" 2>/dev/null || true
+    if [ -d "output/refined_mesh" ]; then
+        cp -r output/refined_mesh/* "$PROJECT_ROOT/${OUTPUT_DIR}/sugar_mesh/" 2>/dev/null || true
+    fi
+fi
+
+echo "SuGaR Pipeline Completed! Results synced to $PROJECT_ROOT/${OUTPUT_DIR}/sugar_mesh"
