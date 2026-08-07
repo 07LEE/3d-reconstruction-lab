@@ -1,27 +1,29 @@
 #!/bin/bash
-# scripts/view_reconstruction.sh
+set -euo pipefail
 
-TYPE=$1
+TYPE=${1:-"hloc"}
 
 if [ -z "$TYPE" ]; then
     echo "Usage: ./scripts/view_reconstruction.sh [fastmap|hloc]"
     exit 1
 fi
 
-# Load and activate Conda environment
-CONDA_PATH="/home/lee/miniconda3/bin/conda"
-if [ -f "$CONDA_PATH" ]; then
-    eval "$($CONDA_PATH 'shell.bash' 'hook')"
-    conda activate 3drc
+# Dynamic Conda environment activation
+CONDA_PATH=$(conda info --base 2>/dev/null || echo "$HOME/miniconda3")
+if [ -f "$CONDA_PATH/etc/profile.d/conda.sh" ]; then
+    source "$CONDA_PATH/etc/profile.d/conda.sh"
+    set +u
+    conda activate gs_train 2>/dev/null || true
+    set -u
 fi
 
-if [ "$TYPE" == "fastmap" ]; then
+if [ "$TYPE" = "fastmap" ]; then
     echo "Starting COLMAP GUI for FastMap reconstruction..."
     colmap gui \
         --database_path data/database_fastmap.db \
         --image_path data/images \
         --import_path data/fastmap_reconstruction/sparse/0
-elif [ "$TYPE" == "hloc" ]; then
+elif [ "$TYPE" = "hloc" ]; then
     echo "Starting COLMAP GUI for Hloc (standard) reconstruction..."
     IMPORT_DIR="data/hloc_reconstruction/sfm"
     if [ -d "$IMPORT_DIR/models/0" ] && [ -f "$IMPORT_DIR/models/0/points3D.bin" ]; then

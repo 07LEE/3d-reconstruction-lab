@@ -3,11 +3,14 @@
 # 3DRC Unified Command Line Interface (CLI)
 # Manages execution of all 3D reconstruction pipeline steps from a single entry point.
 
-set -e
+set -euo pipefail
 
 CONFIG_PATH="configs/default_config.sh"
 if [ -f "$CONFIG_PATH" ]; then
     source "$CONFIG_PATH"
+else
+    echo "[FATAL] Configuration file not found at $CONFIG_PATH!"
+    exit 1
 fi
 
 show_help() {
@@ -17,6 +20,7 @@ show_help() {
     echo "Commands:"
     echo "  sfm [method]     Run Step 1 Camera Pose Estimation (hloc, vi_sfm, vggt, fastmap, sfm)"
     echo "  train            Run Step 2 High-Density 3DGS Training"
+    echo "  view [type]      Run COLMAP GUI Visualization (hloc, fastmap)"
     echo "  sugar            Run Step 3 SuGaR Mesh Reconstruction"
     echo "  grouping         Run Step 4 Gaussian Grouping Object Segmentation"
     echo "  pipeline [method] Run End-to-End Pipeline (SfM -> Train)"
@@ -25,6 +29,7 @@ show_help() {
     echo "Examples:"
     echo "  ./scripts/run_3drc.sh sfm vi_sfm"
     echo "  ./scripts/run_3drc.sh train"
+    echo "  ./scripts/run_3drc.sh view hloc"
     echo "  ./scripts/run_3drc.sh pipeline vi_sfm"
 }
 
@@ -39,6 +44,11 @@ case "$COMMAND" in
     train)
         echo "[3DRC CLI] Executing Step 2: 3DGS Training..."
         ./scripts/02_train_3dgs.sh
+        ;;
+    view)
+        TYPE=${2:-"hloc"}
+        echo "[3DRC CLI] Launching Reconstruction Viewer (Type: ${TYPE})..."
+        ./scripts/view_reconstruction.sh "$TYPE"
         ;;
     sugar)
         echo "[3DRC CLI] Executing Step 3: SuGaR Mesh Reconstruction..."

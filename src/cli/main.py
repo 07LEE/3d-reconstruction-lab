@@ -36,19 +36,20 @@ def main():
 
     # train subcommand
     train_parser = subparsers.add_parser("train", help="Step 2: 3DGS Model Training")
-    train_parser.add_argument("--method", type=str, default="3dgs", choices=["3dgs", "planar"], help="3DGS training model method")
+    train_parser.add_argument("--method", type=str, default="3dgs", choices=["3dgs"], help="3DGS training model method")
 
     # view subcommand
-    subparsers.add_parser("view", help="Step 3: Result Visualization")
+    view_parser = subparsers.add_parser("view", help="Result Visualization")
+    view_parser.add_argument("--type", type=str, default="hloc", choices=["hloc", "fastmap"], help="Reconstruction visualization type")
 
     # sugar subcommand
-    subparsers.add_parser("sugar", help="Step 4: SuGaR Mesh Reconstruction")
+    subparsers.add_parser("sugar", help="Step 3: SuGaR Mesh Reconstruction")
 
     # grouping subcommand
-    subparsers.add_parser("grouping", help="Step 5: Gaussian Grouping Segmentation")
+    subparsers.add_parser("grouping", help="Step 4: Gaussian Grouping Segmentation")
 
     # pipeline subcommand
-    pipeline_parser = subparsers.add_parser("pipeline", help="Run End-to-End Pipeline (Step 1 -> 2 -> 3)")
+    pipeline_parser = subparsers.add_parser("pipeline", help="Run End-to-End Pipeline (Step 1 -> 2)")
     pipeline_parser.add_argument("--method", type=str, default="hloc", help="SfM estimation method for end-to-end pipeline")
 
     args = parser.parse_args()
@@ -62,7 +63,7 @@ def main():
     elif args.step == "train":
         run_step("train", args.method)
     elif args.step == "view":
-        run_step("view")
+        run_step("view", getattr(args, "type", "hloc"))
     elif args.step == "sugar":
         run_step("sugar")
     elif args.step == "grouping":

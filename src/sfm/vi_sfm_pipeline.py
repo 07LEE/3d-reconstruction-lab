@@ -14,7 +14,7 @@ sys.path.append(str(Path(__file__).resolve().parent.parent.parent / "third_party
 sys.path.append(str(Path(__file__).resolve().parent.parent.parent / "third_party"))
 
 from hloc import extract_features, match_features, reconstruction
-from hloc.utils.read_write_model import read_model, write_model, Camera, Image, Point3D
+from hloc.utils.read_write_model import read_model, write_model, Camera, Image, Point3D, qvec2rotmat, rotmat2qvec
 
 def parse_imu_data(imu_path: Path, imu_format: str = "euroc"):
     """Parses IMU raw data file and returns structured numpy array."""
@@ -57,35 +57,41 @@ def compute_gravity_vector(acc_data: np.ndarray) -> np.ndarray:
     return mean_acc
 
 def align_reconstruction_to_gravity(model_path: Path, gravity_vec: np.ndarray):
-    """Aligns COLMAP reconstruction model to world gravity vector."""
+    """Aligns COLMAP reconstruction model (points AND camera orientations) to world gravity vector."""
     if not (model_path / "cameras.bin").exists() and not (model_path / "cameras.txt").exists():
         print(f"[VI-SfM] COLMAP model files not found at {model_path}, skipping gravity alignment.")
         return
 
     print(f"[VI-SfM] Aligning COLMAP 3D model with IMU Gravity Vector: {gravity_vec}")
-    try:
-        ext = ".bin" if (model_path / "cameras.bin").exists() else ".txt"
-        cameras, images, points3D = read_model(str(model_path), ext=ext)
-        print(f"[VI-SfM] Loaded {len(cameras)} cameras, {len(images)} images, and {len(points3D)} 3D points for alignment.")
-        
-        z_world = np.array([0.0, 0.0, -1.0])
-        g_unit = gravity_vec / (np.linalg.norm(gravity_vec) + 1e-8)
-        
-        v = np.cross(g_unit, z_world)
-        c = np.dot(g_unit, z_world)
-        if np.linalg.norm(v) > 1e-6:
-            vx = np.array([[0, -v[2], v[1]], [v[2], 0, -v[0]], [-v[1], v[0], 0]])
-            R_align = np.eye(3) + vx + np.dot(vx, vx) * ((1 - c) / (np.linalg.norm(v) ** 2))
-        else:
-            R_align = np.eye(3)
+    ext = ".bin" if (model_path / "cameras.bin").exists() else ".txt"
+    cameras, images, points3D = read_model(str(model_path), ext=ext)
+    print(f"[VI-SfM] Loaded {len(cameras)} cameras, {len(images)} images, and {len(points3D)} 3D points for alignment.")
+    
+    z_world = np.array([0.0, 0.0, -1.0])
+    g_unit = gravity_vec / (np.linalg.norm(gravity_vec) + 1e-8)
+    
+    v = np.cross(g_unit, z_world)
+    c = np.dot(g_unit, z_world)
+    if np.linalg.norm(v) > 1e-6:
+        vx = np.array([[0, -v[2], v[1]], [v[2], 0, -v[0]], [-v[1], v[0], 0]])
+        R_align = np.eye(3) + vx + np.dot(vx, vx) * ((1 - c) / (np.linalg.norm(v) ** 2))
+    elif c < 0:
+        R_align = np.diag([1.0, -1.0, -1.0])
+    else:
+        R_align = np.eye(3)
 
-        for p_id in points3D:
-            points3D[p_id] = points3D[p_id]._replace(xyz=np.dot(R_align, points3D[p_id].xyz))
-            
-        write_model(cameras, images, points3D, str(model_path), ext=ext)
-        print(f"[VI-SfM] Gravity alignment successfully applied and saved to {model_path}.")
-    except Exception as e:
-        print(f"[Warning] Gravity alignment failed: {e}")
+    # 1. Rotate 3D points
+    for p_id in points3D:
+        points3D[p_id] = points3D[p_id]._replace(xyz=np.dot(R_align, points3D[p_id].xyz))
+        
+    # 2. Rotate camera orientations (world-to-camera rotation matrix R_cw' = R_cw @ R_align.T)
+    for img_id in images:
+        im = images[img_id]
+        R_cw_new = qvec2rotmat(im.qvec) @ R_align.T
+        images[img_id] = im._replace(qvec=rotmat2qvec(R_cw_new))
+
+    write_model(cameras, images, points3D, str(model_path), ext=ext)
+    print(f"[VI-SfM] Gravity alignment successfully applied to points and cameras, saved to {model_path}.")
 
 def run_vi_sfm_pipeline(image_dir: str, imu_path: str, output_dir: str, imu_format: str = "euroc"):
     """Runs Visual-Inertial SfM pipeline."""
@@ -119,7 +125,7 @@ def run_vi_sfm_pipeline(image_dir: str, imu_path: str, output_dir: str, imu_form
                     f.write(f"{images[i]} {images[i+j]}\n")
                     
     print("[VI-SfM] Matching features via SuperGlue...")
-    match_features.main(matcher_conf, pairs_path, features_path=features_path, matches_path=matches_path)
+    match_features.main(matcher_conf, pairs_path, features=features_path, matches=matches_path)
 
     print("[VI-SfM] Performing Sparse Reconstruction...")
     reconstruction.main(sfm_dir, img_path, pairs_path, features_path, matches_path)

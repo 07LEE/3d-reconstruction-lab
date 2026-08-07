@@ -1,16 +1,24 @@
 #!/bin/bash
+set -euo pipefail
 
-# [Step 05] Gaussian Grouping Training
+# [Step 04] Gaussian Grouping Training
 # Joint Reconstruction and Segmentation Lifted from 2D SAM
 
 CONFIG_PATH="configs/default_config.sh"
 if [ -f "$CONFIG_PATH" ]; then
     source "$CONFIG_PATH"
+else
+    echo "[FATAL] Configuration file not found at $CONFIG_PATH!"
+    exit 1
 fi
 
 CONDA_PATH=$(conda info --base 2>/dev/null || echo "$HOME/miniconda3")
-source "$CONDA_PATH/etc/profile.d/conda.sh"
-conda activate gs_group
+if [ -f "$CONDA_PATH/etc/profile.d/conda.sh" ]; then
+    source "$CONDA_PATH/etc/profile.d/conda.sh"
+    set +u
+    conda activate gs_group 2>/dev/null || true
+    set -u
+fi
 
 PROJECT_ROOT=$(pwd)
 

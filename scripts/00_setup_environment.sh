@@ -9,6 +9,13 @@ echo "=================================================="
 echo " Starting 3DRC Environment Setup..."
 echo "=================================================="
 
+# Guard: Check for uncommitted submodule changes before update
+if ! git submodule foreach --recursive 'git diff --quiet' >/dev/null 2>&1; then
+    echo "[WARN] Submodules contain uncommitted local changes."
+    echo "       Continuing will overwrite them. Run export_patch.sh first to save changes."
+    read -p "Continue? [y/N] " a; [ "$a" = "y" ] || exit 1
+fi
+
 # 1. Initialize & Update Git Submodules
 echo -e "\n[Step 1/4] Initializing Git Submodules in third_party/..."
 git submodule update --init --recursive
@@ -26,7 +33,7 @@ fi
 
 echo -e "\n[Step 3/4] Ensuring Conda Environments (gs_train, gs_sugar, gs_group)..."
 for env_name in gs_train gs_sugar gs_group; do
-    if ! conda env list | grep -q "$env_name"; then
+    if ! conda env list | awk '{print $1}' | grep -qx "$env_name"; then
         echo "Creating Conda environment '$env_name'..."
         if [ -f "envs/$env_name.yml" ]; then
             conda env create -f "envs/$env_name.yml"
@@ -49,7 +56,7 @@ fi
 
 if [ -d "third_party/gaussian-splatting/submodules/simple-knn" ]; then
     echo "Installing simple-knn extension in gs_train..."
-    (cd third_party/gaussian-splatting/submodules/simple-knn && pip install --no-build-isolation .)
+    (cd third_party/gaussian-splatting/submodules/simple-knn && pip install --no-build-isolation -e .)
 fi
 
 # Verify patch & environment integrity

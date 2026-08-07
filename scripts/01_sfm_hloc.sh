@@ -1,4 +1,5 @@
 #!/bin/bash
+set -euo pipefail
 
 # [Step 01] hloc SuperPoint+SuperGlue SfM Pipeline
 # High-precision camera pose estimation for large-scale high-resolution datasets
@@ -6,11 +7,18 @@
 CONFIG_PATH="configs/default_config.sh"
 if [ -f "$CONFIG_PATH" ]; then
     source "$CONFIG_PATH"
+else
+    echo "[FATAL] Configuration file not found at $CONFIG_PATH!"
+    exit 1
 fi
 
 CONDA_PATH=$(conda info --base 2>/dev/null || echo "$HOME/miniconda3")
-source "$CONDA_PATH/etc/profile.d/conda.sh"
-conda activate 3drc
+if [ -f "$CONDA_PATH/etc/profile.d/conda.sh" ]; then
+    source "$CONDA_PATH/etc/profile.d/conda.sh"
+    set +u
+    conda activate gs_train 2>/dev/null || true
+    set -u
+fi
 
 METHOD=${1:-$SFM_METHOD}
 
