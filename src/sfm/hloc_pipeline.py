@@ -104,7 +104,10 @@ def run_hloc_pipeline(image_dir, output_dir, weights_dir, strategy='sequential',
 
     # 4. Sparse Reconstruction
     mode_str = os.environ.get("CAMERA_MODE", "SINGLE").upper()
-    cam_mode = getattr(pycolmap.CameraMode, mode_str, pycolmap.CameraMode.SINGLE)
+    if not hasattr(pycolmap.CameraMode, mode_str):
+        valid = list(pycolmap.CameraMode.__members__.keys())
+        raise ValueError(f"Invalid CAMERA_MODE '{mode_str}'. Valid choices: {valid}")
+    cam_mode = getattr(pycolmap.CameraMode, mode_str)
     print(f"\n[Step 4/4] Performing sparse reconstruction (CameraMode: {cam_mode.name})...")
     start_time = time.time()
     reconstruction.main(sfm_dir, images, sfm_pairs, features, matches, camera_mode=cam_mode)

@@ -23,7 +23,7 @@ export PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True
 
 # SfM parameters
 SFM_METHOD="hloc"  # Options: sfm, fastmap, hloc, vi_sfm
-CAMERA_MODE="SINGLE"  # Options: SINGLE, PER_FOLDER, AUTO
+export CAMERA_MODE="SINGLE"  # Options: SINGLE, PER_FOLDER, PER_IMAGE, AUTO
 IMU_DATA_PATH="data/imu_data.csv"
 IMU_FORMAT="euroc"  # Options: euroc, tum, custom_csv
 
