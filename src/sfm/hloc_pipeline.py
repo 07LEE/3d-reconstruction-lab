@@ -102,9 +102,14 @@ def run_hloc_pipeline(image_dir, output_dir, weights_dir, strategy='sequential',
     print(f"Feature Matching elapsed: {time_match:.2f} seconds")
 
     # 4. Sparse Reconstruction
-    print("\n[Step 4/4] Performing sparse reconstruction...")
+    print("\n[Step 4/4] Performing sparse reconstruction (CameraMode: SINGLE)...")
     start_time = time.time()
-    reconstruction.main(sfm_dir, images, sfm_pairs, features, matches)
+    try:
+        import pycolmap
+        cam_mode = pycolmap.CameraMode.SINGLE
+    except Exception:
+        cam_mode = "SINGLE"
+    reconstruction.main(sfm_dir, images, sfm_pairs, features, matches, camera_mode=cam_mode)
     time_sfm = time.time() - start_time
     print(f"Sparse Reconstruction elapsed: {time_sfm:.2f} seconds")
 

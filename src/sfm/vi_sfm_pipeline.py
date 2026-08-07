@@ -127,8 +127,13 @@ def run_vi_sfm_pipeline(image_dir: str, imu_path: str, output_dir: str, imu_form
     print("[VI-SfM] Matching features via SuperGlue...")
     match_features.main(matcher_conf, pairs_path, features=features_path, matches=matches_path)
 
-    print("[VI-SfM] Performing Sparse Reconstruction...")
-    reconstruction.main(sfm_dir, img_path, pairs_path, features_path, matches_path)
+    print("[VI-SfM] Performing Sparse Reconstruction (CameraMode: SINGLE)...")
+    try:
+        import pycolmap
+        cam_mode = pycolmap.CameraMode.SINGLE
+    except Exception:
+        cam_mode = "SINGLE"
+    reconstruction.main(sfm_dir, img_path, pairs_path, features_path, matches_path, camera_mode=cam_mode)
 
     align_reconstruction_to_gravity(sfm_dir, gravity_vec)
 
