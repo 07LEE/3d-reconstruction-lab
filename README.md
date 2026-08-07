@@ -16,10 +16,10 @@ Apply submodule patches and verify environment integrity:
 
 ```bash
 # 1. Apply tracked patches to submodules
-./scripts/apply_patches.sh
+./scripts/utils/apply_patches.sh
 
 # 2. Verify patch application and rasterizer compatibility
-./scripts/verify_patches.sh
+./scripts/utils/verify_patches.sh
 ```
 
 ## Submodule Patches & Fixes
@@ -32,6 +32,7 @@ This repository tracks surgical patches in `patches/` to ensure stability across
 | `gaussian-splatting` | `0002-distcuda2-scipy-fallback.patch` | Adds `scipy.spatial.KDTree` fallback in `gaussian_model.py` if CUDA nearest-neighbor (`distCUDA2`) fails during PCD initialization. |
 | `diff-gaussian-rasterization` | `0001-zero-init-state-structs.patch` | Zero-initializes `GeometryState`, `ImageState`, and `BinningState` CUDA memory chunks in `rasterizer_impl.cu`. |
 | `diff-gaussian-rasterization` | `0002-cstdint-include.patch` | Includes `<cstdint>` header in `rasterizer_impl.h` to resolve `uint32_t` / `uintptr_t` compilation errors on GCC 13+ / GCC 14. |
+| `sugar` | `0001-sugar-extension-dup-and-cpu-device.patch` | Prevents duplicate `.jpg.jpg` image extensions and defaults `data_device` to CPU to prevent VRAM OOM on large datasets. |
 
 ## Pipeline Model Mapping
 

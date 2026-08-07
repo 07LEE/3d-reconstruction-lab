@@ -1,0 +1,126 @@
+diff --git a/gaussian_splatting/scene/dataset_readers.py b/gaussian_splatting/scene/dataset_readers.py
+index 2a6f904..34d7e58 100644
+--- a/gaussian_splatting/scene/dataset_readers.py
++++ b/gaussian_splatting/scene/dataset_readers.py
+@@ -185,7 +185,8 @@ def readCamerasFromTransforms(path, transformsfile, white_background, extension=
+ 
+         frames = contents["frames"]
+         for idx, frame in enumerate(frames):
+-            cam_name = os.path.join(path, frame["file_path"] + extension)
++            file_p = frame["file_path"]
++            cam_name = os.path.join(path, file_p if file_p.lower().endswith(extension.lower()) else file_p + extension)
+ 
+             # NeRF 'transform_matrix' is a camera-to-world transform
+             c2w = np.array(frame["transform_matrix"])
+diff --git a/sugar_scene/cameras.py b/sugar_scene/cameras.py
+index c6f8afe..c5f47fc 100644
+--- a/sugar_scene/cameras.py
++++ b/sugar_scene/cameras.py
+@@ -95,7 +95,7 @@ def load_gs_cameras(source_path, gs_output_path, image_resolution=1,
+         # GT data
+         id = camera_transform['id']
+         name = camera_transform['img_name']
+-        image_path = os.path.join(image_dir,  name + extension)
++        image_path = os.path.join(image_dir, name if name.lower().endswith(extension.lower()) else name + extension)
+         
+         if load_gt_images:
+             image = Image.open(image_path)
+@@ -144,7 +144,7 @@ class GSCamera(torch.nn.Module):
+     """
+     def __init__(self, colmap_id, R, T, FoVx, FoVy, image, gt_alpha_mask,
+                  image_name, uid,
+-                 trans=np.array([0.0, 0.0, 0.0]), scale=1.0, data_device = "cuda",
++                 trans=np.array([0.0, 0.0, 0.0]), scale=1.0, data_device = "cpu",
+                  image_height=None, image_width=None,
+                  ):
+         """
+diff --git a/sugar_scene/gs_model.py b/sugar_scene/gs_model.py
+index bcf4d80..000968d 100644
+--- a/sugar_scene/gs_model.py
++++ b/sugar_scene/gs_model.py
+@@ -29,7 +29,7 @@ class ModelParams():
+         self.images = "images"
+         self.resolution = -1
+         self.white_background = False
+-        self.data_device = "cuda"
++        self.data_device = "cpu"
+         self.eval = False
+     
+         
+@@ -220,20 +220,20 @@ class GaussianSplattingWrapper:
+             image = render_pkg["render"]
+             return image.permute(1, 2, 0)
+     
+-    def get_gt_image(self, camera_indices:int, to_cuda=False):
++    def get_gt_image(self, camera_indices:int, to_cuda=True):
+         """Returns the ground truth image corresponding to the training camera at the given index.
+ 
+         Args:
+             camera_indices (int): Index of the camera in the set of cameras.
+-            to_cuda (bool, optional): If True, moves the image to GPU. Defaults to False.
++            to_cuda (bool, optional): If True, moves the image to GPU. Defaults to True.
+ 
+         Returns:
+             Tensor: The ground truth image.
+         """
+         gt_image = self.cam_list[camera_indices].original_image
+-        if to_cuda:
++        if to_cuda or gt_image.device.type != "cuda":
+             gt_image = gt_image.cuda()
+-        return gt_image.permute(1, 2, 0)
++        return gt_image
+     
+     def get_test_gt_image(self, camera_indices:int, to_cuda=False):
+         """Returns the ground truth image corresponding to the test camera at the given index.
+diff --git a/sugar_trainers/coarse_density.py b/sugar_trainers/coarse_density.py
+index d24794e..53e5682 100644
+--- a/sugar_trainers/coarse_density.py
++++ b/sugar_trainers/coarse_density.py
+@@ -533,7 +533,7 @@ def coarse_training_with_density_regularization(args):
+                 
+                 # Gather rgb ground truth
+                 gt_image = nerfmodel.get_gt_image(camera_indices=camera_indices)           
+-                gt_rgb = gt_image.view(-1, sugar.image_height, sugar.image_width, 3)
++                gt_rgb = gt_image.reshape(-1, sugar.image_height, sugar.image_width, 3)
+                 gt_rgb = gt_rgb.transpose(-1, -2).transpose(-2, -3)
+                     
+                 # Compute loss 
+diff --git a/sugar_trainers/coarse_density_and_dn_consistency.py b/sugar_trainers/coarse_density_and_dn_consistency.py
+index 0f5bcda..d259e8f 100644
+--- a/sugar_trainers/coarse_density_and_dn_consistency.py
++++ b/sugar_trainers/coarse_density_and_dn_consistency.py
+@@ -621,7 +621,7 @@ def coarse_training_with_density_regularization_and_dn_consistency(args):
+                 
+                 # Gather rgb ground truth
+                 gt_image = nerfmodel.get_gt_image(camera_indices=camera_indices)           
+-                gt_rgb = gt_image.view(-1, sugar.image_height, sugar.image_width, 3)
++                gt_rgb = gt_image.reshape(-1, sugar.image_height, sugar.image_width, 3)
+                 gt_rgb = gt_rgb.transpose(-1, -2).transpose(-2, -3)
+                     
+                 # Compute loss 
+diff --git a/sugar_trainers/coarse_sdf.py b/sugar_trainers/coarse_sdf.py
+index 853fe24..406bcde 100644
+--- a/sugar_trainers/coarse_sdf.py
++++ b/sugar_trainers/coarse_sdf.py
+@@ -529,7 +529,7 @@ def coarse_training_with_sdf_regularization(args):
+                 
+                 # Gather rgb ground truth
+                 gt_image = nerfmodel.get_gt_image(camera_indices=camera_indices)           
+-                gt_rgb = gt_image.view(-1, sugar.image_height, sugar.image_width, 3)
++                gt_rgb = gt_image.reshape(-1, sugar.image_height, sugar.image_width, 3)
+                 gt_rgb = gt_rgb.transpose(-1, -2).transpose(-2, -3)
+                     
+                 # Compute loss 
+diff --git a/sugar_trainers/refine.py b/sugar_trainers/refine.py
+index 5625fa8..cdfd559 100644
+--- a/sugar_trainers/refine.py
++++ b/sugar_trainers/refine.py
+@@ -581,7 +581,7 @@ def refined_training(args):
+                 
+                 # Gather rgb ground truth
+                 gt_image = nerfmodel.get_gt_image(camera_indices=camera_indices)           
+-                gt_rgb = gt_image.view(-1, sugar.image_height, sugar.image_width, 3)
++                gt_rgb = gt_image.reshape(-1, sugar.image_height, sugar.image_width, 3)
+                 gt_rgb = gt_rgb.transpose(-1, -2).transpose(-2, -3)
+                     
+                 # Compute loss 

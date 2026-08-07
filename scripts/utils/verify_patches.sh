@@ -34,7 +34,16 @@ else
   fail=1
 fi
 
-# 4. Imported rasterizer check in active python env via NamedTuple _fields inspection
+# 4. SuGaR CPU data_device OOM patch check
+SUGAR_MODEL="${REPO_ROOT}/third_party/sugar/sugar_scene/gs_model.py"
+if [ -f "${SUGAR_MODEL}" ] && grep -q 'self.data_device = "cpu"' "${SUGAR_MODEL}"; then
+  echo "[ok] SuGaR CPU data_device OOM patch in gs_model.py"
+else
+  echo "[LOST] SuGaR CPU data_device OOM patch missing in gs_model.py"
+  fail=1
+fi
+
+# 5. Imported rasterizer check in active python env via NamedTuple _fields inspection
 if python - <<'PY'
 import sys
 try:
