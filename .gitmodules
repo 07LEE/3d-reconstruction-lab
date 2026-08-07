@@ -8,7 +8,7 @@
 	ignore = dirty
 [submodule "third_party/gaussian-splatting"]
 	path = third_party/gaussian-splatting
-	url = https://github.com/07LEE/gaussian-splatting.git
+	url = https://github.com/graphdeco-inria/gaussian-splatting.git
 	ignore = dirty
 [submodule "third_party/hloc"]
 	path = third_party/hloc
@@ -21,8 +21,4 @@
 [submodule "third_party/sugar"]
 	path = third_party/sugar
 	url = https://github.com/Anttwo/SuGaR.git
-	ignore = dirty
-[submodule "third_party/planar-gs"]
-	path = third_party/planar-gs
-	url = https://github.com/vlasav/planar-gs
 	ignore = dirty

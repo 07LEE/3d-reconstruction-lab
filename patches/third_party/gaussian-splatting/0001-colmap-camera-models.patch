@@ -1,0 +1,20 @@
+diff --git a/scene/dataset_readers.py b/scene/dataset_readers.py
+index 9a6e60b..959e134 100644
+--- a/scene/dataset_readers.py
++++ b/scene/dataset_readers.py
+@@ -95,6 +95,15 @@ def readColmapCameras(cam_extrinsics, cam_intrinsics, depths_params, images_fol
+             focal_length_y = intr.params[1]
+             FovY = focal2fov(focal_length_y, height)
+             FovX = focal2fov(focal_length_x, width)
++        elif intr.model=="SIMPLE_RADIAL" or intr.model=="RADIAL":
++            focal_length_x = intr.params[0]
++            FovY = focal2fov(focal_length_x, height)
++            FovX = focal2fov(focal_length_x, width)
++        elif intr.model=="OPENCV":
++            focal_length_x = intr.params[0]
++            focal_length_y = intr.params[1]
++            FovY = focal2fov(focal_length_y, height)
++            FovX = focal2fov(focal_length_x, width)
+         else:
+             assert False, "Colmap camera model not handled: only undistorted datasets (PINHOLE or SIMPLE_PINHOLE cameras) supported!"
+ 

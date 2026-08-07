@@ -1,0 +1,21 @@
+diff --git a/scene/gaussian_model.py b/scene/gaussian_model.py
+index 473887d..b059c87 100644
+--- a/scene/gaussian_model.py
++++ b/scene/gaussian_model.py
+@@ -156,7 +156,15 @@ class GaussianModel:
+ 
+         print("Number of points at initialisation : ", fused_point_cloud.shape[0])
+ 
+-        dist2 = torch.clamp_min(distCUDA2(torch.from_numpy(np.asarray(pcd.points)).float().cuda()), 0.0000001)
++        pts_np = np.asarray(pcd.points)
++        try:
++            dist2 = torch.clamp_min(distCUDA2(torch.from_numpy(pts_np).float().cuda()), 0.0000001)
++        except Exception:
++            from scipy.spatial import KDTree
++            tree = KDTree(pts_np)
++            dists, _ = tree.query(pts_np, k=4)
++            mean_dists = np.mean(dists[:, 1:] ** 2, axis=1)
++            dist2 = torch.clamp_min(torch.from_numpy(mean_dists).float().cuda(), 0.0000001)
+         scales = torch.log(torch.sqrt(dist2))[...,None].repeat(1, 3)
+         rots = torch.zeros((fused_point_cloud.shape[0], 4), device="cuda")
+         rots[:, 0] = 1
