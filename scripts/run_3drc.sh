@@ -16,7 +16,7 @@ show_help() {
     echo ""
     echo "Commands:"
     echo "  sfm [method]     Run Step 1 Camera Pose Estimation (hloc, vi_sfm, vggt, fastmap, sfm)"
-    echo "  train [method]   Run Step 2 High-Density 3DGS Training (3dgs, planar)"
+    echo "  train            Run Step 2 High-Density 3DGS Training"
     echo "  sugar            Run Step 3 SuGaR Mesh Reconstruction"
     echo "  grouping         Run Step 4 Gaussian Grouping Object Segmentation"
     echo "  pipeline [method] Run End-to-End Pipeline (SfM -> Train)"
@@ -24,7 +24,7 @@ show_help() {
     echo ""
     echo "Examples:"
     echo "  ./scripts/run_3drc.sh sfm vi_sfm"
-    echo "  ./scripts/run_3drc.sh train 3dgs"
+    echo "  ./scripts/run_3drc.sh train"
     echo "  ./scripts/run_3drc.sh pipeline vi_sfm"
 }
 
@@ -37,11 +37,7 @@ case "$COMMAND" in
         ./scripts/01_sfm_hloc.sh "$METHOD"
         ;;
     train)
-        TRAIN_OPT=${2:-$TRAIN_METHOD}
-        echo "[3DRC CLI] Executing Step 2: 3DGS Training (Method: ${TRAIN_OPT})..."
-        if [ "$TRAIN_OPT" != "$TRAIN_METHOD" ]; then
-            export TRAIN_METHOD="$TRAIN_OPT"
-        fi
+        echo "[3DRC CLI] Executing Step 2: 3DGS Training..."
         ./scripts/02_train_3dgs.sh
         ;;
     sugar)
