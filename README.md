@@ -22,6 +22,17 @@ Apply submodule patches and verify environment integrity:
 ./scripts/verify_patches.sh
 ```
 
+## Submodule Patches & Fixes
+
+This repository tracks surgical patches in `patches/` to ensure stability across modern CUDA/GCC toolchains and dataset formats:
+
+| Target Submodule | Patch File | Purpose & Fix Description |
+| --- | --- | --- |
+| `gaussian-splatting` | `0001-colmap-camera-models.patch` | Adds support for `SIMPLE_RADIAL`, `RADIAL`, and `OPENCV` COLMAP camera models in `dataset_readers.py`. |
+| `gaussian-splatting` | `0002-distcuda2-scipy-fallback.patch` | Adds `scipy.spatial.KDTree` fallback in `gaussian_model.py` if CUDA nearest-neighbor (`distCUDA2`) fails during PCD initialization. |
+| `diff-gaussian-rasterization` | `0001-zero-init-state-structs.patch` | Zero-initializes `GeometryState`, `ImageState`, and `BinningState` CUDA memory chunks in `rasterizer_impl.cu`. |
+| `diff-gaussian-rasterization` | `0002-cstdint-include.patch` | Includes `<cstdint>` header in `rasterizer_impl.h` to resolve `uint32_t` / `uintptr_t` compilation errors on GCC 13+ / GCC 14. |
+
 ## Pipeline Model Mapping
 
 | Tool | Pipeline Step | Core Role | Methodology |
