@@ -18,23 +18,19 @@ if command -v /usr/bin/gcc-12 >/dev/null 2>&1; then
     export CC="/usr/bin/gcc-12"
     export CXX="/usr/bin/g++-12"
 fi
-export TORCH_CUDA_ARCH_LIST="8.9"
+export TORCH_CUDA_ARCH_LIST="12.0"
 export PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True
 
 # SfM parameters
 SFM_METHOD="hloc"  # Options: sfm, fastmap, hloc, vi_sfm
+export CAMERA_MODE="SINGLE"  # Options: SINGLE, PER_FOLDER, PER_IMAGE, AUTO
 IMU_DATA_PATH="data/imu_data.csv"
 IMU_FORMAT="euroc"  # Options: euroc, tum, custom_csv
 
-
 # 3DGS training parameters
-TRAIN_METHOD="3dgs"  # Options: 3dgs, planar
 DOWNSAMPLE_RATE=4
 DATA_DEVICE="cpu"
 DENSIFY_GRAD_THRESHOLD=0.0002
-
-# Planar-GS parameters
-PLANAR_REG_WEIGHT=0.1
 
 # SuGaR parameters
 SUGAR_REGULARIZATION="dn_consistency"

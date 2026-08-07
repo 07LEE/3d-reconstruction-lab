@@ -12,6 +12,7 @@ import torch
 sys.path.append(str(Path(__file__).resolve().parent.parent.parent / "third_party" / "hloc"))
 sys.path.append(str(Path(__file__).resolve().parent.parent.parent / "third_party"))
 
+import pycolmap
 from hloc import extract_features, match_features, reconstruction, pairs_from_exhaustive, pairs_from_retrieval
 
 def log_performance(image_dir, output_dir, strategy, time_extract, time_pairs, time_match, time_sfm, time_total):
@@ -102,9 +103,14 @@ def run_hloc_pipeline(image_dir, output_dir, weights_dir, strategy='sequential',
     print(f"Feature Matching elapsed: {time_match:.2f} seconds")
 
     # 4. Sparse Reconstruction
-    print("\n[Step 4/4] Performing sparse reconstruction...")
+    mode_str = os.environ.get("CAMERA_MODE", "SINGLE").upper()
+    if not hasattr(pycolmap.CameraMode, mode_str):
+        valid = list(pycolmap.CameraMode.__members__.keys())
+        raise ValueError(f"Invalid CAMERA_MODE '{mode_str}'. Valid choices: {valid}")
+    cam_mode = getattr(pycolmap.CameraMode, mode_str)
+    print(f"\n[Step 4/4] Performing sparse reconstruction (CameraMode: {cam_mode.name})...")
     start_time = time.time()
-    reconstruction.main(sfm_dir, images, sfm_pairs, features, matches)
+    reconstruction.main(sfm_dir, images, sfm_pairs, features, matches, camera_mode=cam_mode)
     time_sfm = time.time() - start_time
     print(f"Sparse Reconstruction elapsed: {time_sfm:.2f} seconds")
 

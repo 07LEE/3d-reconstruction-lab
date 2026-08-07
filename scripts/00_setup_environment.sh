@@ -1,63 +1,69 @@
 #!/bin/bash
 
-# 3DRC Automated Single Environment Setup Script
-# Initializes submodules, builds CUDA C++ rasterizer modules, and configures unified 3drc conda environment.
+# 3DRC Automated Environment Setup Script
+# Initializes submodules, applies patches, and configures split Conda environments (gs_train, gs_sugar, gs_group).
 
 set -e
 
 echo "=================================================="
-echo " Starting 3DRC Unified Environment Setup..."
+echo " Starting 3DRC Environment Setup..."
 echo "=================================================="
 
+# Guard: Check for uncommitted submodule changes before update
+if ! git submodule foreach --recursive 'git diff --quiet' >/dev/null 2>&1; then
+    echo "[WARN] Submodules contain uncommitted local changes."
+    echo "       Continuing will overwrite them. Run export_patch.sh first to save changes."
+    read -p "Continue? [y/N] " a; [ "$a" = "y" ] || exit 1
+fi
+
 # 1. Initialize & Update Git Submodules
-echo -e "\n[Step 1/3] Initializing Git Submodules in third_party/..."
+echo -e "\n[Step 1/4] Initializing Git Submodules in third_party/..."
 git submodule update --init --recursive
 
-# 2. Check & Activate Conda Environment (3drc)
+# 2. Apply Submodule Patches
+echo -e "\n[Step 2/4] Applying Submodule Patches..."
+chmod +x scripts/*.sh
+./scripts/apply_patches.sh
+
+# 3. Check Conda Environments
 CONDA_PATH=$(conda info --base 2>/dev/null || echo "$HOME/miniconda3")
 if [ -f "$CONDA_PATH/etc/profile.d/conda.sh" ]; then
     source "$CONDA_PATH/etc/profile.d/conda.sh"
 fi
 
-if conda env list | grep -q "3drc"; then
-    echo -e "\n[Step 2/3] Activating unified Conda environment '3drc'..."
-    conda activate 3drc
-else
-    echo -e "\n[Step 2/3] Creating unified Conda environment '3drc' (Python 3.10)..."
-    conda create -n 3drc python=3.10 -y
-    conda activate 3drc
-fi
+echo -e "\n[Step 3/4] Ensuring Conda Environments (gs_train, gs_sugar, gs_group)..."
+for env_name in gs_train gs_sugar gs_group; do
+    if ! conda env list | awk '{print $1}' | grep -qx "$env_name"; then
+        echo "Creating Conda environment '$env_name'..."
+        if [ -f "envs/$env_name.yml" ]; then
+            conda env create -f "envs/$env_name.yml"
+        else
+            conda create -n "$env_name" python=3.10 -y
+        fi
+    fi
+done
 
-# 3. Install Python Dependencies & CUDA Submodules
-echo -e "\n[Step 3/3] Installing Python Dependencies and CUDA C++ Extensions..."
-pip install --upgrade pip
+# 4. Build CUDA Extensions in gs_train
+echo -e "\n[Step 4/4] Building CUDA Extensions in 'gs_train'..."
+conda activate gs_train
 
-if [ -f "requirements.txt" ]; then
-    pip install numpy scipy pandas h5py tqdm opencv-python matplotlib pycolmap torchvision pyyaml plyfile ninja || true
-fi
+export TORCH_CUDA_ARCH_LIST="12.0"
 
-export CUDA_HOME="/usr/lib/nvidia-cuda-toolkit"
-export PATH="/usr/lib/nvidia-cuda-toolkit/bin:$PATH"
-export TORCH_CUDA_ARCH_LIST="8.9"
-export CC="/usr/bin/gcc-12"
-# Apply automatic submodule patches if available
-if [ -d "patches" ] && [ -f "patches/gaussian_splatting_fix.patch" ]; then
-    echo "Applying submodule patches..."
-    (cd third_party/gaussian-splatting && git apply ../../patches/gaussian_splatting_fix.patch 2>/dev/null || true)
-fi
-
-# Build C++ CUDA Rasterizer Submodules if available
 if [ -d "third_party/gaussian-splatting/submodules/diff-gaussian-rasterization" ]; then
-    echo "Installing diff-gaussian-rasterization extension..."
-    pip install --no-build-isolation third_party/gaussian-splatting/submodules/diff-gaussian-rasterization || true
+    echo "Installing diff-gaussian-rasterization extension in gs_train..."
+    (cd third_party/gaussian-splatting/submodules/diff-gaussian-rasterization && pip install --no-build-isolation -e .)
 fi
 
 if [ -d "third_party/gaussian-splatting/submodules/simple-knn" ]; then
-    echo "Installing simple-knn extension..."
-    pip install --no-build-isolation third_party/gaussian-splatting/submodules/simple-knn || true
+    echo "Installing simple-knn extension in gs_train..."
+    (cd third_party/gaussian-splatting/submodules/simple-knn && pip install --no-build-isolation -e .)
 fi
 
+# Verify patch & environment integrity
+echo -e "\nVerifying Patch and Environment Integrity..."
+./scripts/verify_patches.sh
+
 echo -e "\n=================================================="
-echo " Unified 3DRC Environment Setup Completed Successfully!"
-echo " All steps (SfM, 3DGS, SuGaR, Grouping) can now be run within '3drc' environment."
+echo " 3DRC Environment Setup Completed Successfully!"
+echo " Environments (gs_train, gs_sugar, gs_group) are ready."
 echo "=================================================="

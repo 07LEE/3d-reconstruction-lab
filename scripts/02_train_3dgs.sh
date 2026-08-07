@@ -9,12 +9,12 @@ if [ -f "$CONFIG_PATH" ]; then
     source "$CONFIG_PATH"
 fi
 
-# Run patch verification
-"$(dirname "$0")/verify_patches.sh" || { echo "[FATAL] Patch verification failed!"; exit 1; }
-
 CONDA_PATH=$(conda info --base 2>/dev/null || echo "$HOME/miniconda3")
 source "$CONDA_PATH/etc/profile.d/conda.sh"
 conda activate gs_train
+
+# Run patch & environment verification inside activated gs_train environment
+"$(dirname "$0")/verify_patches.sh" || { echo "[FATAL] Patch verification failed!"; exit 1; }
 
 # Guard: Ensure SfM reconstruction model exists before cleaning/updating
 SRC="${HLOC_RECON}/sfm/models/0"
