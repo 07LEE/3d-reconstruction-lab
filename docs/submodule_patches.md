@@ -2,6 +2,10 @@
 
 This document details the tracked submodule patches in `patches/` and the environment verification system in `scripts/utils/`.
 
+## Upstream Repository Policy
+
+All submodules in `third_party/` (including `gaussian-splatting`) reference official upstream repositories (e.g., `graphdeco-inria/gaussian-splatting.git`) directly at official release or main commits. Personal fork repositories are not used or referenced. All project-specific bug fixes, feature extensions, and environment compatibility modifications are stored as versioned `.patch` files under `patches/third_party/` and applied automatically during setup.
+
 ## Tracked Patches
 
 ### Patch Inventory
@@ -20,4 +24,5 @@ This document details the tracked submodule patches in `patches/` and the enviro
 ### Integrity Scripts
 
 - `./scripts/utils/apply_patches.sh`: Idempotently applies all tracked `.patch` files to submodules upon repository setup.
-- `./scripts/utils/verify_patches.sh`: Audits source code files and active Python environments to verify that all 5 patches are intact.
+- `./scripts/utils/verify_patches.sh`: Audits source code files and active Python environments to verify that all patches are intact.
+

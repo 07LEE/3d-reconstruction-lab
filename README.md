@@ -61,6 +61,8 @@ python src/eval_mesh.py --mesh outputs/sugar_mesh/.../mesh.obj
 
 ## Submodule Patches Summary
 
+All submodules in `third_party/` reference official upstream repositories directly. Custom modifications are maintained as versioned patch files:
+
 | Target Submodule | Patch File | Purpose |
 | --- | --- | --- |
 | `gaussian-splatting` | `0001-colmap-camera-models.patch` | Support for `SIMPLE_RADIAL`, `RADIAL`, `OPENCV` camera models |
@@ -68,8 +70,10 @@ python src/eval_mesh.py --mesh outputs/sugar_mesh/.../mesh.obj
 | `diff-gaussian-rasterization` | `0001-zero-init-state-structs.patch` | Zero-initialization of CUDA state structs |
 | `diff-gaussian-rasterization` | `0002-cstdint-include.patch` | `<cstdint>` header include for GCC 13+/14 |
 | `sugar` | `0001-sugar-extension-dup-and-cpu-device.patch` | Extension fix, CPU `data_device` VRAM OOM fix, `weights_only=False` PyTorch 2.6+ fix |
+| `milo` | `0001-cstdint-and-cmake-fixes.patch` | `<cstdint>` includes for GCC 13+ in rasterizers and CMake 4.4 CXX standard / pybind11 tag fixes |
 
 ## Detailed Documentation Guides
+
 
 For in-depth technical guides, execution options, and evaluation methodologies, refer to the documentation in [`docs/`](docs/):
 
