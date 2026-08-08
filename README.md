@@ -54,6 +54,7 @@ python src/eval_mesh.py --mesh outputs/sugar_mesh/.../mesh.obj
 | VGGT-Omega | Step 1 (SfM) | Immediate pose estimation | Feed-forward Visual Geometry Transformer |
 | vi_sfm | Step 1 (SfM) | Visual-Inertial pose estimation | RGB + IMU fusion with gravity alignment |
 | 3DGS (Inria) | Step 2 (Training) | High-fidelity 3D scene optimization | Differentiable 3D Gaussian rasterization |
+| PlanarGS | Step 2 (Training) | Indoor planar-regularized 3DGS | Selective planar priors on walls/floors |
 | SuGaR | Step 3 (Mesh Extraction) | UV-textured OBJ polygon mesh | Surface-Aligned Gaussian Regularization |
 | MILo | Step 3b (Mesh Extraction) | Compact 3D collision mesh | Differentiable Mesh-in-the-loop Optimization |
 | Gaussian Grouping | Step 4 (Segmentation) | 3D object instance segmentation | 3D Identity Embedding from SAM masks |

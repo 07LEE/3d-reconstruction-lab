@@ -31,10 +31,20 @@ cd third_party/sugar || exit 1
 mkdir -p "$PROJECT_ROOT/${OUTPUT_DIR}/sugar_mesh"
 mkdir -p "$PROJECT_ROOT/${OUTPUT_DIR}/sugar"
 
+# Determine dataset source (prefer data/undistorted if available)
+INPUT_DATASET="${1:-}"
+if [ -z "$INPUT_DATASET" ]; then
+    if [ -d "$PROJECT_ROOT/data/undistorted/sparse/0" ]; then
+        INPUT_DATASET="data/undistorted"
+    else
+        INPUT_DATASET="$DATA_DIR"
+    fi
+fi
+
 # Execute SuGaR Pipeline
-echo "Starting SuGaR Mesh Extraction..."
+echo "Starting SuGaR Mesh Extraction (Dataset: $INPUT_DATASET)..."
 python train_full_pipeline.py \
-    -s "$PROJECT_ROOT/$DATA_DIR" \
+    -s "$PROJECT_ROOT/$INPUT_DATASET" \
     --gs_output_dir "$PROJECT_ROOT/${OUTPUT_DIR}/gs_final_precision" \
     -r "$SUGAR_REGULARIZATION" \
     --high_poly "$SUGAR_HIGH_POLY" \

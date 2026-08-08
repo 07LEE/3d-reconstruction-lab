@@ -18,7 +18,7 @@ Versions and commit SHAs deliberately live in envs/*.yml and submodule gitlinks,
 
 | Backend | Status | Why It's Here | Notes |
 | --- | --- | --- | --- |
-| hloc | active | Default path. Learned features hold up better than classic COLMAP on low-texture indoor scenes. | Outputs SIMPLE_RADIAL by default — see ADR 0005 |
+| hloc | active | Default path. Learned features hold up better than classic COLMAP on low-texture indoor scenes. | CameraMode.SINGLE SIMPLE_RADIAL, undistorted to PINHOLE — see ADR 0005 |
 | COLMAP | active | Used as hloc's backend for triangulation / bundle adjustment | Not an independent path |
 | vi_sfm | untested | IMU gravity alignment — produces a Z-up reconstruction so downstream meshes land in a usable world frame | match_features.main kwargs fixed and camera extrinsics now rotate with points3D, but no successful full run yet |
 | vggt | optional | Feed-forward pose estimation as a fast/no-COLMAP baseline | Optional alternative for rapid initial pose estimation |
@@ -32,8 +32,7 @@ Versions and commit SHAs deliberately live in envs/*.yml and submodule gitlinks,
 | PGSR | active | Planar constraints improve wall/floor geometry, which TSDF fusion depends on | Current default for the mesh path |
 | MILo | active | Jointly optimizes a mesh with the Gaussians — claims ~10x fewer vertices than SuGaR | Motivation is collision-mesh practicality, not visual fidelity |
 | Gaussian Grouping | optional | Per-object segmentation masks — prerequisite for instance-separated mesh extraction | Requires gs_group environment |
-| planar-gs | dropped | Intended as the planar-constrained backend | Upstream repo unreachable (auth-walled/removed) and no gitlink was ever committed, so submodule update never fetched it. Removed from .gitmodules and README. |
-| PlanarGS (NeurIPS 2025) | candidate | Applies planar priors only to detected planar regions instead of the whole scene, so object geometry survives | Primary A-axis candidate against PGSR |
+| PlanarGS | optional | Selective planar priors on detected indoor wall/floor regions | Integrated in third_party/PlanarGS (SJTU-ViSYS-team/PlanarGS). Primary candidate against PGSR. |
 | 2DGS | candidate | Cheap ablation: does PGSR's unbiased depth actually buy anything? | Run before committing to a PGSR replacement |
 
 ## Stage 3 — Mesh Extraction
@@ -42,7 +41,7 @@ Versions and commit SHAs deliberately live in envs/*.yml and submodule gitlinks,
 | --- | --- | --- | --- |
 | TSDF fusion | active | Default extraction from PGSR depth maps | Voxel-size sweep not yet done |
 | SuGaR | active | Comparison baseline for MILo's vertex-count claim | Needs CPU data_device patch (14.5 GiB -> 1.4 GiB VRAM) |
-| MILo (SDF) | active | mesh_extract_sdf.py — the low-vertex-count path | Extracted mesh topology: 1,922,171 vertices, 3,858,103 faces (80.9 MB) |
+| MILo (SDF) | active | mesh_extract_sdf.py — Marching Tetrahedra SDF isosurface extraction | Requires PINHOLE undistorted input dataset |
 | GOF / SDFRaster | candidate | Fallback if instance-separated TSDF and MILo both fall short on object detail | Under consideration for fine detail recovery |
 
 ## Stage 4 — Evaluation

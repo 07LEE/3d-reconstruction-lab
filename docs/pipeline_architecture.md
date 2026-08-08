@@ -14,7 +14,7 @@ This document provides technical details, configuration parameters, and executio
             │  (Sparse Reconstruction & Intrinsic/Extrinsic Cameras)
             ▼
 ┌─────────────────────────┐
-│   Step 2: 3DGS Training │  (Inria 3DGS with antialiasing rasterizer)
+│   Step 2: 3DGS Training │  (Inria 3DGS, PlanarGS)
 └───────────┬─────────────┘
             │  (Trained 3D Gaussian Point Cloud Checkpoint)
             ▼
@@ -57,18 +57,27 @@ Determines camera intrinsics, extrinsics, and sparse 3D point clouds from uncali
 
 ## Step 2: High-Density 3DGS Training
 
-### Step 2 Overview & Engine
+### Step 2 Overview & Engines
 
-Optimizes a 3D Gaussian Splatting scene representation using differentiable rasterization.
+Optimizes 3D Gaussian Splatting scene representations using differentiable rasterization.
+
+| Method | Script | Input Requirements | Key Strengths |
+| --- | --- | --- | --- |
+| Inria 3DGS (Default) | `02_train_3dgs.sh` | Sparse COLMAP Poses | Reference implementation baseline |
+| PlanarGS | `02b_train_planargs.sh` | Sparse COLMAP Poses | Selective planar regularization on indoor walls/floors |
 
 ### Step 2 Execution Commands
 
 ```bash
-./scripts/02_train_3dgs.sh
+# Reference 3DGS training
+./scripts/02_train_3dgs.sh data/undistorted
+
+# Selective planar-regularized 3DGS training (PlanarGS)
+./scripts/02b_train_planargs.sh data/undistorted
 ```
 
-- Output Checkpoint: `outputs/gs_final_precision/`
-- Output PointCloud: `outputs/gs_final_precision/point_cloud/iteration_30000/point_cloud.ply`
+- Output Checkpoint (Inria 3DGS): `outputs/gs_final_precision/`
+- Output Checkpoint (PlanarGS): `outputs/planargs/`
 
 ## Step 3: 3D Mesh Reconstruction (SuGaR & MILo)
 

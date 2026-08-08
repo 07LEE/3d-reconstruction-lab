@@ -16,9 +16,10 @@ This guide details the 3D mesh extraction pipelines (SuGaR and MILo) and the 3-a
 
 ### MILo Engine
 
-- Script: `./scripts/03b_train_milo.sh`
+- Script: `./scripts/03b_train_milo.sh data/undistorted`
 - Output Directory: `outputs/milo_mesh/`
-- Characteristics: Differentiable mesh-in-the-loop optimization producing compact collision meshes with 10x fewer vertices (100k vs 1M).
+- Floater Filter Script: `python src/clean_milo_mesh.py --input outputs/milo_mesh/mesh_learnable_sdf.ply --output outputs/milo_mesh/mesh_cleaned_largest.ply`
+- Characteristics: Differentiable mesh-in-the-loop optimization using Marching Tetrahedra SDF isosurface extraction. Requires undistorted PINHOLE input dataset.
 
 ## Quantitative Evaluation Tool (`src/eval_mesh.py`)
 
