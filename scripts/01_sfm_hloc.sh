@@ -54,20 +54,4 @@ else
         --overlap 100
 fi
 
-# Sync SfM model outputs to scene-based output directory
-INPUT_DATASET="${2:-$DATA_DIR}"
-SCENE_NAME=$(basename "$INPUT_DATASET")
-SFM_OUT_DIR="outputs/${SCENE_NAME}/sfm/0"
-mkdir -p "$SFM_OUT_DIR"
-
-if [ -d "$HLOC_RECON/sfm/models/0" ]; then
-    cp -r "$HLOC_RECON/sfm/models/0/"* "$SFM_OUT_DIR/" 2>/dev/null || true
-elif [ -d "data/vi_sfm_reconstruction/sparse/0" ]; then
-    cp -r "data/vi_sfm_reconstruction/sparse/0/"* "$SFM_OUT_DIR/" 2>/dev/null || true
-elif [ -d "data/sfm_reconstruction/sparse/0" ]; then
-    cp -r "data/sfm_reconstruction/sparse/0/"* "$SFM_OUT_DIR/" 2>/dev/null || true
-elif [ -d "data/undistorted/sparse/0" ]; then
-    cp -r "data/undistorted/sparse/0/"* "$SFM_OUT_DIR/" 2>/dev/null || true
-fi
-
-echo "SfM Reconstruction (${METHOD}) Completed! Outputs synced to ${SFM_OUT_DIR}"
+echo "SfM Reconstruction (${METHOD}) Completed! Models saved at ${DATA_DIR}/sparse/0"

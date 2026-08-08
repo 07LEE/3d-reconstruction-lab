@@ -1,8 +1,8 @@
 """3DRC Dynamic Output Artifact Inspector and Summary Generator.
 
-Dynamically scans each scene directory (`outputs/<scene_name>/...`) and generates a clean,
-portable `summary.md` file inside each respective scene folder (`outputs/<scene_name>/summary.md`)
-containing Algorithm Name, Disambiguated Subpath, Parameters/Config, File Size, and Creation Timestamp.
+Dynamically scans each scene directory (`outputs/<scene_name>/...` and `data/<scene_name>/sparse/0/`)
+to generate a clean, portable `summary.md` file inside `outputs/<scene_name>/summary.md`
+without duplicating binary files on disk.
 """
 
 import os
@@ -24,13 +24,13 @@ def format_mtime(timestamp: float) -> str:
     """Format file modification time to YYYY-MM-DD HH:MM:SS."""
     return time.strftime("%Y-%m-%d %H:%M:%S", time.localtime(timestamp))
 
-def extract_metadata(file_path: Path, rel_path: Path) -> tuple[str, str, str, str]:
+def extract_metadata(file_path: Path, rel_path_str: str) -> tuple[str, str, str, str]:
     """Extract (Stage, Algorithm Name, Display Name, Parameters/Config) for an output file."""
     ext = file_path.suffix.lower()
     parent_parts = [p.lower() for p in file_path.parts]
 
     # Algorithm Identification
-    if "sfm" in parent_parts:
+    if "sparse" in parent_parts or "sfm" in parent_parts:
         algorithm = "COLMAP / hloc (SfM Poses)"
     elif "inria_30k" in parent_parts:
         algorithm = "Inria 3DGS (Reference)"
@@ -44,7 +44,7 @@ def extract_metadata(file_path: Path, rel_path: Path) -> tuple[str, str, str, st
         algorithm = "Standard Pipeline Artifact"
 
     # Stage Identification
-    if "sfm" in parent_parts:
+    if "sparse" in parent_parts or "sfm" in parent_parts:
         stage = "Stage 1 (SfM)"
     elif "3dgs" in parent_parts or "point_cloud" in parent_parts:
         stage = "Stage 2 (3DGS)"
@@ -55,19 +55,30 @@ def extract_metadata(file_path: Path, rel_path: Path) -> tuple[str, str, str, st
     else:
         stage = "Artifact"
 
-    # Disambiguate Display Name (e.g., show iteration folder for point_cloud.ply)
+    # Disambiguate Display Name
     if file_path.name == "point_cloud.ply":
         parent_name = file_path.parent.name
         if parent_name.startswith("iteration_"):
             display_name = f"{parent_name}/point_cloud.ply"
         else:
             display_name = f"{file_path.parent.name}/point_cloud.ply"
+    elif "sparse" in parent_parts:
+        display_name = f"sparse/0/{file_path.name}"
     else:
         display_name = file_path.name
 
     # Config / Parameter Details
     config = "Default Pipeline Parameters"
-    if "sugar" in parent_parts:
+    if "sparse" in parent_parts:
+        if file_path.name == "cameras.bin":
+            config = "COLMAP Camera Intrinsics Model"
+        elif file_path.name == "images.bin":
+            config = "COLMAP Camera Extrinsics / Poses"
+        elif file_path.name == "points3D.bin":
+            config = "COLMAP Sparse 3D Point Cloud Binary"
+        elif file_path.name == "points3D.ply":
+            config = "COLMAP Sparse Point Cloud (PLY Viewable)"
+    elif "sugar" in parent_parts:
         if "sugarfine_" in file_path.name:
             name = file_path.name
             parts = name.split("_")
@@ -101,6 +112,7 @@ def extract_metadata(file_path: Path, rel_path: Path) -> tuple[str, str, str, st
 def inspect_workspace_outputs(project_root: str = "."):
     root = Path(project_root).resolve()
     outputs_dir = root / "outputs"
+    data_dir = root / "data"
 
     all_scene_artifacts = {}
 
@@ -112,12 +124,34 @@ def inspect_workspace_outputs(project_root: str = "."):
             scene_name = scene_dir.name
             scene_artifacts = []
 
+            # Stage 1 SfM Check (Check data/<scene_name>/sparse/0 directly without duplicating files)
+            scene_sparse_dir = data_dir / scene_name / "sparse" / "0"
+            if scene_sparse_dir.exists():
+                for sfm_file in sorted(scene_sparse_dir.glob("*")):
+                    if not sfm_file.is_file() or sfm_file.suffix.lower() not in [".bin", ".ply", ".txt"]:
+                        continue
+                    
+                    rel_link = f"../../data/{scene_name}/sparse/0/{sfm_file.name}"
+                    stage, algorithm, display_name, config = extract_metadata(sfm_file, rel_link)
+                    mtime = format_mtime(sfm_file.stat().st_mtime)
+                    size_str = format_size(sfm_file.stat().st_size)
+
+                    scene_artifacts.append({
+                        "scene": scene_name,
+                        "stage": stage,
+                        "algorithm": algorithm,
+                        "config": config,
+                        "display_name": display_name,
+                        "rel_path": rel_link,
+                        "size": size_str,
+                        "mtime": mtime
+                    })
+
             # Discover all key deliverables inside outputs/<scene_name>/
             for file_path in sorted(scene_dir.rglob("*")):
                 if not file_path.is_file() or file_path.name.startswith("."):
                     continue
 
-                # Filter frame-by-frame rendered images (e.g., 00001.png, 01107.png)
                 if file_path.stem.isdigit() and file_path.suffix.lower() in [".png", ".jpg"]:
                     continue
 
@@ -125,11 +159,11 @@ def inspect_workspace_outputs(project_root: str = "."):
                     continue
 
                 ext = file_path.suffix.lower()
-                if ext not in [".ply", ".obj", ".splat", ".json", ".png", ".mtl", ".pth", ".bin"]:
+                if ext not in [".ply", ".obj", ".splat", ".json", ".png", ".mtl", ".pth"]:
                     continue
 
                 rel_path = file_path.relative_to(scene_dir)
-                stage, algorithm, display_name, config = extract_metadata(file_path, rel_path)
+                stage, algorithm, display_name, config = extract_metadata(file_path, str(rel_path))
                 mtime = format_mtime(file_path.stat().st_mtime)
                 size_str = format_size(file_path.stat().st_size)
 
@@ -157,11 +191,6 @@ def inspect_workspace_outputs(project_root: str = "."):
                     for a in scene_artifacts:
                         f.write(f"| {a['stage']} | {a['algorithm']} | `{a['display_name']}` | [{a['display_name']}]({a['rel_path']}) | {a['config']} | {a['size']} | {a['mtime']} |\n")
                 print(f"[Inspector] Wrote detailed scene summary to: {scene_summary_md}")
-
-    # Remove legacy top-level outputs/summary.md if present
-    top_summary_md = outputs_dir / "summary.md"
-    if top_summary_md.exists():
-        top_summary_md.unlink()
 
     # Terminal Output Table
     print("\n" + "=" * 125)

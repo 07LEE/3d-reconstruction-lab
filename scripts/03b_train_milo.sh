@@ -30,26 +30,17 @@ export PYTHONPATH="${CONDA_PREFIX}/lib/python3.10/site-packages"
 # Get project root
 PROJECT_ROOT=$(pwd)
 
-# Create main outputs subdirectories
-mkdir -p "$PROJECT_ROOT/${OUTPUT_DIR}/milo"
-mkdir -p "$PROJECT_ROOT/${OUTPUT_DIR}/milo_mesh"
+# Determine dataset source
+INPUT_DATASET="${1:-$DATA_DIR}"
+SCENE_NAME=$(basename "$INPUT_DATASET")
+
+MILO_OUT_DIR="$PROJECT_ROOT/${OUTPUT_DIR}/${SCENE_NAME}/mesh/milo"
+mkdir -p "$MILO_OUT_DIR"
+MILO_MODEL_DIR="$PROJECT_ROOT/${OUTPUT_DIR}/${SCENE_NAME}/mesh/milo"
+mkdir -p "$MILO_MODEL_DIR"
 
 # Move to MILo directory
 cd third_party/milo/milo || exit 1
-
-# Determine dataset source (prefer data/undistorted if available)
-INPUT_DATASET="${1:-}"
-if [ -z "$INPUT_DATASET" ]; then
-    if [ -d "$PROJECT_ROOT/data/undistorted/sparse/0" ]; then
-        INPUT_DATASET="data/undistorted"
-    else
-        INPUT_DATASET="$DATA_DIR"
-    fi
-fi
-
-SCENE_NAME=$(basename "$INPUT_DATASET")
-MILO_MODEL_DIR="$PROJECT_ROOT/${OUTPUT_DIR}/${SCENE_NAME}/mesh/milo"
-mkdir -p "$MILO_MODEL_DIR"
 
 # Execute MILo Training & Mesh Extraction
 echo "Starting MILo Differentiable Mesh Training & Extraction (Scene: $SCENE_NAME, Dataset: $INPUT_DATASET)..."

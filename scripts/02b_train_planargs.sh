@@ -25,14 +25,7 @@ fi
 source "$(dirname "$0")/utils/setup_build_env.sh"
 
 PROJECT_ROOT=$(pwd)
-INPUT_DATASET="${1:-}"
-if [ -z "$INPUT_DATASET" ]; then
-    if [ -d "$PROJECT_ROOT/data/undistorted/sparse/0" ]; then
-        INPUT_DATASET="data/undistorted"
-    else
-        INPUT_DATASET="$DATA_DIR"
-    fi
-fi
+INPUT_DATASET="${1:-$DATA_DIR}"
 
 SCENE_NAME=$(basename "$INPUT_DATASET")
 MODEL_OUTPUT="$PROJECT_ROOT/${OUTPUT_DIR}/${SCENE_NAME}/3dgs/planargs"
