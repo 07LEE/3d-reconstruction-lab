@@ -14,6 +14,9 @@ A personal workspace for hands-on experimentation with 3D reconstruction pipelin
 - CUDA: CUDA 12.8 Toolkit / PyTorch 2.12.0+cu128
 - Host OS: Ubuntu 24.04 LTS (GCC 12 host compiler via `-ccbin /usr/bin/g++-12`)
 - CUBIN Binaries: Native `sm_120` SASS CUBIN with `12.0+PTX` fallback
+- Rasterizer Performance Benchmark (RTX 5070 Ti, 1,112-frame indoor scene):
+  - PTX JIT Fallback (`sm_90` SASS + JIT on `sm_120`): `~37.18 it/s`
+  - Native `sm_120` SASS CUBIN: `~66.09 it/s` (`~1.78x` throughput performance gain)
 
 ## Quick Start
 
@@ -70,5 +73,6 @@ python src/eval_mesh.py --mesh outputs/sugar_mesh/.../mesh.obj
 For in-depth technical guides, execution options, and evaluation methodologies, refer to the documentation in [`docs/`](docs/):
 
 - [Pipeline Architecture Guide](docs/pipeline_architecture.md): Detailed workflow from SfM (Step 1) to Segmentation (Step 4).
+- [Blackwell (sm_120) Build Notes](docs/blackwell_build_notes.md): Troubleshooting matrix and native sm_120 CUBIN build guide.
 - [Mesh Reconstruction & Evaluation Guide](docs/mesh_reconstruction_and_eval.md): SuGaR/MILo mesh extraction and `src/eval_mesh.py` 3-axis quantitative evaluation.
 - [Submodule Patches Guide](docs/submodule_patches.md): Patch maintenance, `apply_patches.sh`, and `verify_patches.sh` mechanisms.
