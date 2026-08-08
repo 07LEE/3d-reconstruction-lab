@@ -44,6 +44,15 @@ else
   fail=1
 fi
 
+# 5. VGGT PyCOLMAP 3.13 patch check
+VGGT_PY="${REPO_ROOT}/third_party/vggt/vggt/dependency/np_to_pycolmap.py"
+if [ -f "${VGGT_PY}" ] && grep -q 'tmp_dir = tempfile.mkdtemp' "${VGGT_PY}"; then
+  echo "[ok] VGGT PyCOLMAP 3.13 patch in np_to_pycolmap.py"
+else
+  echo "[LOST] VGGT PyCOLMAP 3.13 patch missing in np_to_pycolmap.py"
+  fail=1
+fi
+
 # 5. Imported rasterizer check in active python env via NamedTuple _fields inspection
 PYTHON_BIN="${CONDA_BASE_DIR}/envs/gs_train/bin/python"
 if [ ! -x "$PYTHON_BIN" ]; then PYTHON_BIN="python3"; fi

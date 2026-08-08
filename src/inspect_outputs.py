@@ -116,30 +116,78 @@ def inspect_workspace_outputs(project_root: str = "."):
 
     all_scene_artifacts = {}
 
+    scene_names = set()
     if outputs_dir.exists():
-        for scene_dir in sorted(outputs_dir.iterdir()):
-            if not scene_dir.is_dir():
-                continue
-            
-            scene_name = scene_dir.name
-            scene_artifacts = []
+        for d in outputs_dir.iterdir():
+            if d.is_dir():
+                scene_names.add(d.name)
+    if data_dir.exists():
+        for d in data_dir.iterdir():
+            if d.is_dir():
+                scene_names.add(d.name)
 
-            # Stage 1 SfM Check (Check data/<scene_name>/sparse/0 directly without duplicating files)
-            scene_sparse_dir = data_dir / scene_name / "sparse" / "0"
-            if scene_sparse_dir.exists():
-                for sfm_file in sorted(scene_sparse_dir.glob("*")):
+    for scene_name in sorted(scene_names):
+        scene_dir = outputs_dir / scene_name
+        scene_artifacts = []
+
+        # Stage 1 SfM Check (Scan all method subfolders inside data/<scene_name>/sparse/)
+        sparse_base_dir = data_dir / scene_name / "sparse"
+        if sparse_base_dir.exists():
+            active_target = None
+            symlink_0 = sparse_base_dir / "0"
+            if symlink_0.is_symlink():
+                try:
+                    active_target = symlink_0.resolve().name
+                except Exception:
+                    active_target = None
+
+            for method_dir in sorted(sparse_base_dir.iterdir()):
+                if not method_dir.is_dir() or method_dir.name == "0":
+                    continue
+                
+                method_name = method_dir.name
+                is_active = (active_target == method_name)
+                
+                # Read sfm_info.json metadata if available
+                info_file = method_dir / "sfm_info.json"
+                sfm_method_name = method_name
+                if info_file.exists():
+                    try:
+                        import json
+                        with open(info_file, "r") as f:
+                            sfm_info = json.load(f)
+                            sfm_method_name = sfm_info.get("method", method_name)
+                    except Exception:
+                        pass
+
+                # Map algorithm display name
+                algorithm_names = {
+                    "hloc": "COLMAP / hloc (SuperPoint+SuperGlue)",
+                    "vggt": "VGGT-Omega (Feed-Forward Transformer)",
+                    "fastmap": "FastMap GPU SfM",
+                    "sfm": "COLMAP / SIFT Baseline",
+                    "vi_sfm": "Visual-Inertial SfM (RGB+IMU)"
+                }
+                algorithm_label = algorithm_names.get(sfm_method_name, f"SfM ({sfm_method_name})")
+                if is_active:
+                    algorithm_label += " [Active Poses]"
+
+                for sfm_file in sorted(method_dir.glob("*")):
                     if not sfm_file.is_file() or sfm_file.suffix.lower() not in [".bin", ".ply", ".txt"]:
                         continue
-                    
-                    rel_link = f"../../data/{scene_name}/sparse/0/{sfm_file.name}"
-                    stage, algorithm, display_name, config = extract_metadata(sfm_file, rel_link)
+                    if sfm_file.name == "sfm_info.json":
+                        continue
+
+                    rel_link = f"../../data/{scene_name}/sparse/{method_name}/{sfm_file.name}"
+                    stage, _, display_name, config = extract_metadata(sfm_file, rel_link)
+                    display_name = f"sparse/{method_name}/{sfm_file.name}"
                     mtime = format_mtime(sfm_file.stat().st_mtime)
                     size_str = format_size(sfm_file.stat().st_size)
 
                     scene_artifacts.append({
                         "scene": scene_name,
-                        "stage": stage,
-                        "algorithm": algorithm,
+                        "stage": "Stage 1 (SfM)",
+                        "algorithm": algorithm_label,
                         "config": config,
                         "display_name": display_name,
                         "rel_path": rel_link,
@@ -147,7 +195,8 @@ def inspect_workspace_outputs(project_root: str = "."):
                         "mtime": mtime
                     })
 
-            # Discover all key deliverables inside outputs/<scene_name>/
+        # Discover all key deliverables inside outputs/<scene_name>/
+        if scene_dir.exists():
             for file_path in sorted(scene_dir.rglob("*")):
                 if not file_path.is_file() or file_path.name.startswith("."):
                     continue
@@ -172,7 +221,7 @@ def inspect_workspace_outputs(project_root: str = "."):
                     "stage": stage,
                     "algorithm": algorithm,
                     "config": config,
-                    "display_name": display_name,
+                    "display_name": str(rel_path),
                     "rel_path": str(rel_path),
                     "size": size_str,
                     "mtime": mtime

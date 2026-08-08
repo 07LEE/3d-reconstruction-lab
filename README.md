@@ -73,6 +73,7 @@ All submodules in `third_party/` reference official upstream repositories direct
 | `diff-gaussian-rasterization` | `0002-cstdint-include.patch` | `<cstdint>` header include for GCC 13+/14 |
 | `sugar` | `0001-sugar-extension-dup-and-cpu-device.patch` | Extension fix, CPU `data_device` VRAM OOM fix, `weights_only=False` PyTorch 2.6+ fix |
 | `milo` | `0001-cstdint-and-cmake-fixes.patch` | `<cstdint>` includes for GCC 13+ in rasterizers and CMake 4.4 CXX standard / pybind11 tag fixes |
+| `vggt` | `0001-pycolmap-313-compat.patch` | PyCOLMAP 3.13 text export compatibility fix |
 
 ## Detailed Documentation Guides
 
