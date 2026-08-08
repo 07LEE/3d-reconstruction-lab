@@ -1,0 +1,22 @@
+name: gs_milo
+channels:
+  - pytorch
+  - nvidia
+  - conda-forge
+  - defaults
+dependencies:
+  - python=3.10
+  - pip
+  - cmake
+  - gmp
+  - cgal
+  - trimesh
+  - open3d
+  - plyfile
+  - rich
+  - tqdm
+  - scipy
+  - matplotlib
+  - pyyaml
+  - pip:
+    - ./third_party/milo/submodules/nvdiffrast
