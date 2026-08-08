@@ -41,6 +41,11 @@ def compute_mesh_hygiene_and_topology(mesh_path: str, check_self_intersect: bool
     is_watertight = bool(tm.is_watertight)
     is_manifold = bool(tm.is_winding_consistent)
 
+    # Connected components and boundary edges
+    num_connected_components = len(tm.split(only_watertight=False))
+    num_boundary_edges = len(tm.edges_unique) - len(tm.edges_unique_length) if hasattr(tm, 'edges_unique_length') else len(tm.outline().entities) if hasattr(tm, 'outline') else -1
+    euler_characteristic = num_vertices - len(tm.edges_unique) + num_faces if hasattr(tm, 'edges_unique') else num_vertices - (num_faces // 2)
+
     # Degenerate faces (zero area)
     face_areas = tm.area_faces
     degenerate_faces = int(np.sum(face_areas <= 1e-12))
@@ -68,6 +73,8 @@ def compute_mesh_hygiene_and_topology(mesh_path: str, check_self_intersect: bool
         "num_faces": num_faces,
         "is_watertight": is_watertight,
         "is_manifold": is_manifold,
+        "num_connected_components": num_connected_components,
+        "euler_characteristic": euler_characteristic,
         "degenerate_faces": degenerate_faces,
         "sliver_ratio_pct": round(sliver_ratio * 100.0, 3),
         "self_intersecting_faces": self_intersecting_faces
@@ -211,6 +218,7 @@ def main():
     print(f"Mesh: {Path(args.mesh).name}")
     print(f"Vertices: {hygiene_res['num_vertices']:,} | Faces: {hygiene_res['num_faces']:,}")
     print(f"Watertight: {hygiene_res['is_watertight']} | Manifold: {hygiene_res['is_manifold']}")
+    print(f"Connected Components: {hygiene_res.get('num_connected_components', -1):,} | Euler Characteristic: {hygiene_res.get('euler_characteristic', 0):,}")
     print(f"Degenerate Faces: {hygiene_res['degenerate_faces']:,} | Sliver Ratio: {hygiene_res['sliver_ratio_pct']}%")
     if hygiene_res['self_intersecting_faces'] >= 0:
         print(f"Self-Intersecting Faces: {hygiene_res['self_intersecting_faces']:,}")

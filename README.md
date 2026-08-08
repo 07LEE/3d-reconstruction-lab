@@ -49,7 +49,7 @@ python src/eval_mesh.py --mesh outputs/sugar_mesh/.../mesh.obj
 ## Pipeline Model Mapping
 
 | Tool | Pipeline Step | Core Role | Methodology |
-|---|---|---|---|
+| --- | --- | --- | --- |
 | COLMAP / hloc | Step 1 (SfM) | Camera pose estimation | SIFT / SuperPoint+SuperGlue SfM |
 | VGGT-Omega | Step 1 (SfM) | Immediate pose estimation | Feed-forward Visual Geometry Transformer |
 | vi_sfm | Step 1 (SfM) | Visual-Inertial pose estimation | RGB + IMU fusion with gravity alignment |
@@ -61,7 +61,7 @@ python src/eval_mesh.py --mesh outputs/sugar_mesh/.../mesh.obj
 ## Submodule Patches Summary
 
 | Target Submodule | Patch File | Purpose |
-|---|---|---|
+| --- | --- | --- |
 | `gaussian-splatting` | `0001-colmap-camera-models.patch` | Support for `SIMPLE_RADIAL`, `RADIAL`, `OPENCV` camera models |
 | `gaussian-splatting` | `0002-distcuda2-scipy-fallback.patch` | `scipy.spatial.KDTree` fallback for PCD initialization |
 | `diff-gaussian-rasterization` | `0001-zero-init-state-structs.patch` | Zero-initialization of CUDA state structs |
@@ -73,6 +73,8 @@ python src/eval_mesh.py --mesh outputs/sugar_mesh/.../mesh.obj
 For in-depth technical guides, execution options, and evaluation methodologies, refer to the documentation in [`docs/`](docs/):
 
 - [Pipeline Architecture Guide](docs/pipeline_architecture.md): Detailed workflow from SfM (Step 1) to Segmentation (Step 4).
+- [Pipeline Backends Guide](docs/backends.md): Living record of wired pipeline backends, integration status, and trade-offs.
 - [Blackwell (sm_120) Build Notes](docs/blackwell_build_notes.md): Troubleshooting matrix and native sm_120 CUBIN build guide.
 - [Mesh Reconstruction & Evaluation Guide](docs/mesh_reconstruction_and_eval.md): SuGaR/MILo mesh extraction and `src/eval_mesh.py` 3-axis quantitative evaluation.
 - [Submodule Patches Guide](docs/submodule_patches.md): Patch maintenance, `apply_patches.sh`, and `verify_patches.sh` mechanisms.
+- [Architecture Decision Records (ADR)](docs/adr/): Individual architecture decision records (0001-0005) with writing rules.
