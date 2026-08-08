@@ -5,7 +5,7 @@ This document provides technical diagnosis, root causes, and verified resolution
 ## Performance Benchmark
 
 | Build Mode | Kernel Execution Engine | Throughput (it/s) | Relative Speed |
-|---|---|---|---|
+| --- | --- | --- | --- |
 | PTX JIT Fallback | sm_90 SASS + Runtime JIT | ~37.18 it/s | Baseline (1.0x) |
 | Native sm_120 CUBIN | Native Blackwell sm_120 SASS | ~66.09 it/s | 1.78x (78% faster) |
 

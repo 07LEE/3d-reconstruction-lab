@@ -35,7 +35,7 @@ This document provides technical details, configuration parameters, and executio
 Determines camera intrinsics, extrinsics, and sparse 3D point clouds from uncalibrated image sequences.
 
 | Method | Script | Input Requirements | Key Strengths |
-|---|---|---|---|
+| --- | --- | --- | --- |
 | hloc (Default) | `01_sfm_hloc.sh` | RGB Images | Deep SuperPoint + SuperGlue matching |
 | vi_sfm | `01_sfm_hloc.sh vi_sfm` | RGB Images + IMU `imu_data.csv` | Metric scale, gravity alignment |
 | VGGT-Omega | `01_sfm_hloc.sh vggt` | RGB Images | Feed-forward transformer pose estimation |

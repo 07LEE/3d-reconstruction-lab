@@ -7,7 +7,7 @@ This document details the tracked submodule patches in `patches/` and the enviro
 ### Patch Inventory
 
 | Target Submodule | Patch File Path | Fix & Purpose Description |
-|---|---|---|
+| --- | --- | --- |
 | `gaussian-splatting` | `patches/third_party/gaussian-splatting/0001-colmap-camera-models.patch` | Support for `SIMPLE_RADIAL`, `RADIAL`, and `OPENCV` COLMAP camera models |
 | `gaussian-splatting` | `patches/third_party/gaussian-splatting/0002-distcuda2-scipy-fallback.patch` | `scipy.spatial.KDTree` fallback if CUDA nearest-neighbor fails |
 | `diff-gaussian-rasterization` | `patches/third_party/gaussian-splatting/submodules/diff-gaussian-rasterization/0001-zero-init-state-structs.patch` | Zero-initialization of CUDA state structs in `rasterizer_impl.cu` |
