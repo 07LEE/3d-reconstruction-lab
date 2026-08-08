@@ -2,6 +2,7 @@
 set -euo pipefail
 
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
+CONDA_BASE_DIR=$(conda info --base 2>/dev/null || echo "$HOME/miniconda3")
 
 echo "=== Verifying Patches & Environment ==="
 
@@ -44,7 +45,10 @@ else
 fi
 
 # 5. Imported rasterizer check in active python env via NamedTuple _fields inspection
-if python - <<'PY'
+PYTHON_BIN="${CONDA_BASE_DIR}/envs/gs_train/bin/python"
+if [ ! -x "$PYTHON_BIN" ]; then PYTHON_BIN="python3"; fi
+
+if "$PYTHON_BIN" - <<'PY'
 import sys
 try:
     import diff_gaussian_rasterization as d
@@ -60,6 +64,43 @@ if "antialiasing" not in getattr(S, "_fields", ()):
 print("[ok] Active python env has dr_aa rasterizer installed:", getattr(d, "__file__", "unknown"))
 PY
 then :; else fail=1; fi
+
+# 6. Blackwell sm_120 CUBIN SASS binary verification across C++ CUDA extensions
+echo "=== Verifying sm_120 CUBIN Binaries ==="
+CONDA_BASE_DIR=$(conda info --base 2>/dev/null || echo "$HOME/miniconda3")
+CUOBJDUMP_BIN="${CONDA_BASE_DIR}/envs/gs_train/bin/cuobjdump"
+
+if [ -x "$CUOBJDUMP_BIN" ]; then
+    checked_count=0
+    for env_name in gs_milo gs_train gs_sugar; do
+        env_dir="${CONDA_BASE_DIR}/envs/${env_name}"
+        if [ -d "$env_dir" ]; then
+            for so in $(find "$env_dir/lib/python3.10/site-packages/" \( -path "*/diff_gaussian_rasterization/*" -o -path "*/diff_gaussian_rasterization_ms/*" -o -path "*/diff_gaussian_rasterization_gof/*" -o -path "*/simple_knn/*" -o -path "*/fused_ssim*" -o -path "*/sugar_ext*" \) -name "*.so" 2>/dev/null || true); do
+                checked_count=$((checked_count + 1))
+                archs=$("$CUOBJDUMP_BIN" --list-elf "$so" 2>/dev/null | grep -o "sm_[0-9]*" | sort -u | tr '\n' ' ' || true)
+                parent_dir=$(basename "$(dirname "$so")")
+                if [ "$parent_dir" = "site-packages" ]; then
+                    mod_label="$(basename "$so")"
+                else
+                    mod_label="${parent_dir}/$(basename "$so")"
+                fi
+                case "$archs" in
+                    *sm_120*)
+                        echo "  [ok]    [${env_name}] ${mod_label}: ${archs}"
+                        ;;
+                    "")
+                        echo "  [WARN]  [${env_name}] ${mod_label}: no CUBIN (PTX JIT fallback)"
+                        ;;
+                    *)
+                        echo "  [WRONG] [${env_name}] ${mod_label}: ${archs} (native sm_120 missing)"
+                        fail=1
+                        ;;
+                esac
+            done
+        fi
+    done
+    echo "[INFO] Total C++ CUDA extension modules audited: ${checked_count}"
+fi
 
 if [ "$fail" -ne 0 ]; then
     echo "[verify] NOT safe to train."

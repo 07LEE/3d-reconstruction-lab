@@ -13,6 +13,7 @@ This document details the tracked submodule patches in `patches/` and the enviro
 | `diff-gaussian-rasterization` | `patches/third_party/gaussian-splatting/submodules/diff-gaussian-rasterization/0001-zero-init-state-structs.patch` | Zero-initialization of CUDA state structs in `rasterizer_impl.cu` |
 | `diff-gaussian-rasterization` | `patches/third_party/gaussian-splatting/submodules/diff-gaussian-rasterization/0002-cstdint-include.patch` | `<cstdint>` header include for GCC 13+ / GCC 14 toolchains |
 | `sugar` | `patches/third_party/sugar/0001-sugar-extension-dup-and-cpu-device.patch` | Extension fix, CPU `data_device` VRAM OOM fix, `weights_only=False` PyTorch 2.6+ fix |
+| `milo` | `patches/third_party/milo/0001-cstdint-and-cmake-fixes.patch` | `<cstdint>` includes for GCC 13+ in rasterizers and CMake 4.4 CXX standard / pybind11 tag fixes |
 
 ## Utility Scripts
 

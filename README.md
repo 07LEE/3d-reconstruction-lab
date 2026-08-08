@@ -1,6 +1,19 @@
 # 3D Reconstruction Test Workspace
 
-A research workspace dedicated to testing 3D reconstruction algorithms, from state-of-the-art SfM to 3D Gaussian Splatting (3DGS), SuGaR, MILo, and Gaussian Grouping.
+A personal workspace for hands-on experimentation with 3D reconstruction pipelines — SfM, Gaussian Splatting, and mesh extraction — on Blackwell hardware.
+
+## System Requirements
+
+- NVIDIA GPU with CUDA support (16GB+ VRAM recommended)
+- CUDA Toolkit 12.8+ (required for `sm_120`; 12.4+ for older architectures)
+- PyTorch 2.6+ with matching CUDA build
+
+## Verified Configuration
+
+- GPU: NVIDIA GeForce RTX 5070 Ti (Blackwell Architecture, `sm_120`, 16GB VRAM)
+- CUDA: CUDA 12.8 Toolkit / PyTorch 2.12.0+cu128
+- Host OS: Ubuntu 24.04 LTS (GCC 12 host compiler via `-ccbin /usr/bin/g++-12`)
+- CUBIN Binaries: Native `sm_120` SASS CUBIN with `12.0+PTX` fallback
 
 ## Quick Start
 

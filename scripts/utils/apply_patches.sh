@@ -33,5 +33,6 @@ apply_patch_dir() {
 apply_patch_dir "${REPO_ROOT}/third_party/gaussian-splatting" "${REPO_ROOT}/patches/third_party/gaussian-splatting"
 apply_patch_dir "${REPO_ROOT}/third_party/gaussian-splatting/submodules/diff-gaussian-rasterization" "${REPO_ROOT}/patches/third_party/gaussian-splatting/submodules/diff-gaussian-rasterization"
 apply_patch_dir "${REPO_ROOT}/third_party/sugar" "${REPO_ROOT}/patches/third_party/sugar"
+apply_patch_dir "${REPO_ROOT}/third_party/milo" "${REPO_ROOT}/patches/third_party/milo"
 
 echo "=== Apply Patches Completed ==="

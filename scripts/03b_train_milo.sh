@@ -37,13 +37,15 @@ python train.py \
     -s "$PROJECT_ROOT/$DATA_DIR" \
     -m "$PROJECT_ROOT/${OUTPUT_DIR}/milo" \
     --imp_metric outdoor \
-    --rasterizer radegs
+    --rasterizer radegs \
+    --data_device cpu
 
 echo "Extracting final MILo surface mesh..."
 python mesh_extract_sdf.py \
     -s "$PROJECT_ROOT/$DATA_DIR" \
     -m "$PROJECT_ROOT/${OUTPUT_DIR}/milo" \
-    --rasterizer radegs
+    --rasterizer radegs \
+    --data_device cpu
 
 # Sync extracted results to main outputs directory
 echo "Syncing extracted MILo results to main $OUTPUT_DIR directory..."
