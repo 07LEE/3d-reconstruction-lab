@@ -8,6 +8,7 @@ Pipeline outputs previously used flat global directories under `outputs/` (e.g. 
 Decision:
 Adopt a scene-based output directory hierarchy (`outputs/<scene_name>/<stage>/`) for all pipeline stages:
 
+- `outputs/<scene_name>/sfm/0/`: COLMAP / hloc camera pose estimation models (`cameras.bin`, `images.bin`, `points3D.bin`, `points3D.ply`).
 - `outputs/<scene_name>/3dgs/inria_30k/`: Inria 3DGS 30k iteration reference checkpoints.
 - `outputs/<scene_name>/3dgs/planargs/`: PlanarGS planar-regularized checkpoints.
 - `outputs/<scene_name>/mesh/milo/`: MILo SDF isosurface meshes, floater-cleaned PLYs, and WebGL `.splat` files.

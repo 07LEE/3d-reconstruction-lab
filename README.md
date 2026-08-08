@@ -37,7 +37,7 @@ A personal workspace for hands-on experimentation with 3D reconstruction pipelin
 ./scripts/run_3drc.sh milo
 
 # 5. Evaluate 3D Mesh Topology & Accuracy
-python src/eval_mesh.py --mesh outputs/milo_mesh/mesh_cleaned_largest.ply
+python src/eval_mesh.py --mesh outputs/undistorted/mesh/milo/mesh_cleaned_largest.ply
 ```
 
 ## Environment Architecture

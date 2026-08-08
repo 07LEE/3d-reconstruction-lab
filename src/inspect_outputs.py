@@ -30,7 +30,9 @@ def extract_metadata(file_path: Path, rel_path: Path) -> tuple[str, str, str, st
     parent_parts = [p.lower() for p in file_path.parts]
 
     # Algorithm Identification
-    if "inria_30k" in parent_parts:
+    if "sfm" in parent_parts:
+        algorithm = "COLMAP / hloc (SfM Poses)"
+    elif "inria_30k" in parent_parts:
         algorithm = "Inria 3DGS (Reference)"
     elif "planargs" in parent_parts:
         algorithm = "PlanarGS (Indoor Planar Priors)"
@@ -42,7 +44,9 @@ def extract_metadata(file_path: Path, rel_path: Path) -> tuple[str, str, str, st
         algorithm = "Standard Pipeline Artifact"
 
     # Stage Identification
-    if "3dgs" in parent_parts or "point_cloud" in parent_parts:
+    if "sfm" in parent_parts:
+        stage = "Stage 1 (SfM)"
+    elif "3dgs" in parent_parts or "point_cloud" in parent_parts:
         stage = "Stage 2 (3DGS)"
     elif "mesh" in parent_parts or ext in [".obj", ".stl", ".ply", ".splat", ".mtl"]:
         stage = "Stage 3 (Mesh)"
@@ -121,7 +125,7 @@ def inspect_workspace_outputs(project_root: str = "."):
                     continue
 
                 ext = file_path.suffix.lower()
-                if ext not in [".ply", ".obj", ".splat", ".json", ".png", ".mtl", ".pth"]:
+                if ext not in [".ply", ".obj", ".splat", ".json", ".png", ".mtl", ".pth", ".bin"]:
                     continue
 
                 rel_path = file_path.relative_to(scene_dir)
