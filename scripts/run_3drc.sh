@@ -48,7 +48,7 @@ case "$COMMAND" in
     view)
         TYPE=${2:-"hloc"}
         echo "[3DRC CLI] Launching Reconstruction Viewer (Type: ${TYPE})..."
-        ./scripts/view_reconstruction.sh "$TYPE"
+        ./scripts/utils/view_reconstruction.sh "$TYPE"
         ;;
     sugar)
         echo "[3DRC CLI] Executing Step 3: SuGaR Mesh Reconstruction..."

@@ -8,17 +8,8 @@ IMAGE_DIR="data/images"
 OUTPUT_DIR="outputs"
 HLOC_RECON="data/hloc_reconstruction"
 
-# Hardware Setup (Dynamic detection with fallback guards)
-if [ -z "$CUDA_HOME" ] && [ -d "/usr/lib/nvidia-cuda-toolkit" ]; then
-    export CUDA_HOME="/usr/lib/nvidia-cuda-toolkit"
-    export PATH="/usr/lib/nvidia-cuda-toolkit/bin:$PATH"
-fi
-
-if command -v /usr/bin/gcc-12 >/dev/null 2>&1; then
-    export CC="/usr/bin/gcc-12"
-    export CXX="/usr/bin/g++-12"
-fi
-export TORCH_CUDA_ARCH_LIST="12.0"
+# Hardware Environment Flags
+export TORCH_CUDA_ARCH_LIST="${TORCH_CUDA_ARCH_LIST:-12.0+PTX}"
 export PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True
 
 # SfM parameters
@@ -38,5 +29,5 @@ SUGAR_HIGH_POLY="True"
 SUGAR_REFINEMENT="short"
 
 # Gaussian Grouping parameters
-GROUPING_DATASET="bear"  # Default test dataset
+GROUPING_DATASET="nerfstudio_data"
 GROUPING_DOWNSAMPLE=1

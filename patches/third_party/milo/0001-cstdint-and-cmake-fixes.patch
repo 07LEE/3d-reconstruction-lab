@@ -1,0 +1,128 @@
+diff --git a/milo/scene/gaussian_model.py b/milo/scene/gaussian_model.py
+index e6421f8..5cacfd8 100644
+--- a/milo/scene/gaussian_model.py
++++ b/milo/scene/gaussian_model.py
+@@ -386,7 +386,15 @@ class GaussianModel:
+ 
+         print("Number of points at initialisation : ", fused_point_cloud.shape[0])
+ 
+-        dist2 = torch.clamp_min(distCUDA2(torch.from_numpy(np.asarray(pcd.points)).float().cuda()), 0.0000001)
++        try:
++            dist2 = torch.clamp_min(distCUDA2(torch.from_numpy(np.asarray(pcd.points)).float().cuda()), 0.0000001)
++        except Exception:
++            from scipy.spatial import KDTree
++            pts = np.asarray(pcd.points)
++            tree = KDTree(pts)
++            dists, _ = tree.query(pts, k=4)
++            mean_dists = np.mean(dists[:, 1:], axis=1)
++            dist2 = torch.clamp_min(torch.from_numpy(mean_dists).float().cuda(), 0.0000001)
+         scales = torch.log(torch.sqrt(dist2))[...,None].repeat(1, 3)
+         rots = torch.zeros((fused_point_cloud.shape[0], 4), device="cuda")
+         rots[:, 0] = 1
+diff --git a/submodules/diff-gaussian-rasterization/cuda_rasterizer/rasterizer_impl.h b/submodules/diff-gaussian-rasterization/cuda_rasterizer/rasterizer_impl.h
+index 3ff1b54..16a182a 100755
+--- a/submodules/diff-gaussian-rasterization/cuda_rasterizer/rasterizer_impl.h
++++ b/submodules/diff-gaussian-rasterization/cuda_rasterizer/rasterizer_impl.h
+@@ -13,6 +13,7 @@
+ 
+ #include <iostream>
+ #include <vector>
++#include <cstdint>
+ #include "rasterizer.h"
+ #include <cuda_runtime_api.h>
+ 
+diff --git a/submodules/diff-gaussian-rasterization_gof/cuda_rasterizer/rasterizer_impl.h b/submodules/diff-gaussian-rasterization_gof/cuda_rasterizer/rasterizer_impl.h
+index 647f1a9..8547992 100644
+--- a/submodules/diff-gaussian-rasterization_gof/cuda_rasterizer/rasterizer_impl.h
++++ b/submodules/diff-gaussian-rasterization_gof/cuda_rasterizer/rasterizer_impl.h
+@@ -13,6 +13,7 @@
+ 
+ #include <iostream>
+ #include <vector>
++#include <cstdint>
+ #include "rasterizer.h"
+ #include <cuda_runtime_api.h>
+ 
+diff --git a/submodules/diff-gaussian-rasterization_ms/cuda_rasterizer/rasterizer_impl.cu b/submodules/diff-gaussian-rasterization_ms/cuda_rasterizer/rasterizer_impl.cu
+index c0ca2b2..74c7311 100644
+--- a/submodules/diff-gaussian-rasterization_ms/cuda_rasterizer/rasterizer_impl.cu
++++ b/submodules/diff-gaussian-rasterization_ms/cuda_rasterizer/rasterizer_impl.cu
+@@ -250,7 +250,7 @@ void CudaRasterizer::Rasterizer::markVisible(
+ 
+ CudaRasterizer::GeometryState CudaRasterizer::GeometryState::fromChunk(char*& chunk, size_t P)
+ {
+-	GeometryState geom;
++	GeometryState geom = {0};
+ 	obtain(chunk, geom.depths, P, 128);
+ 	obtain(chunk, geom.clamped, P * 3, 128);
+ 	obtain(chunk, geom.internal_radii, P, 128);
+@@ -268,7 +268,7 @@ CudaRasterizer::GeometryState CudaRasterizer::GeometryState::fromChunk(char*& ch
+ 
+ CudaRasterizer::ImageState CudaRasterizer::ImageState::fromChunk(char*& chunk, size_t N)
+ {
+-	ImageState img;
++	ImageState img = {0};
+ 	obtain(chunk, img.accum_alpha, N, 128);
+ 	obtain(chunk, img.n_contrib, N, 128);
+ 	obtain(chunk, img.ranges, N, 128);
+@@ -288,7 +288,7 @@ CudaRasterizer::ImageState CudaRasterizer::ImageState::fromChunk(char*& chunk, s
+ }
+ 
+ CudaRasterizer::SampleState CudaRasterizer::SampleState::fromChunk(char *& chunk, size_t C) {
+-	SampleState sample;
++	SampleState sample = {0};
+ 	obtain(chunk, sample.bucket_to_tile, C * BLOCK_SIZE, 128);
+ 	obtain(chunk, sample.T, C * BLOCK_SIZE, 128);
+ 	obtain(chunk, sample.ar, NUM_CHAFFELS * C * BLOCK_SIZE, 128);
+diff --git a/submodules/diff-gaussian-rasterization_ms/cuda_rasterizer/rasterizer_impl.h b/submodules/diff-gaussian-rasterization_ms/cuda_rasterizer/rasterizer_impl.h
+index 5c76881..496573e 100644
+--- a/submodules/diff-gaussian-rasterization_ms/cuda_rasterizer/rasterizer_impl.h
++++ b/submodules/diff-gaussian-rasterization_ms/cuda_rasterizer/rasterizer_impl.h
+@@ -13,6 +13,7 @@
+ 
+ #include <iostream>
+ #include <vector>
++#include <cstdint>
+ #include "rasterizer.h"
+ #include <cuda_runtime_api.h>
+ 
+diff --git a/submodules/nvdiffrast b/submodules/nvdiffrast
+--- a/submodules/nvdiffrast
++++ b/submodules/nvdiffrast
+@@ -1 +1 @@
+-Subproject commit 729261dc64c4241ea36efda84fbf532cc8b425b8
++Subproject commit 729261dc64c4241ea36efda84fbf532cc8b425b8-dirty
+diff --git a/submodules/simple-knn/simple_knn.cu b/submodules/simple-knn/simple_knn.cu
+index e72e4c9..2bbe889 100644
+--- a/submodules/simple-knn/simple_knn.cu
++++ b/submodules/simple-knn/simple_knn.cu
+@@ -17,6 +17,7 @@
+ #include <cub/cub.cuh>
+ #include <cub/device/device_radix_sort.cuh>
+ #include <vector>
++#include <cfloat>
+ #include <cuda_runtime_api.h>
+ #include <thrust/device_vector.h>
+ #include <thrust/sequence.h>
+diff --git a/submodules/tetra_triangulation/CMakeLists.txt b/submodules/tetra_triangulation/CMakeLists.txt
+index 17b239c..13b16f6 100755
+--- a/submodules/tetra_triangulation/CMakeLists.txt
++++ b/submodules/tetra_triangulation/CMakeLists.txt
+@@ -20,7 +20,7 @@ include(FetchContent)
+ FetchContent_Declare(
+     pybind11
+     GIT_REPOSITORY https://github.com/pybind/pybind11
+-    GIT_TAG        v2.9.2
++    GIT_TAG        v2.11.1
+ )
+ FetchContent_GetProperties(pybind11)
+ if(NOT pybind11_POPULATED)
+@@ -61,7 +61,7 @@ pybind11_add_module(tetranerf_cpp_extension
+ 
+ target_link_libraries(tetranerf_cpp_extension PRIVATE ${CUDA_LIBRARIES} ${TORCH_LIBRARIES})
+ target_link_libraries(tetranerf_cpp_extension PRIVATE CGAL::CGAL)
+-target_compile_features(tetranerf_cpp_extension PRIVATE cxx_std_17)
++set(CMAKE_CXX_STANDARD 17)
+ set_target_properties(tetranerf_cpp_extension
+     PROPERTIES
+     ARCHIVE_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/lib"

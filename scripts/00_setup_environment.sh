@@ -22,8 +22,8 @@ git submodule update --init --recursive
 
 # 2. Apply Submodule Patches
 echo -e "\n[Step 2/4] Applying Submodule Patches..."
-chmod +x scripts/*.sh
-./scripts/apply_patches.sh
+chmod +x scripts/*.sh scripts/utils/*.sh 2>/dev/null || true
+./scripts/utils/apply_patches.sh
 
 # 3. Check Conda Environments
 CONDA_PATH=$(conda info --base 2>/dev/null || echo "$HOME/miniconda3")
@@ -45,9 +45,8 @@ done
 
 # 4. Build CUDA Extensions in gs_train
 echo -e "\n[Step 4/4] Building CUDA Extensions in 'gs_train'..."
+source scripts/utils/setup_build_env.sh || { echo "[FATAL] Build environment setup failed."; exit 1; }
 conda activate gs_train
-
-export TORCH_CUDA_ARCH_LIST="12.0"
 
 if [ -d "third_party/gaussian-splatting/submodules/diff-gaussian-rasterization" ]; then
     echo "Installing diff-gaussian-rasterization extension in gs_train..."
@@ -61,7 +60,7 @@ fi
 
 # Verify patch & environment integrity
 echo -e "\nVerifying Patch and Environment Integrity..."
-./scripts/verify_patches.sh
+./scripts/utils/verify_patches.sh
 
 echo -e "\n=================================================="
 echo " 3DRC Environment Setup Completed Successfully!"

@@ -133,8 +133,14 @@ def run_vi_sfm_pipeline(image_dir: str, imu_path: str, output_dir: str, imu_form
         valid = list(pycolmap.CameraMode.__members__.keys())
         raise ValueError(f"Invalid CAMERA_MODE '{mode_str}'. Valid choices: {valid}")
     cam_mode = getattr(pycolmap.CameraMode, mode_str)
-    print(f"[VI-SfM] Performing Sparse Reconstruction (CameraMode: {cam_mode.name})...")
-    reconstruction.main(sfm_dir, img_path, pairs_path, features_path, matches_path, camera_mode=cam_mode)
+    
+    camera_model = os.environ.get("CAMERA_MODEL", "SIMPLE_RADIAL").upper()
+    print(f"[VI-SfM] Performing Sparse Reconstruction (CameraMode: {cam_mode.name}, CameraModel: {camera_model})...")
+    reconstruction.main(
+        sfm_dir, img_path, pairs_path, features_path, matches_path,
+        camera_mode=cam_mode,
+        image_options=dict(camera_model=camera_model)
+    )
 
     align_reconstruction_to_gravity(sfm_dir, gravity_vec)
 

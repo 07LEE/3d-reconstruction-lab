@@ -16,8 +16,9 @@ CONDA_PATH=$(conda info --base 2>/dev/null || echo "$HOME/miniconda3")
 if [ -f "$CONDA_PATH/etc/profile.d/conda.sh" ]; then
     source "$CONDA_PATH/etc/profile.d/conda.sh"
     set +u
-    conda activate gs_sugar 2>/dev/null || true
+    conda activate gs_sugar
     set -u
+    [ "${CONDA_DEFAULT_ENV:-}" = "gs_sugar" ] || { echo "[FATAL] Conda environment 'gs_sugar' activation failed!"; exit 1; }
 fi
 
 # Get project root
@@ -26,14 +27,37 @@ PROJECT_ROOT=$(pwd)
 # Move to sugar directory
 cd third_party/sugar || exit 1
 
+# Create main outputs subdirectories
+mkdir -p "$PROJECT_ROOT/${OUTPUT_DIR}/sugar_mesh"
+mkdir -p "$PROJECT_ROOT/${OUTPUT_DIR}/sugar"
+
+# Determine dataset source (prefer data/undistorted if available)
+INPUT_DATASET="${1:-}"
+if [ -z "$INPUT_DATASET" ]; then
+    if [ -d "$PROJECT_ROOT/data/undistorted/sparse/0" ]; then
+        INPUT_DATASET="data/undistorted"
+    else
+        INPUT_DATASET="$DATA_DIR"
+    fi
+fi
+
 # Execute SuGaR Pipeline
-echo "Starting SuGaR Mesh Extraction..."
+echo "Starting SuGaR Mesh Extraction (Dataset: $INPUT_DATASET)..."
 python train_full_pipeline.py \
-    -s "$PROJECT_ROOT/$DATA_DIR" \
+    -s "$PROJECT_ROOT/$INPUT_DATASET" \
     --gs_output_dir "$PROJECT_ROOT/${OUTPUT_DIR}/gs_final_precision" \
     -r "$SUGAR_REGULARIZATION" \
     --high_poly "$SUGAR_HIGH_POLY" \
     --export_obj True \
     --refinement_time "$SUGAR_REFINEMENT"
 
-echo "SuGaR Pipeline Completed! Results are saved in third_party/sugar/output"
+# Sync output files to main outputs directory
+echo "Syncing extracted SuGaR results to main $OUTPUT_DIR directory..."
+if [ -d "output" ]; then
+    cp -r output/* "$PROJECT_ROOT/${OUTPUT_DIR}/sugar/" 2>/dev/null || true
+    if [ -d "output/refined_mesh" ]; then
+        cp -r output/refined_mesh/* "$PROJECT_ROOT/${OUTPUT_DIR}/sugar_mesh/" 2>/dev/null || true
+    fi
+fi
+
+echo "SuGaR Pipeline Completed! Results synced to $PROJECT_ROOT/${OUTPUT_DIR}/sugar_mesh"
