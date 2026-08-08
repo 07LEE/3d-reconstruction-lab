@@ -34,16 +34,18 @@ if [ -z "$INPUT_DATASET" ]; then
     fi
 fi
 
-mkdir -p "$PROJECT_ROOT/${OUTPUT_DIR}/planargs"
+SCENE_NAME=$(basename "$INPUT_DATASET")
+MODEL_OUTPUT="$PROJECT_ROOT/${OUTPUT_DIR}/${SCENE_NAME}/3dgs/planargs"
+mkdir -p "$MODEL_OUTPUT"
 
 # Execute PlanarGS Training
-echo "Starting PlanarGS Training (Dataset: $INPUT_DATASET)..."
+echo "Starting PlanarGS Training (Scene: $SCENE_NAME, Dataset: $INPUT_DATASET)..."
 cd third_party/PlanarGS || exit 1
 
 python train.py \
     -s "$PROJECT_ROOT/$INPUT_DATASET" \
-    -m "$PROJECT_ROOT/${OUTPUT_DIR}/planargs" \
+    -m "$MODEL_OUTPUT" \
     -r "$DOWNSAMPLE_RATE" \
     --data_device "$DATA_DEVICE"
 
-echo "PlanarGS Training Completed! Models saved at $PROJECT_ROOT/${OUTPUT_DIR}/planargs"
+echo "PlanarGS Training Completed! Models saved at $MODEL_OUTPUT"

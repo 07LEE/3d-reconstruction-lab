@@ -41,11 +41,21 @@ if [ -z "$INPUT_DATASET" ]; then
     fi
 fi
 
+SCENE_NAME=$(basename "$INPUT_DATASET")
+GS_CHECKPOINT="$PROJECT_ROOT/${OUTPUT_DIR}/${SCENE_NAME}/3dgs/inria_30k"
+SUGAR_MESH_DIR="$PROJECT_ROOT/${OUTPUT_DIR}/${SCENE_NAME}/mesh/sugar"
+mkdir -p "$SUGAR_MESH_DIR"
+
+# Fallback to legacy path if inria_30k not found
+if [ ! -d "$GS_CHECKPOINT" ] && [ -d "$PROJECT_ROOT/${OUTPUT_DIR}/gs_final_precision" ]; then
+    GS_CHECKPOINT="$PROJECT_ROOT/${OUTPUT_DIR}/gs_final_precision"
+fi
+
 # Execute SuGaR Pipeline
-echo "Starting SuGaR Mesh Extraction (Dataset: $INPUT_DATASET)..."
+echo "Starting SuGaR Mesh Extraction (Scene: $SCENE_NAME, Dataset: $INPUT_DATASET)..."
 python train_full_pipeline.py \
     -s "$PROJECT_ROOT/$INPUT_DATASET" \
-    --gs_output_dir "$PROJECT_ROOT/${OUTPUT_DIR}/gs_final_precision" \
+    --gs_output_dir "$GS_CHECKPOINT" \
     -r "$SUGAR_REGULARIZATION" \
     --high_poly "$SUGAR_HIGH_POLY" \
     --export_obj True \

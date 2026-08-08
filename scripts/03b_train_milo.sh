@@ -47,11 +47,15 @@ if [ -z "$INPUT_DATASET" ]; then
     fi
 fi
 
+SCENE_NAME=$(basename "$INPUT_DATASET")
+MILO_MODEL_DIR="$PROJECT_ROOT/${OUTPUT_DIR}/${SCENE_NAME}/mesh/milo"
+mkdir -p "$MILO_MODEL_DIR"
+
 # Execute MILo Training & Mesh Extraction
-echo "Starting MILo Differentiable Mesh Training & Extraction (Dataset: $INPUT_DATASET)..."
+echo "Starting MILo Differentiable Mesh Training & Extraction (Scene: $SCENE_NAME, Dataset: $INPUT_DATASET)..."
 python train.py \
     -s "$PROJECT_ROOT/$INPUT_DATASET" \
-    -m "$PROJECT_ROOT/${OUTPUT_DIR}/milo" \
+    -m "$MILO_MODEL_DIR" \
     --imp_metric outdoor \
     --rasterizer radegs \
     --data_device cpu
@@ -59,15 +63,17 @@ python train.py \
 echo "Extracting final MILo surface mesh..."
 python mesh_extract_sdf.py \
     -s "$PROJECT_ROOT/$INPUT_DATASET" \
-    -m "$PROJECT_ROOT/${OUTPUT_DIR}/milo" \
+    -m "$MILO_MODEL_DIR" \
     --rasterizer radegs \
     --data_device cpu
 
-# Sync extracted results to main outputs directory
-echo "Syncing extracted MILo results to main $OUTPUT_DIR directory..."
-if [ -d "$PROJECT_ROOT/${OUTPUT_DIR}/milo" ]; then
-    find "$PROJECT_ROOT/${OUTPUT_DIR}/milo" -name "*.obj" -exec cp {} "$PROJECT_ROOT/${OUTPUT_DIR}/milo_mesh/" \; 2>/dev/null || true
-    find "$PROJECT_ROOT/${OUTPUT_DIR}/milo" -name "*.ply" -exec cp {} "$PROJECT_ROOT/${OUTPUT_DIR}/milo_mesh/" \; 2>/dev/null || true
+# Clean floater components and generate viewer files
+echo "Cleaning floater components and generating viewer files in $MILO_MODEL_DIR..."
+cd "$PROJECT_ROOT"
+if [ -f "$MILO_MODEL_DIR/mesh_learnable_sdf.ply" ]; then
+    python3 src/clean_milo_mesh.py \
+        --input "$MILO_MODEL_DIR/mesh_learnable_sdf.ply" \
+        --output "$MILO_MODEL_DIR/mesh_cleaned_largest.ply" || true
 fi
 
-echo "MILo Pipeline Completed! Results saved to $PROJECT_ROOT/${OUTPUT_DIR}/milo_mesh"
+echo "MILo Pipeline Completed! Results saved to $MILO_MODEL_DIR"
