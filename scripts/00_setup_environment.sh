@@ -45,9 +45,8 @@ done
 
 # 4. Build CUDA Extensions in gs_train
 echo -e "\n[Step 4/4] Building CUDA Extensions in 'gs_train'..."
+source scripts/utils/setup_build_env.sh || { echo "[FATAL] Build environment setup failed."; exit 1; }
 conda activate gs_train
-
-export TORCH_CUDA_ARCH_LIST="12.0"
 
 if [ -d "third_party/gaussian-splatting/submodules/diff-gaussian-rasterization" ]; then
     echo "Installing diff-gaussian-rasterization extension in gs_train..."

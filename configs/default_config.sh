@@ -8,14 +8,8 @@ IMAGE_DIR="data/images"
 OUTPUT_DIR="outputs"
 HLOC_RECON="data/hloc_reconstruction"
 
-# Hardware & Build Environment Setup
-CONFIG_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-if [ -f "${CONFIG_DIR}/../scripts/utils/setup_build_env.sh" ]; then
-    source "${CONFIG_DIR}/../scripts/utils/setup_build_env.sh"
-else
-    export TORCH_CUDA_ARCH_LIST="${TORCH_CUDA_ARCH_LIST:-12.0+PTX}"
-fi
-
+# Hardware Environment Flags
+export TORCH_CUDA_ARCH_LIST="${TORCH_CUDA_ARCH_LIST:-12.0+PTX}"
 export PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True
 
 # SfM parameters
@@ -35,5 +29,5 @@ SUGAR_HIGH_POLY="True"
 SUGAR_REFINEMENT="short"
 
 # Gaussian Grouping parameters
-GROUPING_DATASET="bear"  # Default test dataset
+GROUPING_DATASET="nerfstudio_data"
 GROUPING_DOWNSAMPLE=1

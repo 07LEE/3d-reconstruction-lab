@@ -67,40 +67,71 @@ then :; else fail=1; fi
 
 # 6. Blackwell sm_120 CUBIN SASS binary verification across C++ CUDA extensions
 echo "=== Verifying sm_120 CUBIN Binaries ==="
-CONDA_BASE_DIR=$(conda info --base 2>/dev/null || echo "$HOME/miniconda3")
-CUOBJDUMP_BIN="${CONDA_BASE_DIR}/envs/gs_train/bin/cuobjdump"
+export REPO_ROOT
+export CONDA_BASE_DIR
+PYTHON_AUDIT_BIN="${CONDA_BASE_DIR}/envs/gs_milo/bin/python"
+if [ ! -x "$PYTHON_AUDIT_BIN" ]; then PYTHON_AUDIT_BIN="python3"; fi
 
-if [ -x "$CUOBJDUMP_BIN" ]; then
-    checked_count=0
-    for env_name in gs_milo gs_train gs_sugar; do
-        env_dir="${CONDA_BASE_DIR}/envs/${env_name}"
-        if [ -d "$env_dir" ]; then
-            for so in $(find "$env_dir/lib/python3.10/site-packages/" \( -path "*/diff_gaussian_rasterization/*" -o -path "*/diff_gaussian_rasterization_ms/*" -o -path "*/diff_gaussian_rasterization_gof/*" -o -path "*/simple_knn/*" -o -path "*/fused_ssim*" -o -path "*/sugar_ext*" \) -name "*.so" 2>/dev/null || true); do
-                checked_count=$((checked_count + 1))
-                archs=$("$CUOBJDUMP_BIN" --list-elf "$so" 2>/dev/null | grep -o "sm_[0-9]*" | sort -u | tr '\n' ' ' || true)
-                parent_dir=$(basename "$(dirname "$so")")
-                if [ "$parent_dir" = "site-packages" ]; then
-                    mod_label="$(basename "$so")"
-                else
-                    mod_label="${parent_dir}/$(basename "$so")"
-                fi
-                case "$archs" in
-                    *sm_120*)
-                        echo "  [ok]    [${env_name}] ${mod_label}: ${archs}"
-                        ;;
-                    "")
-                        echo "  [WARN]  [${env_name}] ${mod_label}: no CUBIN (PTX JIT fallback)"
-                        ;;
-                    *)
-                        echo "  [WRONG] [${env_name}] ${mod_label}: ${archs} (native sm_120 missing)"
-                        fail=1
-                        ;;
-                esac
-            done
-        fi
-    done
-    echo "[INFO] Total C++ CUDA extension modules audited: ${checked_count}"
-fi
+if "$PYTHON_AUDIT_BIN" - <<'PY'
+import os, sys, glob, subprocess, re
+
+CONDA_BASE = os.environ.get("CONDA_BASE_DIR", os.path.expanduser("~/miniconda3"))
+REPO_ROOT = os.environ.get("REPO_ROOT", os.path.abspath(os.path.join(os.path.dirname(__file__), "../..")))
+CUOBJDUMP = os.path.join(CONDA_BASE, "envs/gs_train/bin/cuobjdump")
+
+ENVS = {
+    "gs_milo": (["diff_gaussian_rasterization", "diff_gaussian_rasterization_ms", "diff_gaussian_rasterization_gof", "simple_knn", "fused_ssim"], "milo"),
+    "gs_train": (["diff_gaussian_rasterization", "simple_knn"], "gaussian-splatting"),
+    "gs_sugar": (["diff_gaussian_rasterization", "simple_knn"], "sugar")
+}
+
+fail = 0
+total_checked = 0
+
+for env, (mods, repo_sub) in ENVS.items():
+    env_dir = os.path.join(CONDA_BASE, "envs", env)
+    if not os.path.exists(env_dir):
+        continue
+    
+    site_pkg = os.path.join(env_dir, "lib/python3.10/site-packages")
+    search_dirs = [site_pkg, os.path.join(REPO_ROOT, "third_party", repo_sub)]
+    
+    for mod in mods:
+        so_files = []
+        mod_pat = mod.replace("_", "*")
+        for sd in search_dirs:
+            found = glob.glob(os.path.join(sd, f"**/{mod}/_C*.so"), recursive=True) or \
+                    glob.glob(os.path.join(sd, f"**/{mod_pat}/_C*.so"), recursive=True) or \
+                    glob.glob(os.path.join(sd, f"**/{mod}*.so"), recursive=True) or \
+                    glob.glob(os.path.join(sd, f"**/{mod_pat}*.so"), recursive=True)
+            for f in found:
+                if "/build/" not in f and not f.endswith(".py"):
+                    so_files.append(f)
+        
+        valid_sos = [f for f in so_files if site_pkg in f or repo_sub in f]
+        if valid_sos:
+            total_checked += 1
+            so = valid_sos[0]
+            try:
+                out = subprocess.check_output([CUOBJDUMP, "--list-elf", so], stderr=subprocess.DEVNULL).decode()
+                archs = sorted(list(set(re.findall(r'sm_\d+', out))))
+                sm_str = " ".join(archs) if archs else "no CUBIN"
+                if "sm_120" in archs:
+                    print(f"  [ok]    [{env}] {mod} -> {sm_str}")
+                else:
+                    print(f"  [WRONG] [{env}] {mod} -> {sm_str} (native sm_120 missing)")
+                    fail = 1
+            except Exception as e:
+                print(f"  [WARN]  [{env}] {mod}: cuobjdump failed ({e})")
+        else:
+            print(f"  [MISS]  [{env}] {mod}: .so file not found")
+            fail = 1
+
+print(f"[INFO] Total C++ CUDA extension modules audited: {total_checked}")
+if fail != 0:
+    sys.exit(1)
+PY
+then :; else fail=1; fi
 
 if [ "$fail" -ne 0 ]; then
     echo "[verify] NOT safe to train."
