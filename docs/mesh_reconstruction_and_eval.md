@@ -7,7 +7,7 @@ last_updated: 2026-08-09
 
 # 3D Mesh Reconstruction and Quantitative Evaluation Guide
 
-This guide details the 3D mesh extraction pipelines (SuGaR and MILo) and the 3-axis quantitative evaluation tool (`src/eval_mesh.py`).
+This guide details the 3D mesh extraction pipelines (SuGaR, MILo, and 2DGS TSDF) and the 3-axis quantitative evaluation tool (`src/mesh/eval_mesh.py`).
 
 ## 3D Mesh Extraction Engines
 
@@ -24,7 +24,7 @@ This guide details the 3D mesh extraction pipelines (SuGaR and MILo) and the 3-a
 
 - Script: `./scripts/03b_train_milo.sh data/<scene_name>`
 - Output Directory: `outputs/<scene_name>/mesh/milo/`
-- Floater Filter Script: `python src/clean_milo_mesh.py --input outputs/<scene_name>/mesh/milo/mesh_learnable_sdf.ply --output outputs/<scene_name>/mesh/milo/mesh_cleaned_largest.ply`
+- Floater Filter Script: `python src/mesh/clean_milo_mesh.py --input outputs/<scene_name>/mesh/milo/mesh_learnable_sdf.ply --output outputs/<scene_name>/mesh/milo/mesh_cleaned_largest.ply`
 - Characteristics: Differentiable mesh-in-the-loop optimization using Marching Tetrahedra SDF isosurface extraction. Requires undistorted PINHOLE input dataset.
 
 ### 2DGS TSDF Engine
@@ -34,7 +34,7 @@ This guide details the 3D mesh extraction pipelines (SuGaR and MILo) and the 3-a
 - Output Format: Volumetric Open3D TSDF `.ply` mesh (`tsdf_mesh.ply`).
 - Characteristics: Renders exact ray-splat intersection unbiased depth and surface normal maps from 2D surfels, fused into an Open3D truncated signed distance function voxel volume. Best for sharp planar structures and fine edge preservation.
 
-## Quantitative Evaluation Tool (`src/eval_mesh.py`)
+## Quantitative Evaluation Tool (`src/mesh/eval_mesh.py`)
 
 ### Evaluation Metrics
 
@@ -51,12 +51,12 @@ This guide details the 3D mesh extraction pipelines (SuGaR and MILo) and the 3-a
 
 ```bash
 # 1. Evaluate topology hygiene and self-intersections of a reconstructed mesh
-python src/eval_mesh.py --mesh outputs/<scene_name>/mesh/sugar/sugarfine_mesh.obj
+python src/mesh/eval_mesh.py --mesh outputs/<scene_name>/mesh/sugar/sugarfine_mesh.obj
 
 # 2. Evaluate Chamfer / Hausdorff distance against ground truth point cloud (e.g., LiDAR PCD)
-python src/eval_mesh.py --mesh outputs/<scene_name>/mesh/sugar/sugarfine_mesh.obj --gt data/<scene_name>/lidar.pcd
+python src/mesh/eval_mesh.py --mesh outputs/<scene_name>/mesh/sugar/sugarfine_mesh.obj --gt data/<scene_name>/lidar.pcd
 
 # 3. Evaluate mesh accuracy with SIM3 alignment
-python src/eval_mesh.py --mesh outputs/<scene_name>/mesh/sugar/sugarfine_mesh.obj --gt data/<scene_name>/lidar.pcd --transform outputs/<scene_name>/eval/sim3_transform.json
-python src/eval_mesh.py --mesh outputs/<scene_name>/mesh/milo/mesh_cleaned_largest.ply --gt data/<scene_name>/lidar.pcd --transform outputs/<scene_name>/eval/sim3_transform.json
+python src/mesh/eval_mesh.py --mesh outputs/<scene_name>/mesh/sugar/sugarfine_mesh.obj --gt data/<scene_name>/lidar.pcd --transform outputs/<scene_name>/eval/sim3_transform.json
+python src/mesh/eval_mesh.py --mesh outputs/<scene_name>/mesh/milo/mesh_cleaned_largest.ply --gt data/<scene_name>/lidar.pcd --transform outputs/<scene_name>/eval/sim3_transform.json
 ```

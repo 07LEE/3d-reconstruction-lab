@@ -40,7 +40,7 @@ mkdir -p "$MILO_MODEL_DIR"
 # Ensure undistorted PINHOLE dataset workspace exists for MILo
 DENSE_DATASET="${INPUT_DATASET}/dense"
 if [ ! -d "$DENSE_DATASET/sparse" ]; then
-    echo "Preparing undistorted PINHOLE dataset for MILo via src/dense_undistort.py..."
+    echo "Preparing undistorted PINHOLE dataset for MILo via src/prep/dense_undistort.py..."
     SPARSE_IN="${INPUT_DATASET}/sparse/0"
     IMG_IN="${INPUT_DATASET}/raw_images"
     if [ ! -d "$IMG_IN" ]; then
@@ -50,7 +50,7 @@ if [ ! -d "$DENSE_DATASET/sparse" ]; then
     if [ ! -x "$PYTHON_3DRC" ]; then
         PYTHON_3DRC="python3"
     fi
-    "$PYTHON_3DRC" src/dense_undistort.py \
+    "$PYTHON_3DRC" src/prep/dense_undistort.py \
         --input_dir "$SPARSE_IN" \
         --image_dir "$IMG_IN" \
         --output_dir "$DENSE_DATASET"

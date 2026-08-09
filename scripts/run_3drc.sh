@@ -56,7 +56,7 @@ COMMAND=${1:-"help"}
 
 case "$COMMAND" in
     outputs)
-        "$PYTHON_BIN" src/inspect_outputs.py
+        "$PYTHON_BIN" src/utils/inspect_outputs.py
         ;;
     sfm)
         METHOD=${2:-$SFM_METHOD}
@@ -109,16 +109,16 @@ case "$COMMAND" in
         MESH_PATH="${2:-}"
         GT_PATH="${3:-}"
         if [ -z "$MESH_PATH" ]; then
-            echo "Error: Mesh file path required for evaluation."
-            echo "Usage: ./scripts/run_3drc.sh eval <mesh_path> [gt_pointcloud_path]"
+            echo "[Error] Mesh path required for eval."
+            echo "Usage: ./scripts/run_3drc.sh eval <mesh_path> [gt_pcd_path]"
             exit 1
         fi
         EVAL_ARGS=("--mesh" "$MESH_PATH")
         if [ -n "$GT_PATH" ]; then
             EVAL_ARGS+=("--gt" "$GT_PATH")
         fi
-        echo "[3DRC CLI] Executing Mesh Evaluation on ${MESH_PATH}..."
-        "$PYTHON_BIN" src/eval_mesh.py "${EVAL_ARGS[@]}"
+        echo "[3DRC CLI] Executing Step 5: Mesh Quantitative Evaluation..."
+        "$PYTHON_BIN" src/mesh/eval_mesh.py "${EVAL_ARGS[@]}"
         ;;
     pipeline)
         SFM_OPT=${2:-"hloc"}
