@@ -28,21 +28,27 @@ A personal workspace for hands-on experimentation with 3D reconstruction pipelin
 # 2. Run Step 1 Camera Pose Estimation (COLMAP, hloc, vi_sfm, VGGT)
 ./scripts/run_3drc.sh sfm
 
-# 3. Run Step 2 3DGS Training (Inria 3DGS / PlanarGS)
+# 3. Run Step 2 Gaussian Training (Inria 3DGS / PlanarGS / 2DGS)
 ./scripts/run_3drc.sh train 3dgs
 ./scripts/run_3drc.sh train planargs
+./scripts/run_3drc.sh train 2dgs
 
-# 4. Run Step 3 Mesh Reconstruction (SuGaR / MILo)
+# 4. Run Step 3 Mesh Reconstruction (SuGaR / MILo / 2DGS TSDF)
 ./scripts/run_3drc.sh sugar
 ./scripts/run_3drc.sh milo
+./scripts/run_3drc.sh tsdf
 
-# 5. Evaluate 3D Mesh Topology & Accuracy
-python src/eval_mesh.py --mesh outputs/undistorted/mesh/milo/mesh_cleaned_largest.ply
+# 5. Evaluate 3D Mesh Topology & Quantitative Accuracy
+./scripts/run_3drc.sh eval outputs/<scene_name>/mesh/milo/mesh_cleaned_largest.ply
+./scripts/run_3drc.sh eval outputs/<scene_name>/mesh/2dgs/tsdf_mesh.ply data/<scene_name>/lidar.pcd
+
+# 6. Inspect Generated Artifacts
+./scripts/run_3drc.sh outputs
 ```
 
 ## Environment Architecture
 
-- `gs_train`: Inria 3DGS training environment (`dr_aa` rasterizer).
+- `gs_train`: Inria 3DGS and 2DGS training environment (`dr_aa` & `diff-surfel-rasterization`).
 - `gs_sugar`: SuGaR mesh extraction environment.
 - `gs_milo`: MILo differentiable mesh-in-the-loop training and extraction environment.
 - `gs_group`: Gaussian Grouping segmentation environment.
@@ -57,8 +63,10 @@ python src/eval_mesh.py --mesh outputs/undistorted/mesh/milo/mesh_cleaned_larges
 | vi_sfm | Step 1 (SfM) | Visual-Inertial pose estimation | RGB + IMU fusion with gravity alignment |
 | 3DGS (Inria) | Step 2 (Training) | High-fidelity 3D scene optimization | Differentiable 3D Gaussian rasterization |
 | PlanarGS | Step 2 (Training) | Indoor planar-regularized 3DGS | Selective planar priors on walls/floors |
+| 2DGS | Step 2c (Training) | Planar surfel representation | Exact ray-splat intersection with 2D oriented disks |
 | SuGaR | Step 3 (Mesh Extraction) | UV-textured OBJ polygon mesh | Surface-Aligned Gaussian Regularization |
 | MILo | Step 3b (Mesh Extraction) | Compact 3D collision mesh | Differentiable Mesh-in-the-loop Optimization |
+| TSDF (2DGS) | Step 3c (Mesh Extraction) | Crisp, floater-free polygon mesh | Volumetric Open3D TSDF Integration from surfel depth/normals |
 | Gaussian Grouping | Step 4 (Segmentation) | 3D object instance segmentation | 3D Identity Embedding from SAM masks |
 
 ## Submodule Patches Summary
@@ -74,6 +82,9 @@ All submodules in `third_party/` reference official upstream repositories direct
 | `sugar` | `0001-sugar-extension-dup-and-cpu-device.patch` | Extension fix, CPU `data_device` VRAM OOM fix, `weights_only=False` PyTorch 2.6+ fix |
 | `milo` | `0001-cstdint-and-cmake-fixes.patch` | `<cstdint>` includes for GCC 13+ in rasterizers and CMake 4.4 CXX standard / pybind11 tag fixes |
 | `vggt` | `0001-pycolmap-313-compat.patch` | PyCOLMAP 3.13 text export compatibility fix |
+| `2d-gaussian-splatting` | `0001-colmap-camera-models.patch` | Support for `SIMPLE_RADIAL` and `RADIAL` camera models in 2DGS |
+| `2d-gaussian-splatting` | `0002-mesh-utils-bounds-and-empty-fix.patch` | Empty cluster bounds guard in mesh postprocessing |
+| `diff-surfel-rasterization` | `0001-cstdint-and-zero-init.patch` | `<cstdint>` includes, zero-init structs, and backward SH gradient dimension match |
 
 ## Detailed Documentation Guides
 
@@ -82,6 +93,6 @@ For in-depth technical guides, execution options, and evaluation methodologies, 
 - [Pipeline Architecture Guide](docs/pipeline_architecture.md): Detailed workflow from SfM (Step 1) to Segmentation (Step 4).
 - [Pipeline Backends Guide](docs/backends.md): Living record of wired pipeline backends, integration status, and trade-offs.
 - [Blackwell (sm_120) Build Notes](docs/blackwell_build_notes.md): Troubleshooting matrix and native sm_120 CUBIN build guide.
-- [Mesh Reconstruction & Evaluation Guide](docs/mesh_reconstruction_and_eval.md): SuGaR/MILo mesh extraction and `src/eval_mesh.py` 3-axis quantitative evaluation.
+- [Mesh Reconstruction & Evaluation Guide](docs/mesh_reconstruction_and_eval.md): SuGaR/MILo/TSDF mesh extraction and `src/eval_mesh.py` 3-axis quantitative evaluation.
 - [Submodule Patches Guide](docs/submodule_patches.md): Patch maintenance, `apply_patches.sh`, and `verify_patches.sh` mechanisms.
-- [Architecture Decision Records (ADR)](docs/adr/): Individual architecture decision records (0001-0006) with writing rules.
+- [Architecture Decision Records (ADR)](docs/adr/): Individual architecture decision records (0001-0008) with writing rules.
