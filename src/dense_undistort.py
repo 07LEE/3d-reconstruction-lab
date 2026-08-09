@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import pycolmap
 import argparse
 import shutil
@@ -5,11 +7,7 @@ from pathlib import Path
 import sys
 import time
 
-def run_undistortion(input_dir: str, image_dir: str, output_dir: str,
-                     copy_policy: str = "hardlink",
-                     num_patch_match_src_images: int = 0,
-                     max_image_size: int = -1,
-                     blank_pixels: float = 0.0) -> bool:
+def run_undistortion(input_dir: str, image_dir: str, output_dir: str, copy_policy: str = "hardlink", num_patch_match_src_images: int = 0, max_image_size: int = -1, blank_pixels: float = 0.0) -> bool:
     """Undistorts images and creates a workspace for dense reconstruction with high-throughput optimizations.
 
     Args:
