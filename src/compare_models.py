@@ -62,8 +62,8 @@ def compare_models(colmap_path, hloc_path):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Compare COLMAP and hloc reconstruction results.")
-    parser.add_argument("--colmap_path", type=str, default="data/reconstruction", help="Path to standard COLMAP sparse dir")
-    parser.add_argument("--hloc_path", type=str, default="data/hloc_reconstruction/sfm", help="Path to hloc sparse dir")
+    parser.add_argument("--colmap_path", type=str, required=True, help="Path to standard COLMAP sparse directory")
+    parser.add_argument("--hloc_path", type=str, required=True, help="Path to hloc sparse directory")
 
     args = parser.parse_args()
     compare_models(args.colmap_path, args.hloc_path)

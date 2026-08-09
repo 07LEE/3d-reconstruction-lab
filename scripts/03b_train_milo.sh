@@ -34,26 +34,43 @@ PROJECT_ROOT=$(pwd)
 INPUT_DATASET="${1:-$DATA_DIR}"
 SCENE_NAME=$(basename "$INPUT_DATASET")
 
-MILO_OUT_DIR="$PROJECT_ROOT/${OUTPUT_DIR}/${SCENE_NAME}/mesh/milo"
-mkdir -p "$MILO_OUT_DIR"
 MILO_MODEL_DIR="$PROJECT_ROOT/${OUTPUT_DIR}/${SCENE_NAME}/mesh/milo"
 mkdir -p "$MILO_MODEL_DIR"
+
+# Ensure undistorted PINHOLE dataset workspace exists for MILo
+DENSE_DATASET="${INPUT_DATASET}/dense"
+if [ ! -d "$DENSE_DATASET/sparse" ]; then
+    echo "Preparing undistorted PINHOLE dataset for MILo via src/dense_undistort.py..."
+    SPARSE_IN="${INPUT_DATASET}/sparse/0"
+    IMG_IN="${INPUT_DATASET}/raw_images"
+    if [ ! -d "$IMG_IN" ]; then
+        IMG_IN="${INPUT_DATASET}/images"
+    fi
+    PYTHON_3DRC="$CONDA_PATH/envs/3drc/bin/python"
+    if [ ! -x "$PYTHON_3DRC" ]; then
+        PYTHON_3DRC="python3"
+    fi
+    "$PYTHON_3DRC" src/dense_undistort.py \
+        --input_dir "$SPARSE_IN" \
+        --image_dir "$IMG_IN" \
+        --output_dir "$DENSE_DATASET"
+fi
 
 # Move to MILo directory
 cd third_party/milo/milo || exit 1
 
 # Execute MILo Training & Mesh Extraction
-echo "Starting MILo Differentiable Mesh Training & Extraction (Scene: $SCENE_NAME, Dataset: $INPUT_DATASET)..."
+echo "Starting MILo Differentiable Mesh Training & Extraction (Scene: $SCENE_NAME, Dataset: $DENSE_DATASET)..."
 python train.py \
-    -s "$PROJECT_ROOT/$INPUT_DATASET" \
+    -s "$PROJECT_ROOT/$DENSE_DATASET" \
     -m "$MILO_MODEL_DIR" \
-    --imp_metric outdoor \
+    --imp_metric indoor \
     --rasterizer radegs \
     --data_device cpu
 
 echo "Extracting final MILo surface mesh..."
 python mesh_extract_sdf.py \
-    -s "$PROJECT_ROOT/$INPUT_DATASET" \
+    -s "$PROJECT_ROOT/$DENSE_DATASET" \
     -m "$MILO_MODEL_DIR" \
     --rasterizer radegs \
     --data_device cpu

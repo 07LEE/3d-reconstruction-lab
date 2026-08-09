@@ -1,5 +1,6 @@
 import pycolmap
 import argparse
+import shutil
 from pathlib import Path
 import sys
 
@@ -40,19 +41,28 @@ def run_undistortion(input_dir, image_dir, output_dir):
         print("\n[Step] Processing image undistortion...")
         pycolmap.undistort_images(output_path, input_path, image_path)
         
-        print(f"\n✅ Undistortion successfully completed!")
+        # Standardize sparse/0 directory for 3DGS and MILo dataset readers
+        sparse_dir = output_path / "sparse"
+        sparse_zero = sparse_dir / "0"
+        if sparse_dir.exists() and not sparse_zero.exists():
+            sparse_zero.mkdir(parents=True, exist_ok=True)
+            for f in sparse_dir.iterdir():
+                if f.is_file():
+                    shutil.copy2(f, sparse_zero / f.name)
+
+        print(f"\nUndistortion successfully completed!")
         print(f"Dense workspace prepared at: {output_path}")
         return True
     except Exception as e:
-        print(f"\n❌ Undistortion failed.")
+        print(f"\nUndistortion failed.")
         print(f"Error: {str(e)}")
         return False
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Image Undistortion Script for Dense Reconstruction")
-    parser.add_argument("--input_dir", type=str, default="data/reconstruction/1", help="Path to sparse model")
-    parser.add_argument("--image_dir", type=str, default="data/images", help="Original image directory")
-    parser.add_argument("--output_dir", type=str, default="data/reconstruction/dense", help="Dense workspace output path")
+    parser.add_argument("--input_dir", type=str, required=True, help="Path to sparse model directory containing .bin files")
+    parser.add_argument("--image_dir", type=str, required=True, help="Original image directory")
+    parser.add_argument("--output_dir", type=str, required=True, help="Dense workspace output path")
 
     args = parser.parse_args()
 
@@ -65,4 +75,6 @@ if __name__ == "__main__":
         print(f"Error: Image directory '{args.image_dir}' not found.")
         sys.exit(1)
 
-    run_undistortion(args.input_dir, args.image_dir, args.output_dir)
+    success = run_undistortion(args.input_dir, args.image_dir, args.output_dir)
+    if not success:
+        sys.exit(1)

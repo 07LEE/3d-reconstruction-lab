@@ -23,11 +23,15 @@ fi
 
 PROJECT_ROOT=$(pwd)
 
+# Determine dataset source
+TARGET_DATASET="${1:-$GROUPING_DATASET}"
+SCENE_NAME=$(basename "$TARGET_DATASET")
+
 # Move to gaussian-grouping directory
 cd third_party/gaussian-grouping || exit 1
 
 # Execute Training
-echo "Starting Gaussian Grouping Training for dataset: ${GROUPING_DATASET}..."
-bash script/train.sh "$GROUPING_DATASET" "$GROUPING_DOWNSAMPLE"
+echo "Starting Gaussian Grouping Training for dataset: ${SCENE_NAME}..."
+bash script/train.sh "$SCENE_NAME" "$GROUPING_DOWNSAMPLE"
 
 echo "Gaussian Grouping Training Completed!"

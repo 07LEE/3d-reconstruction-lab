@@ -28,8 +28,8 @@ Versions and commit SHAs deliberately live in envs/*.yml and submodule gitlinks,
 | hloc | active | Default path. Learned features hold up better than classic COLMAP on low-texture indoor scenes. | CameraMode.SINGLE SIMPLE_RADIAL, undistorted to PINHOLE — see ADR 0005 |
 | COLMAP | active | Used as hloc's backend for triangulation / bundle adjustment | Not an independent path |
 | vi_sfm | untested | IMU gravity alignment — produces a Z-up reconstruction so downstream meshes land in a usable world frame | match_features.main kwargs fixed and camera extrinsics now rotate with points3D, but no successful full run yet |
-| vggt | optional | Feed-forward pose estimation as a fast/no-COLMAP baseline | Optional alternative for rapid initial pose estimation |
-| fastmap | optional | Fast SfM reconstruction path | Has a dedicated view_reconstruction.sh path |
+| vggt | optional | Feed-forward camera pose and point estimation via deep network priors without iterative bundle adjustment, enabling rapid coarse pose initialization. | PyCOLMAP 3.13 adapter patched; optional fast pose baseline |
+| fastmap | optional | GPU-accelerated fast keypoint matching and mapping alternative to standard COLMAP, drastically reducing pose estimation time on large datasets. | Dedicated viewer script supported in scripts/utils/view_reconstruction.sh |
 
 ## Stage 2 — Gaussian Representation
 
@@ -60,4 +60,4 @@ Versions and commit SHAs deliberately live in envs/*.yml and submodule gitlinks,
 ## Open Questions
 
 - vi_sfm has never completed a run. Decide whether to finish it or mark it dropped — an untested entry that stays untested for months is just noise.
-- vggt and fastmap both sit at optional with no recorded rationale. If neither is actually used, dropping them removes 2 submodules and their build surface.
+- PlanarGS vs PGSR planar regularization quality on indoor scenes remains to be benchmarked with eval_mesh.py.

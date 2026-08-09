@@ -1,6 +1,7 @@
 """Pycolmap Traditional SfM Pipeline Module."""
 
 import argparse
+import os
 import sys
 import time
 from datetime import datetime
@@ -34,15 +35,29 @@ def run_sfm_pipeline(image_dir: str, output_dir: str):
 
     output_path.mkdir(parents=True, exist_ok=True)
 
+    mode_str = os.environ.get("CAMERA_MODE", "SINGLE").upper()
+    if not hasattr(pycolmap.CameraMode, mode_str):
+        valid = list(pycolmap.CameraMode.__members__.keys())
+        raise ValueError(f"Invalid CAMERA_MODE '{mode_str}'. Valid choices: {valid}")
+    cam_mode = getattr(pycolmap.CameraMode, mode_str)
+
+    camera_model = os.environ.get("CAMERA_MODEL", "SIMPLE_RADIAL").upper()
+
     print(f"--- 3D Reconstruction Pipeline Started ---")
     print(f"Input Path: {image_path}")
     print(f"Output Path: {output_path}")
+    print(f"Camera Mode: {cam_mode.name}, Camera Model: {camera_model}")
 
     start_total = time.time()
 
     print("\n[Step 1/3] Feature Extraction in progress...")
     start_extract = time.time()
-    pycolmap.extract_features(database_path, image_path)
+    pycolmap.extract_features(
+        database_path,
+        image_path,
+        camera_mode=cam_mode,
+        camera_model=camera_model
+    )
     time_extract = time.time() - start_extract
     print(f"Feature Extraction elapsed: {time_extract:.2f} seconds")
 

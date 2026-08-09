@@ -31,13 +31,15 @@ def prepare_nerfstudio_data(image_dir, sfm_model_dir, output_dir):
             dest_file.unlink()
         os.symlink(file.absolute(), dest_file.absolute())
 
-    print(f"\n✅ Data prepared at: {output_dir}")
-    print(f"Now run: ./ns_run.sh train splatfacto --data {output_dir}")
+    print(f"\nData prepared at: {output_dir}")
+    print(f"To train with nerfstudio, run: ns-train splatfacto --data {output_dir}")
 
 if __name__ == "__main__":
-    # Based on your current directory structure
-    prepare_nerfstudio_data(
-        image_dir="data/images", 
-        sfm_model_dir="data/hloc_reconstruction/sfm/models/0", 
-        output_dir="data/nerfstudio_data"
-    )
+    import argparse
+    parser = argparse.ArgumentParser(description="Prepare dataset structure for Nerfstudio / Splatfacto")
+    parser.add_argument("--image_dir", type=str, required=True, help="Path to input images directory")
+    parser.add_argument("--sfm_model_dir", type=str, required=True, help="Path to sparse SfM model directory")
+    parser.add_argument("--output_dir", type=str, required=True, help="Output directory for nerfstudio dataset")
+
+    args = parser.parse_args()
+    prepare_nerfstudio_data(args.image_dir, args.sfm_model_dir, args.output_dir)

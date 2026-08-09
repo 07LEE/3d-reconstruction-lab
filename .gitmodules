@@ -25,6 +25,8 @@
 [submodule "third_party/milo"]
 	path = third_party/milo
 	url = https://github.com/Anttwo/MILo.git
+	ignore = dirty
 [submodule "third_party/PlanarGS"]
 	path = third_party/PlanarGS
 	url = https://github.com/SJTU-ViSYS-team/PlanarGS.git
+	ignore = dirty

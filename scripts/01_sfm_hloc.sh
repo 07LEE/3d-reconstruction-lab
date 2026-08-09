@@ -66,7 +66,10 @@ else
         --overlap 100
 fi
 
-# Move outputs to method specific directory
+# Move/copy outputs to method specific directory
+if [ -d "${INPUT_DATASET}/cache/sfm" ]; then
+    cp -r "${INPUT_DATASET}/cache/sfm"/* "$SPARSE_METHOD_DIR/" 2>/dev/null || true
+fi
 if [ -d "${INPUT_DATASET}/0" ]; then
     mv "${INPUT_DATASET}/0"/* "$SPARSE_METHOD_DIR/" 2>/dev/null || true
     rmdir "${INPUT_DATASET}/0" 2>/dev/null || true
@@ -74,6 +77,27 @@ fi
 if [ -f "${SPARSE_BASE_DIR}/cameras.bin" ]; then
     mv "${SPARSE_BASE_DIR}"/*.bin "$SPARSE_METHOD_DIR/" 2>/dev/null || true
     mv "${SPARSE_BASE_DIR}"/*.ply "$SPARSE_METHOD_DIR/" 2>/dev/null || true
+fi
+
+# Verify reconstruction integrity before updating symlink
+HAS_CAMERAS=false
+if [ -f "$SPARSE_METHOD_DIR/cameras.bin" ] || [ -f "$SPARSE_METHOD_DIR/cameras.txt" ]; then
+    HAS_CAMERAS=true
+fi
+
+HAS_IMAGES=false
+if [ -f "$SPARSE_METHOD_DIR/images.bin" ] || [ -f "$SPARSE_METHOD_DIR/images.txt" ]; then
+    HAS_IMAGES=true
+fi
+
+HAS_POINTS=false
+if [ -f "$SPARSE_METHOD_DIR/points3D.bin" ] || [ -f "$SPARSE_METHOD_DIR/points3D.txt" ]; then
+    HAS_POINTS=true
+fi
+
+if [ "$HAS_CAMERAS" = false ] || [ "$HAS_IMAGES" = false ] || [ "$HAS_POINTS" = false ]; then
+    echo "[FATAL] SfM (${METHOD}) failed: Required reconstruction files (cameras, images, points3D) missing in $SPARSE_METHOD_DIR" >&2
+    exit 1
 fi
 
 # Write metadata json
@@ -88,7 +112,7 @@ with open('$SPARSE_METHOD_DIR/sfm_info.json', 'w') as f:
     json.dump(metadata, f, indent=2)
 "
 
-# Create / Update active symlink sparse/0 -> method
+# Create / Update active symlink sparse/0 -> method only after verification succeeds
 cd "$SPARSE_BASE_DIR"
 rm -rf 0
 ln -s "$METHOD" 0

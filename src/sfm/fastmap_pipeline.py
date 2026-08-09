@@ -46,7 +46,7 @@ def run_fastmap_pipeline(image_dir: str, output_dir: str, device: str = "cuda:0"
     # Step 3: FastMap Pose Estimation & Sparse Reconstruction
     print("Running FastMap GPU-accelerated pose estimation...")
     cfg = Config()
-    shutil.rmtree(output_dir)
+    os.makedirs(output_dir, exist_ok=True)
 
     engine(
         cfg=cfg,

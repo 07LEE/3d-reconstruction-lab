@@ -13,6 +13,12 @@ else
     exit 1
 fi
 
+CONDA_PATH=$(conda info --base 2>/dev/null || echo "$HOME/miniconda3")
+PYTHON_BIN="$CONDA_PATH/envs/3drc/bin/python"
+if [ ! -x "$PYTHON_BIN" ]; then
+    PYTHON_BIN="python3"
+fi
+
 show_help() {
     echo "3DRC Pipeline Unified CLI Interface"
     echo "Usage: ./scripts/run_3drc.sh [COMMAND] [OPTIONS]"
@@ -25,15 +31,18 @@ show_help() {
     echo "  sugar            Run Step 3 SuGaR Mesh Reconstruction"
     echo "  milo             Run Step 3b MILo Mesh Reconstruction"
     echo "  grouping         Run Step 4 Gaussian Grouping Object Segmentation"
+    echo "  eval [mesh] [gt] Run Step 5 Mesh Evaluation against LiDAR GT PointCloud"
     echo "  outputs          Inspect and summarize all generated output artifacts"
-    echo "  pipeline [method] Run End-to-End Pipeline (SfM -> Train)"
+    echo "  pipeline [method] Run End-to-End Pipeline (SfM -> Train -> Mesh)"
     echo "  help             Show this help message"
     echo ""
     echo "Examples:"
     echo "  ./scripts/run_3drc.sh sfm vi_sfm"
     echo "  ./scripts/run_3drc.sh train 3dgs"
     echo "  ./scripts/run_3drc.sh train planargs"
+    echo "  ./scripts/run_3drc.sh sugar"
     echo "  ./scripts/run_3drc.sh milo"
+    echo "  ./scripts/run_3drc.sh eval <mesh_path> [gt_pcd_path]"
     echo "  ./scripts/run_3drc.sh outputs"
     echo "  ./scripts/run_3drc.sh view hloc"
     echo "  ./scripts/run_3drc.sh pipeline vi_sfm"
@@ -43,7 +52,7 @@ COMMAND=${1:-"help"}
 
 case "$COMMAND" in
     outputs)
-        python3 src/inspect_outputs.py
+        "$PYTHON_BIN" src/inspect_outputs.py
         ;;
     sfm)
         METHOD=${2:-$SFM_METHOD}
@@ -81,11 +90,27 @@ case "$COMMAND" in
         echo "[3DRC CLI] Executing Step 4: Gaussian Grouping..."
         ./scripts/04_train_grouping.sh
         ;;
+    eval)
+        MESH_PATH="${2:-}"
+        GT_PATH="${3:-}"
+        if [ -z "$MESH_PATH" ]; then
+            echo "Error: Mesh file path required for evaluation."
+            echo "Usage: ./scripts/run_3drc.sh eval <mesh_path> [gt_pointcloud_path]"
+            exit 1
+        fi
+        EVAL_ARGS=("--mesh" "$MESH_PATH")
+        if [ -n "$GT_PATH" ]; then
+            EVAL_ARGS+=("--gt" "$GT_PATH")
+        fi
+        echo "[3DRC CLI] Executing Mesh Evaluation on ${MESH_PATH}..."
+        "$PYTHON_BIN" src/eval_mesh.py "${EVAL_ARGS[@]}"
+        ;;
     pipeline)
         SFM_OPT=${2:-"hloc"}
         echo "[3DRC CLI] Starting End-to-End Automated Pipeline (SfM: ${SFM_OPT})..."
         ./scripts/01_sfm_hloc.sh "$SFM_OPT"
         ./scripts/02_train_3dgs.sh
+        ./scripts/03_train_sugar.sh
         echo "[3DRC CLI] End-to-End Automated Pipeline Execution Finished!"
         ;;
     help|*)

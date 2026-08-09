@@ -44,12 +44,12 @@ This guide details the 3D mesh extraction pipelines (SuGaR and MILo) and the 3-a
 
 ```bash
 # 1. Evaluate topology hygiene and self-intersections of a reconstructed mesh
-python src/eval_mesh.py --mesh outputs/20260429_140922/mesh/sugar/mesh.obj
+python src/eval_mesh.py --mesh outputs/<scene_name>/mesh/sugar/sugarfine_mesh.obj
 
 # 2. Evaluate Chamfer / Hausdorff distance against ground truth point cloud (e.g., LiDAR PCD)
-python src/eval_mesh.py --mesh outputs/20260429_140922/mesh/sugar/mesh.obj --gt data/lidar.pcd
+python src/eval_mesh.py --mesh outputs/<scene_name>/mesh/sugar/sugarfine_mesh.obj --gt data/<scene_name>/lidar.pcd
 
 # 3. Evaluate mesh accuracy with SIM3 alignment
-python src/eval_mesh.py --mesh outputs/20260429_140922/mesh/sugar/mesh.obj --gt data/lidar.pcd --transform outputs/20260429_140922/eval/sim3_transform.json
-python src/eval_mesh.py --mesh outputs/20260429_140922/mesh/milo/mesh_cleaned_largest.ply --gt data/lidar.pcd --transform outputs/20260429_140922/eval/sim3_transform.json
+python src/eval_mesh.py --mesh outputs/<scene_name>/mesh/sugar/sugarfine_mesh.obj --gt data/<scene_name>/lidar.pcd --transform outputs/<scene_name>/eval/sim3_transform.json
+python src/eval_mesh.py --mesh outputs/<scene_name>/mesh/milo/mesh_cleaned_largest.ply --gt data/<scene_name>/lidar.pcd --transform outputs/<scene_name>/eval/sim3_transform.json
 ```
