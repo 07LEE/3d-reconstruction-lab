@@ -27,25 +27,19 @@ PROJECT_ROOT=$(pwd)
 # Move to sugar directory
 cd third_party/sugar || exit 1
 
-# Create main outputs subdirectories
-mkdir -p "$PROJECT_ROOT/${OUTPUT_DIR}/sugar_mesh"
-mkdir -p "$PROJECT_ROOT/${OUTPUT_DIR}/sugar"
+# Determine dataset source
+INPUT_DATASET="${1:-$DATA_DIR}"
+SCENE_NAME=$(basename "$INPUT_DATASET")
 
-# Determine dataset source (prefer data/undistorted if available)
-INPUT_DATASET="${1:-}"
-if [ -z "$INPUT_DATASET" ]; then
-    if [ -d "$PROJECT_ROOT/data/undistorted/sparse/0" ]; then
-        INPUT_DATASET="data/undistorted"
-    else
-        INPUT_DATASET="$DATA_DIR"
-    fi
-fi
+GS_CHECKPOINT="$PROJECT_ROOT/${OUTPUT_DIR}/${SCENE_NAME}/3dgs/inria_30k"
+SUGAR_MESH_DIR="$PROJECT_ROOT/${OUTPUT_DIR}/${SCENE_NAME}/mesh/sugar"
+mkdir -p "$SUGAR_MESH_DIR"
 
 # Execute SuGaR Pipeline
-echo "Starting SuGaR Mesh Extraction (Dataset: $INPUT_DATASET)..."
+echo "Starting SuGaR Mesh Extraction (Scene: $SCENE_NAME, Dataset: $INPUT_DATASET)..."
 python train_full_pipeline.py \
     -s "$PROJECT_ROOT/$INPUT_DATASET" \
-    --gs_output_dir "$PROJECT_ROOT/${OUTPUT_DIR}/gs_final_precision" \
+    --gs_output_dir "$GS_CHECKPOINT" \
     -r "$SUGAR_REGULARIZATION" \
     --high_poly "$SUGAR_HIGH_POLY" \
     --export_obj True \

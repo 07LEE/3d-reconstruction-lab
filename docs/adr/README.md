@@ -1,3 +1,10 @@
+---
+title: Architecture Decision Records (ADR)
+description: Index and operational rules for Architecture Decision Records in 3DRC.
+category: adr
+last_updated: 2026-08-09
+---
+
 # Architecture Decision Records (ADR)
 
 This directory documents key architectural decisions, rationale, and context for the 3DRC pipeline.
@@ -15,3 +22,6 @@ This directory documents key architectural decisions, rationale, and context for
 - 0003-decoupling-buildtime-and-runtime-config.md: Decouple Buildtime and Runtime Configurations
 - 0004-submodule-patches-over-fork.md: Manage Submodule Changes via patches/ Instead of Fork Branches
 - 0005-colmap-camera-models.md: Expand COLMAP Camera Model Support (SIMPLE_RADIAL / RADIAL / OPENCV)
+- 0006-complete-removal-of-fork-repositories.md: Complete Removal of Personal Fork Repositories in Favor of Direct Upstream Submodules and Patches
+- 0007-scene-based-output-hierarchy.md: Scene-Based Output Hierarchy for Multi-Dataset Pipeline Isolation
+

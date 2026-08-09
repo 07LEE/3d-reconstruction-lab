@@ -1,3 +1,10 @@
+---
+title: Pipeline Architecture Guide
+description: Technical architecture, stage workflows, and execution guide for the 3DRC reconstruction pipeline.
+category: guide
+last_updated: 2026-08-09
+---
+
 # 3DRC Pipeline Architecture Guide
 
 This document provides technical details, configuration parameters, and execution guides for all pipeline steps in the 3DRC workspace.
@@ -70,14 +77,14 @@ Optimizes 3D Gaussian Splatting scene representations using differentiable raste
 
 ```bash
 # Reference 3DGS training
-./scripts/02_train_3dgs.sh data/undistorted
+./scripts/02_train_3dgs.sh data/<scene_name>
 
 # Selective planar-regularized 3DGS training (PlanarGS)
-./scripts/02b_train_planargs.sh data/undistorted
+./scripts/02b_train_planargs.sh data/<scene_name>
 ```
 
-- Output Checkpoint (Inria 3DGS): `outputs/gs_final_precision/`
-- Output Checkpoint (PlanarGS): `outputs/planargs/`
+- Output Checkpoint (Inria 3DGS): `outputs/<scene_name>/3dgs/inria_30k/`
+- Output Checkpoint (PlanarGS): `outputs/<scene_name>/3dgs/planargs/`
 
 ## Step 3: 3D Mesh Reconstruction (SuGaR & MILo)
 

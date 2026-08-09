@@ -23,4 +23,7 @@ Patch Index:
 - SuGaR gs_model.py CPU data_device OOM patch
 - MILo nvdiffrast/torch/ops.py TORCH_CUDA_ARCH_LIST initialization fix
 
-Related: 0001 (split Conda environments — patch series enforces module correctness)
+Related:
+
+- 0001 (split Conda environments — patch series enforces module correctness)
+- 0006 (complete removal of personal fork repositories)

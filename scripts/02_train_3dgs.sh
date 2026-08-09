@@ -53,13 +53,17 @@ else
     TARGET_DATA_DIR="${DATA_DIR}"
 fi
 
+SCENE_NAME=$(basename "$TARGET_DATA_DIR")
+MODEL_OUTPUT="${OUTPUT_DIR}/${SCENE_NAME}/3dgs/inria_30k"
+mkdir -p "$MODEL_OUTPUT"
+
 # 2. Training Execution
-echo "Starting High-Density Original 3DGS Training..."
+echo "Starting High-Density Original 3DGS Training (Scene: $SCENE_NAME)..."
 python third_party/gaussian-splatting/train.py \
     -s "$TARGET_DATA_DIR" \
-    --model_path "${OUTPUT_DIR}/gs_final_precision" \
+    --model_path "$MODEL_OUTPUT" \
     -r "$DOWNSAMPLE_RATE" \
-    --data_device "$DATA_DEVICE" \
-    --densify_grad_threshold "$DENSIFY_GRAD_THRESHOLD"
+    --densify_grad_threshold "$DENSIFY_GRAD_THRESHOLD" \
+    --data_device "$DATA_DEVICE"
 
-echo "Training Completed! Results saved in ${OUTPUT_DIR}/gs_final_precision"
+echo "3DGS Training Completed! Results saved to $MODEL_OUTPUT"

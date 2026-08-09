@@ -1,0 +1,111 @@
+diff --git a/vggt/dependency/np_to_pycolmap.py b/vggt/dependency/np_to_pycolmap.py
+index 61ea578..13f5fc5 100644
+--- a/vggt/dependency/np_to_pycolmap.py
++++ b/vggt/dependency/np_to_pycolmap.py
+@@ -223,70 +223,45 @@ def batch_np_matrix_to_pycolmap_wo_track(
+     # extrinsics: Nx3x4
+     # intrinsics: Nx3x3
+     # image_size: 2, assume all the frames have been padded to the same size
+-    # where N is the number of frames and P is the number of tracks
+-
+     N = len(extrinsics)
+     P = len(points3d)
+ 
+-    # Reconstruction object, following the format of PyCOLMAP/COLMAP
+-    reconstruction = pycolmap.Reconstruction()
+-
+-    for vidx in range(P):
+-        reconstruction.add_point3D(points3d[vidx], pycolmap.Track(), points_rgb[vidx])
+-
+-    camera = None
+-    # frame idx
+-    for fidx in range(N):
+-        # set camera
+-        if camera is None or (not shared_camera):
+-            pycolmap_intri = _build_pycolmap_intri(fidx, intrinsics, camera_type)
+-
+-            camera = pycolmap.Camera(
+-                model=camera_type, width=image_size[0], height=image_size[1], params=pycolmap_intri, camera_id=fidx + 1
+-            )
+-
+-            # add camera
+-            reconstruction.add_camera(camera)
+-
+-        # set image
+-        cam_from_world = pycolmap.Rigid3d(
+-            pycolmap.Rotation3d(extrinsics[fidx][:3, :3]), extrinsics[fidx][:3, 3]
+-        )  # Rot and Trans
+-
+-        image = pycolmap.Image(
+-            id=fidx + 1, name=f"image_{fidx + 1}", camera_id=camera.camera_id, cam_from_world=cam_from_world
+-        )
+-
+-        points2D_list = []
+-
+-        point2D_idx = 0
+-
+-        points_belong_to_fidx = points_xyf[:, 2].astype(np.int32) == fidx
+-        points_belong_to_fidx = np.nonzero(points_belong_to_fidx)[0]
+-
+-        for point3D_batch_idx in points_belong_to_fidx:
+-            point3D_id = point3D_batch_idx + 1
+-            point2D_xyf = points_xyf[point3D_batch_idx]
+-            point2D_xy = point2D_xyf[:2]
+-            points2D_list.append(pycolmap.Point2D(point2D_xy, point3D_id))
+-
+-            # add element
+-            track = reconstruction.points3D[point3D_id].track
+-            track.add_element(fidx + 1, point2D_idx)
+-            point2D_idx += 1
+-
+-        assert point2D_idx == len(points2D_list)
+-
+-        try:
+-            image.points2D = pycolmap.ListPoint2D(points2D_list)
+-            image.registered = True
+-        except:
+-            print(f"frame {fidx + 1} does not have any points")
+-            image.registered = False
+-
+-        # add image
+-        reconstruction.add_image(image)
+-
++    import tempfile
++    import os
++    from scipy.spatial.transform import Rotation as R
++
++    tmp_dir = tempfile.mkdtemp(prefix="vggt_colmap_")
++
++    # 1. Write cameras.txt
++    cam_file = os.path.join(tmp_dir, "cameras.txt")
++    with open(cam_file, "w") as f:
++        for fidx in range(N):
++            intri = _build_pycolmap_intri(fidx, intrinsics, camera_type)
++            params_str = " ".join(map(str, intri))
++            f.write(f"{fidx + 1} {camera_type} {image_size[0]} {image_size[1]} {params_str}\n")
++            if shared_camera:
++                break
++
++    # 2. Write images.txt
++    img_file = os.path.join(tmp_dir, "images.txt")
++    with open(img_file, "w") as f:
++        for fidx in range(N):
++            rot_mat = extrinsics[fidx][:3, :3]
++            t_vec = extrinsics[fidx][:3, 3]
++            quat = R.from_matrix(rot_mat).as_quat()  # x, y, z, w
++            qw, qx, qy, qz = quat[3], quat[0], quat[1], quat[2]
++            cam_id = 1 if shared_camera else fidx + 1
++            f.write(f"{fidx + 1} {qw} {qx} {qy} {qz} {t_vec[0]} {t_vec[1]} {t_vec[2]} {cam_id} image_{fidx + 1}\n\n")
++
++    # 3. Write points3D.txt
++    pts_file = os.path.join(tmp_dir, "points3D.txt")
++    with open(pts_file, "w") as f:
++        for pidx in range(P):
++            p = points3d[pidx]
++            c = points_rgb[pidx]
++            f.write(f"{pidx + 1} {p[0]} {p[1]} {p[2]} {c[0]} {c[1]} {c[2]} 0.0\n")
++
++    reconstruction = pycolmap.Reconstruction(tmp_dir)
+     return reconstruction
+ 
+ 

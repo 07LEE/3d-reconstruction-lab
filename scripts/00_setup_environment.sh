@@ -31,8 +31,8 @@ if [ -f "$CONDA_PATH/etc/profile.d/conda.sh" ]; then
     source "$CONDA_PATH/etc/profile.d/conda.sh"
 fi
 
-echo -e "\n[Step 3/4] Ensuring Conda Environments (gs_train, gs_sugar, gs_group)..."
-for env_name in gs_train gs_sugar gs_group; do
+echo -e "\n[Step 3/4] Ensuring Conda Environments (3drc, gs_train, gs_sugar, gs_group, gs_milo)..."
+for env_name in 3drc gs_train gs_sugar gs_group gs_milo; do
     if ! conda env list | awk '{print $1}' | grep -qx "$env_name"; then
         echo "Creating Conda environment '$env_name'..."
         if [ -f "envs/$env_name.yml" ]; then
@@ -64,5 +64,5 @@ echo -e "\nVerifying Patch and Environment Integrity..."
 
 echo -e "\n=================================================="
 echo " 3DRC Environment Setup Completed Successfully!"
-echo " Environments (gs_train, gs_sugar, gs_group) are ready."
+echo " Environments (3drc, gs_train, gs_sugar, gs_group, gs_milo) are ready."
 echo "=================================================="

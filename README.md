@@ -25,18 +25,19 @@ A personal workspace for hands-on experimentation with 3D reconstruction pipelin
 ./scripts/utils/apply_patches.sh
 ./scripts/utils/verify_patches.sh
 
-# 2. Run Step 1 Camera Pose Estimation (hloc, vi_sfm, VGGT)
-./scripts/run_3drc.sh sfm vi_sfm
+# 2. Run Step 1 Camera Pose Estimation (COLMAP, hloc, vi_sfm, VGGT)
+./scripts/run_3drc.sh sfm
 
-# 3. Run Step 2 3DGS Training
-./scripts/run_3drc.sh train
+# 3. Run Step 2 3DGS Training (Inria 3DGS / PlanarGS)
+./scripts/run_3drc.sh train 3dgs
+./scripts/run_3drc.sh train planargs
 
 # 4. Run Step 3 Mesh Reconstruction (SuGaR / MILo)
-./scripts/03_train_sugar.sh
-./scripts/03b_train_milo.sh
+./scripts/run_3drc.sh sugar
+./scripts/run_3drc.sh milo
 
 # 5. Evaluate 3D Mesh Topology & Accuracy
-python src/eval_mesh.py --mesh outputs/sugar_mesh/.../mesh.obj
+python src/eval_mesh.py --mesh outputs/undistorted/mesh/milo/mesh_cleaned_largest.ply
 ```
 
 ## Environment Architecture
@@ -50,7 +51,8 @@ python src/eval_mesh.py --mesh outputs/sugar_mesh/.../mesh.obj
 
 | Tool | Pipeline Step | Core Role | Methodology |
 | --- | --- | --- | --- |
-| COLMAP / hloc | Step 1 (SfM) | Camera pose estimation | SIFT / SuperPoint+SuperGlue SfM |
+| COLMAP (Default) | Step 1 (SfM) | Classic camera pose estimation | SIFT keypoint extraction + Incremental SfM BA |
+| hloc | Step 1 (SfM) | Deep learning camera pose estimation | SuperPoint + SuperGlue with COLMAP BA |
 | VGGT-Omega | Step 1 (SfM) | Immediate pose estimation | Feed-forward Visual Geometry Transformer |
 | vi_sfm | Step 1 (SfM) | Visual-Inertial pose estimation | RGB + IMU fusion with gravity alignment |
 | 3DGS (Inria) | Step 2 (Training) | High-fidelity 3D scene optimization | Differentiable 3D Gaussian rasterization |
@@ -61,6 +63,8 @@ python src/eval_mesh.py --mesh outputs/sugar_mesh/.../mesh.obj
 
 ## Submodule Patches Summary
 
+All submodules in `third_party/` reference official upstream repositories directly. Custom modifications are maintained as versioned patch files:
+
 | Target Submodule | Patch File | Purpose |
 | --- | --- | --- |
 | `gaussian-splatting` | `0001-colmap-camera-models.patch` | Support for `SIMPLE_RADIAL`, `RADIAL`, `OPENCV` camera models |
@@ -68,6 +72,8 @@ python src/eval_mesh.py --mesh outputs/sugar_mesh/.../mesh.obj
 | `diff-gaussian-rasterization` | `0001-zero-init-state-structs.patch` | Zero-initialization of CUDA state structs |
 | `diff-gaussian-rasterization` | `0002-cstdint-include.patch` | `<cstdint>` header include for GCC 13+/14 |
 | `sugar` | `0001-sugar-extension-dup-and-cpu-device.patch` | Extension fix, CPU `data_device` VRAM OOM fix, `weights_only=False` PyTorch 2.6+ fix |
+| `milo` | `0001-cstdint-and-cmake-fixes.patch` | `<cstdint>` includes for GCC 13+ in rasterizers and CMake 4.4 CXX standard / pybind11 tag fixes |
+| `vggt` | `0001-pycolmap-313-compat.patch` | PyCOLMAP 3.13 text export compatibility fix |
 
 ## Detailed Documentation Guides
 
@@ -78,4 +84,4 @@ For in-depth technical guides, execution options, and evaluation methodologies, 
 - [Blackwell (sm_120) Build Notes](docs/blackwell_build_notes.md): Troubleshooting matrix and native sm_120 CUBIN build guide.
 - [Mesh Reconstruction & Evaluation Guide](docs/mesh_reconstruction_and_eval.md): SuGaR/MILo mesh extraction and `src/eval_mesh.py` 3-axis quantitative evaluation.
 - [Submodule Patches Guide](docs/submodule_patches.md): Patch maintenance, `apply_patches.sh`, and `verify_patches.sh` mechanisms.
-- [Architecture Decision Records (ADR)](docs/adr/): Individual architecture decision records (0001-0005) with writing rules.
+- [Architecture Decision Records (ADR)](docs/adr/): Individual architecture decision records (0001-0006) with writing rules.

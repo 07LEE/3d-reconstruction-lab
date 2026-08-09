@@ -25,25 +25,20 @@ fi
 source "$(dirname "$0")/utils/setup_build_env.sh"
 
 PROJECT_ROOT=$(pwd)
-INPUT_DATASET="${1:-}"
-if [ -z "$INPUT_DATASET" ]; then
-    if [ -d "$PROJECT_ROOT/data/undistorted/sparse/0" ]; then
-        INPUT_DATASET="data/undistorted"
-    else
-        INPUT_DATASET="$DATA_DIR"
-    fi
-fi
+INPUT_DATASET="${1:-$DATA_DIR}"
 
-mkdir -p "$PROJECT_ROOT/${OUTPUT_DIR}/planargs"
+SCENE_NAME=$(basename "$INPUT_DATASET")
+MODEL_OUTPUT="$PROJECT_ROOT/${OUTPUT_DIR}/${SCENE_NAME}/3dgs/planargs"
+mkdir -p "$MODEL_OUTPUT"
 
 # Execute PlanarGS Training
-echo "Starting PlanarGS Training (Dataset: $INPUT_DATASET)..."
+echo "Starting PlanarGS Training (Scene: $SCENE_NAME, Dataset: $INPUT_DATASET)..."
 cd third_party/PlanarGS || exit 1
 
 python train.py \
     -s "$PROJECT_ROOT/$INPUT_DATASET" \
-    -m "$PROJECT_ROOT/${OUTPUT_DIR}/planargs" \
+    -m "$MODEL_OUTPUT" \
     -r "$DOWNSAMPLE_RATE" \
     --data_device "$DATA_DEVICE"
 
-echo "PlanarGS Training Completed! Models saved at $PROJECT_ROOT/${OUTPUT_DIR}/planargs"
+echo "PlanarGS Training Completed! Models saved at $MODEL_OUTPUT"
