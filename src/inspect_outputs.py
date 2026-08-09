@@ -5,12 +5,23 @@ to generate a clean, portable `summary.md` file inside `outputs/<scene_name>/sum
 without duplicating binary files on disk.
 """
 
-import os
+from __future__ import annotations
+
+import json
 import time
+from dataclasses import asdict, dataclass
 from pathlib import Path
+from typing import Any, Dict, List, Optional, Set, Tuple
 
 def format_size(size_bytes: int) -> str:
-    """Format byte sizes to human-readable units."""
+    """Formats raw byte sizes into human-readable unit strings.
+
+    Args:
+        size_bytes: Size in bytes.
+
+    Returns:
+        str: Human-readable size string (e.g., '12.5 MB', '1.24 GB').
+    """
     if size_bytes < 1024:
         return f"{size_bytes} B"
     elif size_bytes < 1024 * 1024:
@@ -21,11 +32,37 @@ def format_size(size_bytes: int) -> str:
         return f"{size_bytes / (1024 * 1024 * 1024):.2f} GB"
 
 def format_mtime(timestamp: float) -> str:
-    """Format file modification time to YYYY-MM-DD HH:MM:SS."""
+    """Formats a POSIX timestamp into a standard datetime string.
+
+    Args:
+        timestamp: POSIX epoch timestamp in seconds.
+
+    Returns:
+        str: Formatted datetime string (YYYY-MM-DD HH:MM:SS).
+    """
     return time.strftime("%Y-%m-%d %H:%M:%S", time.localtime(timestamp))
 
-def extract_metadata(file_path: Path, rel_path_str: str) -> tuple[str, str, str, str]:
-    """Extract (Stage, Algorithm Name, Display Name, Parameters/Config) for an output file."""
+@dataclass
+class ArtifactItem:
+    scene: str
+    stage: str
+    algorithm: str
+    config: str
+    display_name: str
+    rel_path: str
+    size: str
+    mtime: str
+
+def extract_metadata(file_path: Path, rel_path_str: str) -> Tuple[str, str, str, str]:
+    """Extracts pipeline stage, algorithm name, and configuration details for an output artifact.
+
+    Args:
+        file_path: Path object to the target artifact file.
+        rel_path_str: Relative path string of the artifact.
+
+    Returns:
+        Tuple[str, str, str, str]: (stage_label, algorithm_label, display_name, config_details).
+    """
     ext = file_path.suffix.lower()
     parent_parts = [p.lower() for p in file_path.parts]
 
@@ -36,6 +73,8 @@ def extract_metadata(file_path: Path, rel_path_str: str) -> tuple[str, str, str,
         algorithm = "Inria 3DGS (Reference)"
     elif "planargs" in parent_parts:
         algorithm = "PlanarGS (Indoor Planar Priors)"
+    elif "2dgs" in parent_parts:
+        algorithm = "2DGS (2D Planar Surfels)"
     elif "milo" in parent_parts:
         algorithm = "MILo (Mesh-in-the-Loop SDF)"
     elif "sugar" in parent_parts:
@@ -46,22 +85,19 @@ def extract_metadata(file_path: Path, rel_path_str: str) -> tuple[str, str, str,
     # Stage Identification
     if "sparse" in parent_parts or "sfm" in parent_parts:
         stage = "Stage 1 (SfM)"
-    elif "3dgs" in parent_parts or "point_cloud" in parent_parts:
-        stage = "Stage 2 (3DGS)"
+    elif "inria_30k" in parent_parts or "planargs" in parent_parts or ("2dgs" in parent_parts and "mesh" not in parent_parts):
+        stage = "Stage 2 (Training)"
     elif "mesh" in parent_parts or ext in [".obj", ".stl", ".ply", ".splat", ".mtl"]:
         stage = "Stage 3 (Mesh)"
     elif "eval" in parent_parts or ext == ".json":
-        stage = "Stage 4 (Eval)"
+        stage = "Stage 5 (Eval)"
     else:
         stage = "Artifact"
 
     # Disambiguate Display Name
     if file_path.name == "point_cloud.ply":
         parent_name = file_path.parent.name
-        if parent_name.startswith("iteration_"):
-            display_name = f"{parent_name}/point_cloud.ply"
-        else:
-            display_name = f"{file_path.parent.name}/point_cloud.ply"
+        display_name = f"{parent_name}/point_cloud.ply" if parent_name.startswith("iteration_") else f"{file_path.parent.name}/point_cloud.ply"
     elif "sparse" in parent_parts:
         display_name = f"sparse/0/{file_path.name}"
     else:
@@ -80,8 +116,7 @@ def extract_metadata(file_path: Path, rel_path_str: str) -> tuple[str, str, str,
             config = "COLMAP Sparse Point Cloud (PLY Viewable)"
     elif "sugar" in parent_parts:
         if "sugarfine_" in file_path.name:
-            name = file_path.name
-            parts = name.split("_")
+            parts = file_path.name.split("_")
             params = []
             for p in parts:
                 if p.startswith("3Dgs"):
@@ -101,6 +136,11 @@ def extract_metadata(file_path: Path, rel_path_str: str) -> tuple[str, str, str,
             config = "32-byte Splat WebGL Viewer Format"
         elif file_path.name == "gaussian_xyz_rgb.ply":
             config = "Universal XYZ+RGB Point Cloud"
+    elif "2dgs" in parent_parts:
+        if file_path.name == "tsdf_mesh.ply":
+            config = "Open3D TSDF Voxel Integration (Unbiased Depth/Normal)"
+        elif "iteration_30000" in parent_parts:
+            config = "30,000 Iterations 2D Surfel Point Cloud"
     elif "inria_30k" in parent_parts:
         if "iteration_30000" in parent_parts:
             config = "30,000 Iterations Final Checkpoint (PINHOLE single-camera)"
@@ -109,31 +149,38 @@ def extract_metadata(file_path: Path, rel_path_str: str) -> tuple[str, str, str,
 
     return stage, algorithm, display_name, config
 
-def inspect_workspace_outputs(project_root: str = "."):
+def inspect_workspace_outputs(project_root: str | Path = ".") -> Dict[str, List[ArtifactItem]]:
+    """Scans outputs/ and data/ directories to collect and record scene artifacts.
+
+    Generates dynamic per-scene summary.md markdown tables and prints a unified
+    summary table to stdout.
+
+    Args:
+        project_root: Root workspace directory to scan.
+
+    Returns:
+        Dict[str, List[ArtifactItem]]: Dictionary mapping scene names to lists of discovered artifacts.
+    """
     root = Path(project_root).resolve()
     outputs_dir = root / "outputs"
     data_dir = root / "data"
 
-    all_scene_artifacts = {}
+    all_scene_artifacts: Dict[str, List[ArtifactItem]] = {}
 
-    scene_names = set()
-    if outputs_dir.exists():
-        for d in outputs_dir.iterdir():
-            if d.is_dir():
-                scene_names.add(d.name)
-    if data_dir.exists():
-        for d in data_dir.iterdir():
-            if d.is_dir():
-                scene_names.add(d.name)
+    scene_names: Set[str] = set()
+    if outputs_dir.is_dir():
+        scene_names.update(d.name for d in outputs_dir.iterdir() if d.is_dir() and not d.name.startswith("."))
+    if data_dir.is_dir():
+        scene_names.update(d.name for d in data_dir.iterdir() if d.is_dir() and not d.name.startswith("."))
 
     for scene_name in sorted(scene_names):
         scene_dir = outputs_dir / scene_name
-        scene_artifacts = []
+        scene_artifacts: List[ArtifactItem] = []
 
         # Stage 1 SfM Check (Scan all method subfolders inside data/<scene_name>/sparse/)
         sparse_base_dir = data_dir / scene_name / "sparse"
-        if sparse_base_dir.exists():
-            active_target = None
+        if sparse_base_dir.is_dir():
+            active_target: Optional[str] = None
             symlink_0 = sparse_base_dir / "0"
             if symlink_0.is_symlink():
                 try:
@@ -144,29 +191,27 @@ def inspect_workspace_outputs(project_root: str = "."):
             for method_dir in sorted(sparse_base_dir.iterdir()):
                 if not method_dir.is_dir() or method_dir.name == "0":
                     continue
-                
+
                 method_name = method_dir.name
                 is_active = (active_target == method_name)
-                
+
                 # Read sfm_info.json metadata if available
                 info_file = method_dir / "sfm_info.json"
                 sfm_method_name = method_name
-                if info_file.exists():
+                if info_file.is_file():
                     try:
-                        import json
                         with open(info_file, "r") as f:
                             sfm_info = json.load(f)
                             sfm_method_name = sfm_info.get("method", method_name)
                     except Exception:
                         pass
 
-                # Map algorithm display name
                 algorithm_names = {
                     "hloc": "COLMAP / hloc (SuperPoint+SuperGlue)",
                     "vggt": "VGGT-Omega (Feed-Forward Transformer)",
                     "fastmap": "FastMap GPU SfM",
                     "sfm": "COLMAP / SIFT Baseline",
-                    "vi_sfm": "Visual-Inertial SfM (RGB+IMU)"
+                    "vi_sfm": "Visual-Inertial SfM (RGB+IMU)",
                 }
                 algorithm_label = algorithm_names.get(sfm_method_name, f"SfM ({sfm_method_name})")
                 if is_active:
@@ -184,26 +229,24 @@ def inspect_workspace_outputs(project_root: str = "."):
                     mtime = format_mtime(sfm_file.stat().st_mtime)
                     size_str = format_size(sfm_file.stat().st_size)
 
-                    scene_artifacts.append({
-                        "scene": scene_name,
-                        "stage": "Stage 1 (SfM)",
-                        "algorithm": algorithm_label,
-                        "config": config,
-                        "display_name": display_name,
-                        "rel_path": rel_link,
-                        "size": size_str,
-                        "mtime": mtime
-                    })
+                    scene_artifacts.append(ArtifactItem(
+                        scene=scene_name,
+                        stage="Stage 1 (SfM)",
+                        algorithm=algorithm_label,
+                        config=config,
+                        display_name=display_name,
+                        rel_path=rel_link,
+                        size=size_str,
+                        mtime=mtime,
+                    ))
 
-        # Discover all key deliverables inside outputs/<scene_name>/
-        if scene_dir.exists():
+        # Discover all deliverables inside outputs/<scene_name>/
+        if scene_dir.is_dir():
             for file_path in sorted(scene_dir.rglob("*")):
                 if not file_path.is_file() or file_path.name.startswith("."):
                     continue
-
                 if file_path.stem.isdigit() and file_path.suffix.lower() in [".png", ".jpg"]:
                     continue
-
                 if file_path.name == "summary.md":
                     continue
 
@@ -216,21 +259,21 @@ def inspect_workspace_outputs(project_root: str = "."):
                 mtime = format_mtime(file_path.stat().st_mtime)
                 size_str = format_size(file_path.stat().st_size)
 
-                scene_artifacts.append({
-                    "scene": scene_name,
-                    "stage": stage,
-                    "algorithm": algorithm,
-                    "config": config,
-                    "display_name": str(rel_path),
-                    "rel_path": str(rel_path),
-                    "size": size_str,
-                    "mtime": mtime
-                })
+                scene_artifacts.append(ArtifactItem(
+                    scene=scene_name,
+                    stage=stage,
+                    algorithm=algorithm,
+                    config=config,
+                    display_name=str(rel_path),
+                    rel_path=str(rel_path),
+                    size=size_str,
+                    mtime=mtime,
+                ))
 
             if scene_artifacts:
                 all_scene_artifacts[scene_name] = scene_artifacts
 
-                # Write detailed scene-specific summary.md inside outputs/<scene_name>/summary.md
+                # Write scene-specific summary.md
                 scene_summary_md = scene_dir / "summary.md"
                 with open(scene_summary_md, "w", encoding="utf-8") as f:
                     f.write(f"# Scene Execution & Artifacts Summary: `{scene_name}`\n\n")
@@ -238,7 +281,7 @@ def inspect_workspace_outputs(project_root: str = "."):
                     f.write("| Stage | Algorithm | Checkpoint / File Subpath | Link | Execution Parameters / Details | Size | Creation Time |\n")
                     f.write("| --- | --- | --- | --- | --- | --- | --- |\n")
                     for a in scene_artifacts:
-                        f.write(f"| {a['stage']} | {a['algorithm']} | `{a['display_name']}` | [{a['display_name']}]({a['rel_path']}) | {a['config']} | {a['size']} | {a['mtime']} |\n")
+                        f.write(f"| {a.stage} | {a.algorithm} | `{a.display_name}` | [{a.display_name}]({a.rel_path}) | {a.config} | {a.size} | {a.mtime} |\n")
                 print(f"[Inspector] Wrote detailed scene summary to: {scene_summary_md}")
 
     # Terminal Output Table
@@ -247,11 +290,13 @@ def inspect_workspace_outputs(project_root: str = "."):
     print("=" * 125)
     for s_name, s_arts in all_scene_artifacts.items():
         print(f"\n[Scene: {s_name}]")
-        print(f"{'Stage':<15} | {'Algorithm':<26} | {'Subpath / File Name':<38} | {'Size':<10} | {'Creation Time'}")
+        print(f"{'Stage':<18} | {'Algorithm':<28} | {'Subpath / File Name':<38} | {'Size':<10} | {'Creation Time'}")
         print("-" * 125)
         for a in s_arts:
-            print(f"{a['stage']:<15} | {a['algorithm']:<26} | {a['display_name']:<38} | {a['size']:<10} | {a['mtime']}")
+            print(f"{a.stage:<18} | {a.algorithm:<28} | {a.display_name:<38} | {a.size:<10} | {a.mtime}")
     print("=" * 125)
+
+    return all_scene_artifacts
 
 if __name__ == "__main__":
     inspect_workspace_outputs()
