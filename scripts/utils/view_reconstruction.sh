@@ -1,11 +1,17 @@
 #!/bin/bash
 set -euo pipefail
 
-TYPE=${1:-"hloc"}
+CONFIG_PATH="configs/default_config.sh"
+if [ -f "$CONFIG_PATH" ]; then
+    source "$CONFIG_PATH"
+fi
 
-if [ -z "$TYPE" ]; then
-    echo "Usage: ./scripts/view_reconstruction.sh [fastmap|hloc]"
-    exit 1
+TYPE=${1:-"hloc"}
+INPUT_DATASET="${2:-$DATA_DIR}"
+
+IMAGE_DIR_TARGET="${INPUT_DATASET}/raw_images"
+if [ ! -d "$IMAGE_DIR_TARGET" ]; then
+    IMAGE_DIR_TARGET="${INPUT_DATASET}/images"
 fi
 
 # Dynamic Conda environment activation for COLMAP GUI
@@ -22,25 +28,27 @@ if ! command -v colmap >/dev/null 2>&1 && [ -x "$CONDA_PATH/bin/colmap" ]; then
     export PATH="$CONDA_PATH/bin:$PATH"
 fi
 
-if [ "$TYPE" = "fastmap" ]; then
-    echo "Starting COLMAP GUI for FastMap reconstruction..."
-    colmap gui \
-        --database_path data/database_fastmap.db \
-        --image_path data/images \
-        --import_path data/fastmap_reconstruction/sparse/0
-elif [ "$TYPE" = "hloc" ]; then
-    echo "Starting COLMAP GUI for Hloc (standard) reconstruction..."
-    IMPORT_DIR="data/hloc_reconstruction/sfm"
-    if [ -d "$IMPORT_DIR/models/0" ] && [ -f "$IMPORT_DIR/models/0/points3D.bin" ]; then
-        echo "Detected multi-model reconstruction. Using models/0 for importing."
-        IMPORT_DIR="$IMPORT_DIR/models/0"
-    fi
-    colmap gui \
-        --database_path data/hloc_reconstruction/sfm/database.db \
-        --image_path data/images \
-        --import_path "$IMPORT_DIR"
-else
-    echo "Unknown reconstruction type: $TYPE"
-    echo "Please choose either 'fastmap' or 'hloc'."
-    exit 1
+# Resolve sparse import directory
+IMPORT_DIR="${INPUT_DATASET}/sparse/${TYPE}"
+if [ ! -d "$IMPORT_DIR" ]; then
+    IMPORT_DIR="${INPUT_DATASET}/sparse/0"
 fi
+if [ -d "$IMPORT_DIR/models/0" ] && [ -f "$IMPORT_DIR/models/0/points3D.bin" ]; then
+    IMPORT_DIR="$IMPORT_DIR/models/0"
+fi
+
+# Resolve database path if exists
+DB_ARG=()
+if [ -f "${INPUT_DATASET}/database.db" ]; then
+    DB_ARG=(--database_path "${INPUT_DATASET}/database.db")
+elif [ -f "${INPUT_DATASET}/cache/database.db" ]; then
+    DB_ARG=(--database_path "${INPUT_DATASET}/cache/database.db")
+elif [ -f "${INPUT_DATASET}/sparse/${TYPE}/database.db" ]; then
+    DB_ARG=(--database_path "${INPUT_DATASET}/sparse/${TYPE}/database.db")
+fi
+
+echo "Starting COLMAP GUI for reconstruction (Type: $TYPE, Dataset: $INPUT_DATASET)..."
+colmap gui \
+    "${DB_ARG[@]}" \
+    --image_path "$IMAGE_DIR_TARGET" \
+    --import_path "$IMPORT_DIR"

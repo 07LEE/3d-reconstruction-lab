@@ -45,13 +45,10 @@ python train_full_pipeline.py \
     --export_obj True \
     --refinement_time "$SUGAR_REFINEMENT"
 
-# Sync output files to main outputs directory
-echo "Syncing extracted SuGaR results to main $OUTPUT_DIR directory..."
+# Sync output files to scene specific mesh directory
+echo "Syncing extracted SuGaR results to $SUGAR_MESH_DIR..."
 if [ -d "output" ]; then
-    cp -r output/* "$PROJECT_ROOT/${OUTPUT_DIR}/sugar/" 2>/dev/null || true
-    if [ -d "output/refined_mesh" ]; then
-        cp -r output/refined_mesh/* "$PROJECT_ROOT/${OUTPUT_DIR}/sugar_mesh/" 2>/dev/null || true
-    fi
+    cp -r output/* "$SUGAR_MESH_DIR/" 2>/dev/null || true
 fi
 
-echo "SuGaR Pipeline Completed! Results synced to $PROJECT_ROOT/${OUTPUT_DIR}/sugar_mesh"
+echo "SuGaR Pipeline Completed! Results saved to $SUGAR_MESH_DIR"

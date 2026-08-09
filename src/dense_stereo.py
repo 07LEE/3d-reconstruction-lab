@@ -57,21 +57,21 @@ def run_stereo_matching(workspace_dir):
         process.wait()
 
         if process.returncode == 0:
-            print(f"\n✅ Stereo matching successfully completed!")
+            print(f"\nStereo matching successfully completed!")
             print(f"Depth maps and normal maps generated in: {workspace_path / 'stereo'}")
             return True
         else:
-            print(f"\n❌ Stereo matching failed with exit code {process.returncode}.")
+            print(f"\nStereo matching failed with exit code {process.returncode}.")
             return False
 
     except Exception as e:
-        print(f"\n❌ Stereo matching failed.")
+        print(f"\nStereo matching failed.")
         print(f"Error: {str(e)}")
         return False
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Patch Match Stereo Script for Depth Estimation")
-    parser.add_argument("--workspace_dir", type=str, default="data/reconstruction/dense", help="Path to dense workspace")
+    parser.add_argument("--workspace_dir", type=str, required=True, help="Path to dense workspace directory")
 
     args = parser.parse_args()
 
@@ -80,4 +80,6 @@ if __name__ == "__main__":
         print(f"Error: Workspace directory '{args.workspace_dir}' not found.")
         sys.exit(1)
 
-    run_stereo_matching(args.workspace_dir)
+    success = run_stereo_matching(args.workspace_dir)
+    if not success:
+        sys.exit(1)

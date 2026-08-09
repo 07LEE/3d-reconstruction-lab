@@ -60,12 +60,14 @@ def run_stereo_fusion(workspace_dir):
         print(f"Dense point cloud saved at: {output_path}")
         return True
     else:
-        print(f"\n❌ Stereo fusion failed to generate the output file.")
+        print(f"\nStereo fusion failed to generate the output file.")
         return False
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Stereo Fusion Script for Point Cloud Generation")
-    parser.add_argument("--workspace_dir", type=str, default="data/reconstruction/dense", help="Path to dense workspace")
+    parser.add_argument("--workspace_dir", type=str, required=True, help="Path to dense workspace directory")
 
     args = parser.parse_args()
-    run_stereo_fusion(args.workspace_dir)
+    success = run_stereo_fusion(args.workspace_dir)
+    if not success:
+        sys.exit(1)

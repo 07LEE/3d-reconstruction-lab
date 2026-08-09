@@ -50,9 +50,9 @@ def run_undistortion(input_dir, image_dir, output_dir):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Image Undistortion Script for Dense Reconstruction")
-    parser.add_argument("--input_dir", type=str, default="data/reconstruction/1", help="Path to sparse model")
-    parser.add_argument("--image_dir", type=str, default="data/images", help="Original image directory")
-    parser.add_argument("--output_dir", type=str, default="data/reconstruction/dense", help="Dense workspace output path")
+    parser.add_argument("--input_dir", type=str, required=True, help="Path to sparse model directory containing .bin files")
+    parser.add_argument("--image_dir", type=str, required=True, help="Original image directory")
+    parser.add_argument("--output_dir", type=str, required=True, help="Dense workspace output path")
 
     args = parser.parse_args()
 

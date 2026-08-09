@@ -43,15 +43,15 @@ def visualize_reconstruction(model_path):
     print(f"Total Registered Images: {reconstruction.num_reg_images()}")
     
     # 3. Launch Visualization
-    print("\n💡 Tip: Use mouse to rotate, scroll to zoom.")
+    print("\nTip: Use mouse to rotate, scroll to zoom.")
     o3d.visualization.draw_geometries(geometries, 
                                       window_name=f"3DRC Visualization - {path.name}",
                                       width=1280, height=720)
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Visualize COLMAP/hloc sparse reconstruction results.")
-    parser.add_argument("--model_path", type=str, default="data/hloc_reconstruction/sfm/models/0", 
-                        help="Path to the sparse reconstruction directory")
+    parser.add_argument("--model_path", type=str, required=True, 
+                        help="Path to the sparse reconstruction directory containing .bin files")
 
     args = parser.parse_args()
     visualize_reconstruction(args.model_path)

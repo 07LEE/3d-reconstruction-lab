@@ -25,32 +25,29 @@ if [ -d "${INPUT_DATASET}/sparse/0" ] || [ -d "${INPUT_DATASET}/sparse" ]; then
     TARGET_DATA_DIR="${INPUT_DATASET}"
 else
     # Guard: Ensure SfM reconstruction model exists before cleaning/updating
-    SRC="${HLOC_RECON}/sfm/models/0"
-    if [ ! -f "$SRC/cameras.bin" ] && [ ! -f "$SRC/cameras.txt" ] && [ ! -f "data/vi_sfm_reconstruction/sparse/0/cameras.bin" ]; then
-        echo "[FATAL] SfM model not found: $SRC"
+    SRC="${INPUT_DATASET}/cache/sfm"
+    if [ ! -f "$SRC/cameras.bin" ] && [ ! -f "$SRC/cameras.txt" ] && [ ! -f "$SRC/models/0/cameras.bin" ]; then
+        echo "[FATAL] SfM model not found in ${INPUT_DATASET}/sparse/0 or $SRC"
         exit 1
     fi
 
     # Update SfM data link after verification succeeds
-    echo "Updating SfM data links in ${DATA_DIR}/sparse/0..."
-    rm -rf "${DATA_DIR}/sparse/0"
-    mkdir -p "${DATA_DIR}/sparse/0"
+    echo "Updating SfM data in ${INPUT_DATASET}/sparse/0..."
+    mkdir -p "${INPUT_DATASET}/sparse/0"
 
-    if [ -f "${HLOC_RECON}/sfm/models/0/cameras.bin" ] || [ -f "${HLOC_RECON}/sfm/models/0/cameras.txt" ]; then
-        cp -r "${HLOC_RECON}/sfm/models/0/"* "${DATA_DIR}/sparse/0/"
-    elif [ -f "${HLOC_RECON}/sfm/cameras.bin" ] || [ -f "${HLOC_RECON}/sfm/cameras.txt" ]; then
-        cp -r "${HLOC_RECON}/sfm/"*.bin "${DATA_DIR}/sparse/0/" 2>/dev/null || true
-        cp -r "${HLOC_RECON}/sfm/"*.txt "${DATA_DIR}/sparse/0/" 2>/dev/null || true
-    elif [ -f "data/vi_sfm_reconstruction/sparse/0/cameras.bin" ]; then
-        cp -r "data/vi_sfm_reconstruction/sparse/0/"* "${DATA_DIR}/sparse/0/"
+    if [ -d "$SRC/models/0" ]; then
+        cp -r "$SRC/models/0/"* "${INPUT_DATASET}/sparse/0/"
+    else
+        cp -r "$SRC/"* "${INPUT_DATASET}/sparse/0/" 2>/dev/null || true
     fi
 
-    # Ensure images link exists in DATA_DIR
-    if [ ! -d "${DATA_DIR}/images" ]; then
-        echo "Creating images link in ${DATA_DIR}/images..."
-        ln -s "$(pwd)/${IMAGE_DIR}" "${DATA_DIR}/images" 2>/dev/null || cp -r "${IMAGE_DIR}" "${DATA_DIR}/images"
-    fi
-    TARGET_DATA_DIR="${DATA_DIR}"
+    TARGET_DATA_DIR="${INPUT_DATASET}"
+fi
+
+# Ensure images directory/link exists for 3DGS dataloader
+if [ ! -d "${TARGET_DATA_DIR}/images" ] && [ -d "${TARGET_DATA_DIR}/raw_images" ]; then
+    echo "Creating images symlink in ${TARGET_DATA_DIR}/images..."
+    ln -s raw_images "${TARGET_DATA_DIR}/images" 2>/dev/null || cp -r "${TARGET_DATA_DIR}/raw_images" "${TARGET_DATA_DIR}/images"
 fi
 
 SCENE_NAME=$(basename "$TARGET_DATA_DIR")
