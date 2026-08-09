@@ -1,3 +1,10 @@
+---
+title: Submodule Patches and Environment Integrity Guide
+description: Tracked submodule patches in patches/ and environment verification system details.
+category: guide
+last_updated: 2026-08-09
+---
+
 # Submodule Patches and Environment Integrity Guide
 
 This document details the tracked submodule patches in `patches/` and the environment verification system in `scripts/utils/`.
@@ -18,6 +25,7 @@ All submodules in `third_party/` (including `gaussian-splatting`) reference offi
 | `diff-gaussian-rasterization` | `patches/third_party/gaussian-splatting/submodules/diff-gaussian-rasterization/0002-cstdint-include.patch` | `<cstdint>` header include for GCC 13+ / GCC 14 toolchains |
 | `sugar` | `patches/third_party/sugar/0001-sugar-extension-dup-and-cpu-device.patch` | Extension fix, CPU `data_device` VRAM OOM fix, `weights_only=False` PyTorch 2.6+ fix |
 | `milo` | `patches/third_party/milo/0001-cstdint-and-cmake-fixes.patch` | `<cstdint>` includes for GCC 13+ in rasterizers and CMake 4.4 CXX standard / pybind11 tag fixes |
+| `vggt` | `patches/third_party/vggt/0001-pycolmap-313-compat.patch` | PyCOLMAP 3.13+ API compatibility and temporary directory handling |
 
 ## Utility Scripts
 

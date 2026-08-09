@@ -1,0 +1,30 @@
+name: 3drc
+channels:
+  - pytorch
+  - nvidia
+  - conda-forge
+  - defaults
+dependencies:
+  - python=3.10
+  - pip
+  - numpy>=1.23.0
+  - scipy>=1.9.0
+  - pandas>=1.5.0
+  - h5py>=3.7.0
+  - tqdm>=4.64.0
+  - opencv>=4.6.0
+  - matplotlib>=3.5.0
+  - pycolmap>=0.3.0
+  - torchvision
+  - pyyaml
+  - plyfile
+  - open3d
+  - trimesh
+  - ninja
+  - pip:
+      - hloc>=1.5
+      - lightglue>=0.2
+      - pydegensac
+      - pyquaternion
+      - pyrender
+      - pyglet<2.0.0

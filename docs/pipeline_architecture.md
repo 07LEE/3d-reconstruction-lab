@@ -1,3 +1,10 @@
+---
+title: Pipeline Architecture Guide
+description: Technical architecture, stage workflows, and execution guide for the 3DRC reconstruction pipeline.
+category: guide
+last_updated: 2026-08-09
+---
+
 # 3DRC Pipeline Architecture Guide
 
 This document provides technical details, configuration parameters, and execution guides for all pipeline steps in the 3DRC workspace.

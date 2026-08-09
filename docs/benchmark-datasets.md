@@ -1,3 +1,10 @@
+---
+title: 3D Reconstruction Benchmark Datasets Guide
+description: Standard benchmark datasets (Mip-NeRF 360, Tanks and Temples, Deep Blending, Synthetic NeRF), formats, and metrics.
+category: datasets
+last_updated: 2026-08-09
+---
+
 # 3D Reconstruction Benchmark Datasets Guide
 
 This document details the standard 3D reconstruction and radiance field benchmark datasets used in the 3D Gaussian Splatting (Kerbl et al., SIGGRAPH 2023) evaluation framework, dataset formatting standards, camera parameter specifications, and integration workflows within the 3DRC repository.

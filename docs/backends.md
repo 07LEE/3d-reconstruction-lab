@@ -1,3 +1,10 @@
+---
+title: Pipeline Backends
+description: Catalog of wired implementations across pipeline stages, rationale, and operational status.
+category: architecture
+last_updated: 2026-08-09
+---
+
 # Backends
 
 Which implementations are wired into the pipeline, why each was added, and whether it currently runs.

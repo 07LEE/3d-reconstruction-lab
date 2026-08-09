@@ -1,3 +1,10 @@
+---
+title: Architecture Decision Records (ADR)
+description: Index and operational rules for Architecture Decision Records in 3DRC.
+category: adr
+last_updated: 2026-08-09
+---
+
 # Architecture Decision Records (ADR)
 
 This directory documents key architectural decisions, rationale, and context for the 3DRC pipeline.

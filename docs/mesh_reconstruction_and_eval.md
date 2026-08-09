@@ -1,3 +1,10 @@
+---
+title: 3D Mesh Reconstruction and Quantitative Evaluation Guide
+description: Extraction workflows for SuGaR and MILo mesh engines, floater filtering, and 3-axis quantitative evaluation.
+category: guide
+last_updated: 2026-08-09
+---
+
 # 3D Mesh Reconstruction and Quantitative Evaluation Guide
 
 This guide details the 3D mesh extraction pipelines (SuGaR and MILo) and the 3-axis quantitative evaluation tool (`src/eval_mesh.py`).

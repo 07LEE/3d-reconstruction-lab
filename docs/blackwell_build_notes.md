@@ -1,3 +1,10 @@
+---
+title: Blackwell (sm_120) CUDA C++ Build and Optimization Notes
+description: Root cause analysis, troubleshooting matrix, and native CUBIN compilation guide for NVIDIA Blackwell RTX 50 Series.
+category: guide
+last_updated: 2026-08-09
+---
+
 # Blackwell (sm_120) CUDA C++ Build & Optimization Notes
 
 This document provides technical diagnosis, root causes, and verified resolution strategies for building and running 3D reconstruction C++ CUDA extensions on NVIDIA Blackwell GPUs (sm_120, RTX 50 Series).
