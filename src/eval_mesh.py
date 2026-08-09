@@ -4,26 +4,46 @@ Computes 3D Mesh Topology Hygiene, Geometry Complexity, Sliver Triangles,
 and Sim(3) 7-DoF Aligned Chamfer/Hausdorff Accuracy against LiDAR GT PointClouds.
 """
 
+from __future__ import annotations
+
 import argparse
 import json
 import os
 import sys
 import time
 from pathlib import Path
+from typing import Any, Dict, Optional, Tuple
+
 import numpy as np
 import open3d as o3d
 import trimesh
 
-def compute_mesh_hygiene_and_topology(mesh_path: str, check_self_intersect: bool = False):
-    """Computes mesh topology hygiene and triangle quality metrics via Trimesh."""
-    print(f"[Eval] Loading mesh for hygiene analysis: {mesh_path}")
-    tm = trimesh.load(mesh_path, process=False)
-    
+def compute_mesh_hygiene_and_topology(mesh_path: str | Path, check_self_intersect: bool = False) -> Dict[str, Any]:
+    """Computes mesh topology hygiene and triangle quality metrics via Trimesh.
+
+    Args:
+        mesh_path: Path to the input 3D mesh (.obj or .ply).
+        check_self_intersect: If True, executes expensive triangle-triangle self-intersection check.
+
+    Returns:
+        Dict containing topology, manifold, sliver, and watertight metrics.
+    """
+    path_obj = Path(mesh_path)
+    if not path_obj.is_file():
+        raise FileNotFoundError(f"Input mesh not found: {path_obj}")
+
+    print(f"[Eval] Loading mesh for hygiene analysis: {path_obj}")
+    tm = trimesh.load(str(path_obj), process=False)
+
     if isinstance(tm, trimesh.Scene):
         if len(tm.geometry) > 0:
-            tm = trimesh.util.concatenate([g for g in tm.geometry.values() if isinstance(g, trimesh.Trimesh)])
+            valid_geoms = [g for g in tm.geometry.values() if isinstance(g, trimesh.Trimesh)]
+            if valid_geoms:
+                tm = trimesh.util.concatenate(valid_geoms)
+            else:
+                raise ValueError(f"No valid Trimesh polygon geometries found in scene: {path_obj}")
         else:
-            raise ValueError(f"No valid Trimesh geometry found in scene: {mesh_path}")
+            raise ValueError(f"Empty Trimesh scene: {path_obj}")
 
     if isinstance(tm, trimesh.PointCloud):
         return {
@@ -31,9 +51,11 @@ def compute_mesh_hygiene_and_topology(mesh_path: str, check_self_intersect: bool
             "num_faces": 0,
             "is_watertight": False,
             "is_manifold": False,
+            "num_connected_components": 0,
+            "euler_characteristic": len(tm.vertices),
             "degenerate_faces": 0,
             "sliver_ratio_pct": 0.0,
-            "self_intersecting_faces": 0
+            "self_intersecting_faces": 0,
         }
 
     num_vertices = len(tm.vertices)
@@ -41,16 +63,22 @@ def compute_mesh_hygiene_and_topology(mesh_path: str, check_self_intersect: bool
     is_watertight = bool(tm.is_watertight)
     is_manifold = bool(tm.is_winding_consistent)
 
-    # Connected components and boundary edges
-    num_connected_components = len(tm.split(only_watertight=False))
-    num_boundary_edges = len(tm.edges_unique) - len(tm.edges_unique_length) if hasattr(tm, 'edges_unique_length') else len(tm.outline().entities) if hasattr(tm, 'outline') else -1
-    euler_characteristic = num_vertices - len(tm.edges_unique) + num_faces if hasattr(tm, 'edges_unique') else num_vertices - (num_faces // 2)
+    # Connected components and Euler characteristic
+    try:
+        num_connected_components = len(tm.split(only_watertight=False))
+    except Exception:
+        num_connected_components = -1
+
+    if hasattr(tm, "edges_unique"):
+        euler_characteristic = int(num_vertices - len(tm.edges_unique) + num_faces)
+    else:
+        euler_characteristic = int(num_vertices - (num_faces // 2))
 
     # Degenerate faces (zero area)
     face_areas = tm.area_faces
-    degenerate_faces = int(np.sum(face_areas <= 1e-12))
+    degenerate_faces = int(np.sum(face_areas <= 1e-12)) if len(face_areas) > 0 else 0
 
-    # Sliver triangles (min angle < 5 deg or high aspect ratio)
+    # Sliver triangles (min angle < 5 deg)
     angles = tm.face_angles
     if len(angles) > 0:
         min_angles_deg = np.rad2deg(np.min(angles, axis=1))
@@ -58,7 +86,7 @@ def compute_mesh_hygiene_and_topology(mesh_path: str, check_self_intersect: bool
     else:
         sliver_ratio = 0.0
 
-    # Self-intersection check (optional due to compute cost)
+    # Optional self-intersection inspection
     self_intersecting_faces = -1
     if check_self_intersect:
         print("[Eval] Checking self-intersecting faces (may take extra time)...")
@@ -77,24 +105,33 @@ def compute_mesh_hygiene_and_topology(mesh_path: str, check_self_intersect: bool
         "euler_characteristic": euler_characteristic,
         "degenerate_faces": degenerate_faces,
         "sliver_ratio_pct": round(sliver_ratio * 100.0, 3),
-        "self_intersecting_faces": self_intersecting_faces
+        "self_intersecting_faces": self_intersecting_faces,
     }
 
-def align_sim3_point_to_point(source_pcd, target_pcd, max_correspondence_distance=0.5):
-    """Computes Sim(3) 7-DoF registration with scale estimation using Multi-Scale PointToPoint ICP."""
+def align_sim3_point_to_point(source_pcd: o3d.geometry.PointCloud, target_pcd: o3d.geometry.PointCloud, max_correspondence_distance: float = 0.5) -> np.ndarray:
+    """Computes Sim(3) 7-DoF registration with scale estimation using Multi-Scale PointToPoint ICP.
+
+    Args:
+        source_pcd: Reconstructed surface sample point cloud.
+        target_pcd: Ground Truth LiDAR point cloud.
+        max_correspondence_distance: Maximum correspondence threshold in meters.
+
+    Returns:
+        4x4 transformation matrix encoding rotation, translation, and uniform scale.
+    """
     print("[Eval] Computing 7-DoF Sim(3) registration (Scale + Rigid Transformation)...")
-    
-    # Downsample for faster and robust coarse registration
+
+    # Downsample for robust and rapid coarse registration
     src_down = source_pcd.voxel_down_sample(voxel_size=0.05) if len(source_pcd.points) > 50000 else source_pcd
     tgt_down = target_pcd.voxel_down_sample(voxel_size=0.05) if len(target_pcd.points) > 50000 else target_pcd
 
     # Initial coarse alignment via centroids and bounding box extents
     source_center = src_down.get_center()
     target_center = tgt_down.get_center()
-    
+
     source_extent = np.linalg.norm(src_down.get_max_bound() - src_down.get_min_bound())
     target_extent = np.linalg.norm(tgt_down.get_max_bound() - tgt_down.get_min_bound())
-    
+
     init_scale = target_extent / (source_extent + 1e-8)
     current_transform = np.identity(4)
     current_transform[:3, :3] *= init_scale
@@ -102,7 +139,7 @@ def align_sim3_point_to_point(source_pcd, target_pcd, max_correspondence_distanc
 
     # Multi-scale coarse-to-fine ICP stages
     thresholds = [max_correspondence_distance * 4.0, max_correspondence_distance * 2.0, max_correspondence_distance]
-    for stage_idx, thresh in enumerate(thresholds):
+    for thresh in thresholds:
         reg = o3d.pipelines.registration.registration_icp(
             src_down, tgt_down, thresh, current_transform,
             o3d.pipelines.registration.TransformationEstimationPointToPoint(with_scaling=True),
@@ -112,42 +149,54 @@ def align_sim3_point_to_point(source_pcd, target_pcd, max_correspondence_distanc
 
     return current_transform
 
-def evaluate_gt_accuracy(mesh_path: str, gt_path: str, transform_matrix=None, compute_transform: bool = False,
-                         n_samples: int = 2000000, coverage_radius: float = 0.5):
-    """Evaluates Chamfer accuracy/completeness and 95% Hausdorff against Ground Truth LiDAR PCD."""
-    print(f"[Eval] Loading Open3D Mesh: {mesh_path}")
-    mesh = o3d.io.read_triangle_mesh(mesh_path)
+def evaluate_gt_accuracy(mesh_path: str | Path, gt_path: str | Path, transform_matrix: Optional[np.ndarray] = None, compute_transform: bool = False, n_samples: int = 2000000, coverage_radius: float = 0.5) -> Tuple[Dict[str, Any], np.ndarray]:
+    """Evaluates Chamfer accuracy/completeness and 95% Hausdorff against Ground Truth LiDAR PCD.
+
+    Args:
+        mesh_path: Path to reconstructed mesh file.
+        gt_path: Path to Ground Truth PCD or mesh file.
+        transform_matrix: Optional precomputed 4x4 Sim(3) transform.
+        compute_transform: If True, forces recomputing Sim(3) alignment.
+        n_samples: Number of surface sample points (default: 2M).
+        coverage_radius: Maximum radius threshold in meters for GT coverage calculation.
+
+    Returns:
+        Tuple of (accuracy metrics dictionary, 4x4 Sim(3) transformation matrix).
+    """
+    path_mesh = Path(mesh_path)
+    path_gt = Path(gt_path)
+
+    print(f"[Eval] Loading Open3D Mesh: {path_mesh}")
+    mesh = o3d.io.read_triangle_mesh(str(path_mesh))
     mesh.compute_vertex_normals()
-    
+
     print(f"[Eval] Uniformly sampling {n_samples:,} surface points from mesh...")
     mesh_pcd = mesh.sample_points_uniformly(number_of_points=n_samples)
 
-    print(f"[Eval] Loading Ground Truth PCD: {gt_path}")
-    if gt_path.lower().endswith(".pcd") or gt_path.lower().endswith(".ply"):
-        gt_pcd = o3d.io.read_point_cloud(gt_path)
+    print(f"[Eval] Loading Ground Truth: {path_gt}")
+    if path_gt.suffix.lower() in [".pcd", ".ply"]:
+        gt_pcd = o3d.io.read_point_cloud(str(path_gt))
     else:
-        # Fallback for mesh GT
-        gt_mesh = o3d.io.read_triangle_mesh(gt_path)
+        gt_mesh = o3d.io.read_triangle_mesh(str(path_gt))
         gt_pcd = gt_mesh.sample_points_uniformly(number_of_points=n_samples)
 
-    # Sim(3) 7-DoF Alignment
     if compute_transform or transform_matrix is None:
         transform_matrix = align_sim3_point_to_point(mesh_pcd, gt_pcd, max_correspondence_distance=coverage_radius)
-    
+
     mesh_pcd.transform(transform_matrix)
 
     # Accuracy: Mesh -> GT (nearest distance from mesh sample to GT)
     dists_mesh_to_gt = np.asarray(mesh_pcd.compute_point_cloud_distance(gt_pcd))
-    accuracy_mean = np.mean(dists_mesh_to_gt)
-    accuracy_rmse = np.sqrt(np.mean(dists_mesh_to_gt ** 2))
-    
+    accuracy_mean = float(np.mean(dists_mesh_to_gt))
+    accuracy_rmse = float(np.sqrt(np.mean(dists_mesh_to_gt ** 2)))
+
     # Completeness: GT -> Mesh (filtered by coverage radius)
     dists_gt_to_mesh = np.asarray(gt_pcd.compute_point_cloud_distance(mesh_pcd))
     valid_gt_mask = dists_gt_to_mesh <= coverage_radius
-    valid_dists_gt_to_mesh = dists_gt_to_mesh[valid_gt_mask] if np.any(valid_gt_mask) else dists_gt_to_mesh
+    valid_dists = dists_gt_to_mesh[valid_gt_mask] if np.any(valid_gt_mask) else dists_gt_to_mesh
 
-    completeness_mean = np.mean(valid_dists_gt_to_mesh)
-    completeness_rmse = np.sqrt(np.mean(valid_dists_gt_to_mesh ** 2))
+    completeness_mean = float(np.mean(valid_dists))
+    completeness_rmse = float(np.sqrt(np.mean(valid_dists ** 2)))
 
     chamfer_l1 = (accuracy_mean + completeness_mean) / 2.0
     hausdorff_95 = float(np.percentile(dists_mesh_to_gt, 95))
@@ -159,10 +208,10 @@ def evaluate_gt_accuracy(mesh_path: str, gt_path: str, transform_matrix=None, co
         "completeness_rmse_m": round(completeness_rmse, 5),
         "chamfer_l1_m": round(chamfer_l1, 5),
         "hausdorff_95_m": round(hausdorff_95, 5),
-        "gt_coverage_pct": round(float(np.mean(valid_gt_mask)) * 100.0, 2)
+        "gt_coverage_pct": round(float(np.mean(valid_gt_mask)) * 100.0, 2),
     }, transform_matrix
 
-def main():
+def main() -> None:
     parser = argparse.ArgumentParser(description="3D Mesh Topology Hygiene & Sim(3) GT Evaluation Tool")
     parser.add_argument("--mesh", type=str, required=True, help="Path to input .obj or .ply mesh file")
     parser.add_argument("--gt", type=str, default=None, help="Path to Ground Truth LiDAR PCD or Mesh file")
@@ -189,18 +238,17 @@ def main():
     gt_res = None
     transform_matrix = None
     if args.gt:
-        if args.transform and os.path.exists(args.transform) and not args.compute_transform:
+        if args.transform and Path(args.transform).is_file() and not args.compute_transform:
             print(f"[Eval] Loading precomputed Sim(3) transform matrix from {args.transform}")
             with open(args.transform, "r") as f:
                 transform_matrix = np.array(json.load(f)["transform_matrix"])
-        
+
         gt_res, transform_matrix = evaluate_gt_accuracy(
             args.mesh, args.gt, transform_matrix=transform_matrix,
             compute_transform=args.compute_transform, n_samples=args.n_samples,
             coverage_radius=args.coverage_radius
         )
 
-        # Save transform matrix for reused fair comparison
         transform_save_path = out_dir / "sim3_transform.json"
         with open(transform_save_path, "w") as f:
             json.dump({"transform_matrix": transform_matrix.tolist()}, f, indent=2)
@@ -212,7 +260,7 @@ def main():
         "gt_path": args.gt,
         "timestamp": time.strftime("%Y-%m-%d %H:%M:%S"),
         "hygiene": hygiene_res,
-        "accuracy": gt_res
+        "accuracy": gt_res,
     }
 
     # Save Results
