@@ -55,11 +55,29 @@ mkdir -p "$MODEL_OUTPUT"
 
 # 2DGS Training Execution
 echo "Starting 2D Gaussian Splatting Training (Scene: $SCENE_NAME)..."
+
+ACTIVE_SFM="unknown"
+if [ -L "${TARGET_DATA_DIR}/sparse/0" ]; then
+    ACTIVE_SFM=$(readlink "${TARGET_DATA_DIR}/sparse/0" | xargs basename)
+fi
+
 python third_party/2d-gaussian-splatting/train.py \
     -s "$TARGET_DATA_DIR" \
     -m "$MODEL_OUTPUT" \
     --data_device cpu \
     --eval \
     --iterations 30000
+
+# Dynamically record execution provenance metadata
+cat <<EOF > "$MODEL_OUTPUT/pipeline_meta.json"
+{
+  "stage": "Stage 2 (Training)",
+  "engine": "2D Gaussian Splatting (Surfels)",
+  "source_dataset": "$TARGET_DATA_DIR",
+  "active_sfm": "$ACTIVE_SFM",
+  "iterations": 30000,
+  "timestamp": "$(date '+%Y-%m-%d %H:%M:%S')"
+}
+EOF
 
 echo "2DGS Training Completed! Results saved to ${MODEL_OUTPUT}"

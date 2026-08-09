@@ -90,16 +90,21 @@ case "$COMMAND" in
         ./scripts/utils/view_reconstruction.sh "$TYPE"
         ;;
     sugar)
+        ARG_DATASET="${2:-}"
+        ARG_SOURCE_MODEL="${3:-}"
         echo "[3DRC CLI] Executing Step 3: SuGaR Mesh Reconstruction..."
-        ./scripts/03_train_sugar.sh
+        ./scripts/03_train_sugar.sh ${ARG_DATASET:+"$ARG_DATASET"} ${ARG_SOURCE_MODEL:+"$ARG_SOURCE_MODEL"}
         ;;
     milo)
+        ARG_DATASET="${2:-}"
         echo "[3DRC CLI] Executing Step 3b: MILo Mesh Reconstruction..."
-        ./scripts/03b_train_milo.sh
+        ./scripts/03b_train_milo.sh ${ARG_DATASET:+"$ARG_DATASET"}
         ;;
     tsdf|mesh_tsdf)
+        ARG_DATASET="${2:-}"
+        ARG_SOURCE_MODEL="${3:-}"
         echo "[3DRC CLI] Executing Step 3c: TSDF Mesh Extraction..."
-        ./scripts/03c_mesh_tsdf.sh
+        ./scripts/03c_mesh_tsdf.sh ${ARG_DATASET:+"$ARG_DATASET"} ${ARG_SOURCE_MODEL:+"$ARG_SOURCE_MODEL"}
         ;;
     grouping)
         echo "[3DRC CLI] Executing Step 4: Gaussian Grouping..."
