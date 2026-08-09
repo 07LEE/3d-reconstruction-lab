@@ -41,3 +41,25 @@ index 7245905..6bb2c4c 100644
  #include "rasterizer.h"
  #include <cuda_runtime_api.h>
  
+diff --git a/rasterize_points.cu b/rasterize_points.cu
+index cdecf26..f52ad33 100644
+--- a/rasterize_points.cu
++++ b/rasterize_points.cu
+@@ -100,7 +100,7 @@ std::tuple<int, torch::Tensor, torch::Tensor, torch::Tensor, torch::Tensor, torc
+   if(P != 0)
+   {
+ 	  int M = 0;
+-	  if(sh.size(0) != 0)
++	  if(sh.dim() >= 2)
+ 	  {
+ 		M = sh.size(1);
+ 	  }
+@@ -180,7 +180,7 @@ std::tuple<torch::Tensor, torch::Tensor, torch::Tensor, torch::Tensor, torch::Te
+   const int W = dL_dout_color.size(2);
+   
+   int M = 0;
+-  if(sh.size(0) != 0)
++  if(sh.dim() >= 2)
+   {	
+ 	M = sh.size(1);
+   }

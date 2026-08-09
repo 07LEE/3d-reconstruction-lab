@@ -49,7 +49,7 @@ Versions and commit SHAs deliberately live in envs/*.yml and submodule gitlinks,
 | TSDF fusion | active | Default extraction from PGSR depth maps | Voxel-size sweep not yet done |
 | SuGaR | active | Comparison baseline for MILo's vertex-count claim | Needs CPU data_device patch (14.5 GiB -> 1.4 GiB VRAM) |
 | MILo (SDF) | active | mesh_extract_sdf.py — Marching Tetrahedra SDF isosurface extraction | Requires PINHOLE undistorted input dataset |
-| 2DGS (TSDF) | optional | Open3D TSDF integration from 2DGS surfel depth/normal renders | Wired in scripts/03c_mesh_2dgs.sh |
+| 2DGS (TSDF) | optional | Open3D TSDF integration from 2DGS surfel depth/normal renders | Wired in scripts/03c_mesh_tsdf.sh |
 | GOF / SDFRaster | candidate | Fallback if instance-separated TSDF and MILo both fall short on object detail | Under consideration for fine detail recovery |
 
 ## Stage 4 — Evaluation

@@ -29,10 +29,16 @@ if [ ! -d "$MODEL_DIR" ]; then
 fi
 
 echo "Starting 2DGS TSDF Mesh Extraction (Scene: $SCENE_NAME)..."
+VOXEL_SIZE="${TSDF_VOXEL_SIZE:-0.005}"
+DEPTH_TRUNC="${TSDF_DEPTH_TRUNC:-6.0}"
+
 python third_party/2d-gaussian-splatting/render.py \
     -m "$MODEL_DIR" \
+    --data_device cpu \
     --skip_train \
-    --skip_test
+    --skip_test \
+    --voxel_size "$VOXEL_SIZE" \
+    --depth_trunc "$DEPTH_TRUNC"
 
 # Locate and sync exported TSDF mesh to canonical 3DRC mesh path
 EXPORTED_MESH=$(find "$MODEL_DIR/train" -name "*fuse_post.ply" | head -n 1)

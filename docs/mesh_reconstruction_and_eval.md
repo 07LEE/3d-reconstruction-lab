@@ -27,6 +27,13 @@ This guide details the 3D mesh extraction pipelines (SuGaR and MILo) and the 3-a
 - Floater Filter Script: `python src/clean_milo_mesh.py --input outputs/<scene_name>/mesh/milo/mesh_learnable_sdf.ply --output outputs/<scene_name>/mesh/milo/mesh_cleaned_largest.ply`
 - Characteristics: Differentiable mesh-in-the-loop optimization using Marching Tetrahedra SDF isosurface extraction. Requires undistorted PINHOLE input dataset.
 
+### 2DGS TSDF Engine
+
+- Script: `./scripts/03c_mesh_tsdf.sh data/<scene_name>` (requires prior `./scripts/02c_train_2dgs.sh`)
+- Output Directory: `outputs/<scene_name>/mesh/2dgs/`
+- Output Format: Volumetric Open3D TSDF `.ply` mesh (`tsdf_mesh.ply`).
+- Characteristics: Renders exact ray-splat intersection unbiased depth and surface normal maps from 2D surfels, fused into an Open3D truncated signed distance function voxel volume. Best for sharp planar structures and fine edge preservation.
+
 ## Quantitative Evaluation Tool (`src/eval_mesh.py`)
 
 ### Evaluation Metrics

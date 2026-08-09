@@ -58,6 +58,7 @@ echo "Starting 2D Gaussian Splatting Training (Scene: $SCENE_NAME)..."
 python third_party/2d-gaussian-splatting/train.py \
     -s "$TARGET_DATA_DIR" \
     -m "$MODEL_OUTPUT" \
+    --data_device cpu \
     --eval \
     --iterations 30000
 

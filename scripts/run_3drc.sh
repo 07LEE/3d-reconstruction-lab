@@ -31,7 +31,7 @@ show_help() {
     echo "  view [type]      Run COLMAP GUI Visualization (hloc, fastmap)"
     echo "  sugar            Run Step 3 SuGaR Mesh Reconstruction"
     echo "  milo             Run Step 3b MILo Mesh Reconstruction"
-    echo "  mesh_2dgs        Run Step 3c 2DGS TSDF Mesh Extraction"
+    echo "  tsdf             Run Step 3c TSDF Mesh Extraction"
     echo "  grouping         Run Step 4 Gaussian Grouping Object Segmentation"
     echo "  eval [mesh] [gt] Run Step 5 Mesh Evaluation against LiDAR GT PointCloud"
     echo "  outputs          Inspect and summarize all generated output artifacts"
@@ -45,7 +45,7 @@ show_help() {
     echo "  ./scripts/run_3drc.sh train planargs"
     echo "  ./scripts/run_3drc.sh sugar"
     echo "  ./scripts/run_3drc.sh milo"
-    echo "  ./scripts/run_3drc.sh mesh_2dgs"
+    echo "  ./scripts/run_3drc.sh tsdf"
     echo "  ./scripts/run_3drc.sh eval <mesh_path> [gt_pcd_path]"
     echo "  ./scripts/run_3drc.sh outputs"
     echo "  ./scripts/run_3drc.sh view hloc"
@@ -97,9 +97,9 @@ case "$COMMAND" in
         echo "[3DRC CLI] Executing Step 3b: MILo Mesh Reconstruction..."
         ./scripts/03b_train_milo.sh
         ;;
-    mesh_2dgs)
-        echo "[3DRC CLI] Executing Step 3c: 2DGS TSDF Mesh Extraction..."
-        ./scripts/03c_mesh_2dgs.sh
+    tsdf|mesh_tsdf)
+        echo "[3DRC CLI] Executing Step 3c: TSDF Mesh Extraction..."
+        ./scripts/03c_mesh_tsdf.sh
         ;;
     grouping)
         echo "[3DRC CLI] Executing Step 4: Gaussian Grouping..."
