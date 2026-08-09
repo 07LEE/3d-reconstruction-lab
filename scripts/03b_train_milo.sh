@@ -46,7 +46,11 @@ if [ ! -d "$DENSE_DATASET/sparse" ]; then
     if [ ! -d "$IMG_IN" ]; then
         IMG_IN="${INPUT_DATASET}/images"
     fi
-    python3 src/dense_undistort.py \
+    PYTHON_3DRC="$CONDA_PATH/envs/3drc/bin/python"
+    if [ ! -x "$PYTHON_3DRC" ]; then
+        PYTHON_3DRC="python3"
+    fi
+    "$PYTHON_3DRC" src/dense_undistort.py \
         --input_dir "$SPARSE_IN" \
         --image_dir "$IMG_IN" \
         --output_dir "$DENSE_DATASET"

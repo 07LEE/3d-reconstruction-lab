@@ -13,6 +13,12 @@ else
     exit 1
 fi
 
+CONDA_PATH=$(conda info --base 2>/dev/null || echo "$HOME/miniconda3")
+PYTHON_BIN="$CONDA_PATH/envs/3drc/bin/python"
+if [ ! -x "$PYTHON_BIN" ]; then
+    PYTHON_BIN="python3"
+fi
+
 show_help() {
     echo "3DRC Pipeline Unified CLI Interface"
     echo "Usage: ./scripts/run_3drc.sh [COMMAND] [OPTIONS]"
@@ -46,7 +52,7 @@ COMMAND=${1:-"help"}
 
 case "$COMMAND" in
     outputs)
-        python3 src/inspect_outputs.py
+        "$PYTHON_BIN" src/inspect_outputs.py
         ;;
     sfm)
         METHOD=${2:-$SFM_METHOD}
@@ -97,7 +103,7 @@ case "$COMMAND" in
             EVAL_ARGS+=("--gt" "$GT_PATH")
         fi
         echo "[3DRC CLI] Executing Mesh Evaluation on ${MESH_PATH}..."
-        python3 src/eval_mesh.py "${EVAL_ARGS[@]}"
+        "$PYTHON_BIN" src/eval_mesh.py "${EVAL_ARGS[@]}"
         ;;
     pipeline)
         SFM_OPT=${2:-"hloc"}

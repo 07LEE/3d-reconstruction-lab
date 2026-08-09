@@ -1,5 +1,6 @@
 import pycolmap
 import argparse
+import shutil
 from pathlib import Path
 import sys
 
@@ -40,6 +41,15 @@ def run_undistortion(input_dir, image_dir, output_dir):
         print("\n[Step] Processing image undistortion...")
         pycolmap.undistort_images(output_path, input_path, image_path)
         
+        # Standardize sparse/0 directory for 3DGS and MILo dataset readers
+        sparse_dir = output_path / "sparse"
+        sparse_zero = sparse_dir / "0"
+        if sparse_dir.exists() and not sparse_zero.exists():
+            sparse_zero.mkdir(parents=True, exist_ok=True)
+            for f in sparse_dir.iterdir():
+                if f.is_file():
+                    shutil.copy2(f, sparse_zero / f.name)
+
         print(f"\nUndistortion successfully completed!")
         print(f"Dense workspace prepared at: {output_path}")
         return True
