@@ -81,28 +81,36 @@ def compute_mesh_hygiene_and_topology(mesh_path: str, check_self_intersect: bool
     }
 
 def align_sim3_point_to_point(source_pcd, target_pcd, max_correspondence_distance=0.5):
-    """Computes Sim(3) 7-DoF registration with scale estimation using PointToPoint."""
+    """Computes Sim(3) 7-DoF registration with scale estimation using Multi-Scale PointToPoint ICP."""
     print("[Eval] Computing 7-DoF Sim(3) registration (Scale + Rigid Transformation)...")
     
+    # Downsample for faster and robust coarse registration
+    src_down = source_pcd.voxel_down_sample(voxel_size=0.05) if len(source_pcd.points) > 50000 else source_pcd
+    tgt_down = target_pcd.voxel_down_sample(voxel_size=0.05) if len(target_pcd.points) > 50000 else target_pcd
+
     # Initial coarse alignment via centroids and bounding box extents
-    source_center = source_pcd.get_center()
-    target_center = target_pcd.get_center()
+    source_center = src_down.get_center()
+    target_center = tgt_down.get_center()
     
-    source_extent = np.linalg.norm(source_pcd.get_max_bound() - source_pcd.get_min_bound())
-    target_extent = np.linalg.norm(target_pcd.get_max_bound() - target_pcd.get_min_bound())
+    source_extent = np.linalg.norm(src_down.get_max_bound() - src_down.get_min_bound())
+    target_extent = np.linalg.norm(tgt_down.get_max_bound() - tgt_down.get_min_bound())
     
     init_scale = target_extent / (source_extent + 1e-8)
-    init_transform = np.identity(4)
-    init_transform[:3, :3] *= init_scale
-    init_transform[:3, 3] = target_center - (source_center * init_scale)
+    current_transform = np.identity(4)
+    current_transform[:3, :3] *= init_scale
+    current_transform[:3, 3] = target_center - (source_center * init_scale)
 
-    reg_p2p = o3d.pipelines.registration.registration_icp(
-        source_pcd, target_pcd, max_correspondence_distance, init_transform,
-        o3d.pipelines.registration.TransformationEstimationPointToPoint(with_scaling=True),
-        o3d.pipelines.registration.ICPConvergenceCriteria(max_iteration=100)
-    )
-    
-    return reg_p2p.transformation
+    # Multi-scale coarse-to-fine ICP stages
+    thresholds = [max_correspondence_distance * 4.0, max_correspondence_distance * 2.0, max_correspondence_distance]
+    for stage_idx, thresh in enumerate(thresholds):
+        reg = o3d.pipelines.registration.registration_icp(
+            src_down, tgt_down, thresh, current_transform,
+            o3d.pipelines.registration.TransformationEstimationPointToPoint(with_scaling=True),
+            o3d.pipelines.registration.ICPConvergenceCriteria(max_iteration=100)
+        )
+        current_transform = reg.transformation
+
+    return current_transform
 
 def evaluate_gt_accuracy(mesh_path: str, gt_path: str, transform_matrix=None, compute_transform: bool = False,
                          n_samples: int = 2000000, coverage_radius: float = 0.5):
