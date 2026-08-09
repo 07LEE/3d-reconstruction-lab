@@ -1,5 +1,7 @@
 """Pycolmap Traditional SfM Pipeline Module."""
 
+from __future__ import annotations
+
 import argparse
 import os
 import sys
@@ -8,13 +10,26 @@ from datetime import datetime
 from pathlib import Path
 import pycolmap
 
-def log_performance(image_dir, output_dir, time_extract, time_match, time_map, time_total):
+def log_performance(image_dir: str | Path, output_dir: str | Path, time_extract: float, time_match: float, time_map: float, time_total: float) -> None:
+    """Logs execution metrics for traditional COLMAP SfM to outputs/performance_log.txt.
+
+    Args:
+        image_dir: Input images directory.
+        output_dir: Output sparse model directory.
+        time_extract: Duration of feature extraction in seconds.
+        time_match: Duration of feature matching in seconds.
+        time_map: Duration of incremental mapping in seconds.
+        time_total: Total pipeline execution duration in seconds.
+
+    Returns:
+        None
+    """
     log_dir = Path("outputs")
     log_dir.mkdir(parents=True, exist_ok=True)
     log_file = log_dir / "performance_log.txt"
-    
+
     timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-    with open(log_file, "a") as f:
+    with open(log_file, "a", encoding="utf-8") as f:
         f.write(f"\n========================================\n")
         f.write(f"Timestamp: {timestamp}\n")
         f.write(f"Pipeline: Pycolmap SfM\n")
@@ -27,10 +42,18 @@ def log_performance(image_dir, output_dir, time_extract, time_match, time_map, t
         f.write(f"Total Elapsed Time: {time_total:.2f} s\n")
         f.write(f"========================================\n")
 
-def run_sfm_pipeline(image_dir: str, output_dir: str):
-    """Performs basic Incremental SfM using Pycolmap."""
-    image_path = Path(image_dir)
-    output_path = Path(output_dir)
+def run_sfm_pipeline(image_dir: str | Path, output_dir: str | Path) -> bool:
+    """Performs traditional Incremental SfM using Pycolmap and SIFT features.
+
+    Args:
+        image_dir: Path to directory containing input frame images.
+        output_dir: Target directory where SQLite database and sparse models will be written.
+
+    Returns:
+        bool: True if reconstruction generated a valid sparse model, False otherwise.
+    """
+    image_path = Path(image_dir).resolve()
+    output_path = Path(output_dir).resolve()
     database_path = output_path / "database.db"
 
     output_path.mkdir(parents=True, exist_ok=True)
@@ -40,7 +63,6 @@ def run_sfm_pipeline(image_dir: str, output_dir: str):
         valid = list(pycolmap.CameraMode.__members__.keys())
         raise ValueError(f"Invalid CAMERA_MODE '{mode_str}'. Valid choices: {valid}")
     cam_mode = getattr(pycolmap.CameraMode, mode_str)
-
     camera_model = os.environ.get("CAMERA_MODEL", "SIMPLE_RADIAL").upper()
 
     print(f"--- 3D Reconstruction Pipeline Started ---")
@@ -52,12 +74,7 @@ def run_sfm_pipeline(image_dir: str, output_dir: str):
 
     print("\n[Step 1/3] Feature Extraction in progress...")
     start_extract = time.time()
-    pycolmap.extract_features(
-        database_path,
-        image_path,
-        camera_mode=cam_mode,
-        camera_model=camera_model
-    )
+    pycolmap.extract_features(database_path, image_path, camera_mode=cam_mode, camera_model=camera_model)
     time_extract = time.time() - start_extract
     print(f"Feature Extraction elapsed: {time_extract:.2f} seconds")
 
@@ -75,13 +92,14 @@ def run_sfm_pipeline(image_dir: str, output_dir: str):
 
     time_total = time.time() - start_total
 
-    if reconstructions:
+    if reconstructions and len(reconstructions) > 0:
         reconstructions[0].write(output_path)
-        print(f"\nReconstruction successfully completed!")
-        print(f"Results saved at: {output_path}")
-        log_performance(image_dir, output_dir, time_extract, time_match, time_map, time_total)
+        print(f"\n[Success] Reconstruction completed successfully! Model saved at: {output_path}")
+        log_performance(image_path, output_path, time_extract, time_match, time_map, time_total)
+        return True
     else:
-        print("\nReconstruction failed.")
+        print("\n[Error] Reconstruction failed to reconstruct sparse points.")
+        return False
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Pycolmap SfM Pipeline Script")
@@ -90,8 +108,10 @@ if __name__ == "__main__":
 
     args = parser.parse_args()
 
-    if not Path(args.image_dir).exists():
-        print(f"Error: Path '{args.image_dir}' not found.")
+    if not Path(args.image_dir).is_dir():
+        print(f"[Error] Image directory not found: '{args.image_dir}'")
         sys.exit(1)
 
-    run_sfm_pipeline(args.image_dir, args.output_dir)
+    ok = run_sfm_pipeline(args.image_dir, args.output_dir)
+    if not ok:
+        sys.exit(1)

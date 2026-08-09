@@ -1,5 +1,7 @@
 """FastMap GPU-accelerated SfM Pipeline Module."""
 
+from __future__ import annotations
+
 import argparse
 import os
 import shutil
@@ -13,60 +15,86 @@ sys.path.append(str(Path(__file__).resolve().parent.parent.parent / "third_party
 from fastmap.config import Config
 from fastmap.engine import engine
 
-def run_fastmap_pipeline(image_dir: str, output_dir: str, device: str = "cuda:0"):
-    """Executes FastMap GPU-accelerated SfM pipeline."""
-    if os.path.exists(output_dir):
-        print(f"Cleaning existing output directory: {output_dir}")
-        shutil.rmtree(output_dir)
+def run_fastmap_pipeline(image_dir: str | Path, output_dir: str | Path, device: str = "cuda:0") -> bool:
+    """Executes FastMap GPU-accelerated SfM pipeline.
 
-    os.makedirs(output_dir, exist_ok=True)
-    db_dir = os.path.dirname(output_dir.rstrip("/"))
-    db_path = os.path.join(db_dir, "database_fastmap.db")
-    if os.path.exists(db_path):
-        os.remove(db_path)
+    Args:
+        image_dir: Directory containing input frame images.
+        output_dir: Target output directory for reconstructed models.
+        device: GPU device string (default: 'cuda:0').
 
-    # Step 1: COLMAP Feature Extraction
-    print("Running COLMAP feature extraction...")
-    extractor_cmd = [
-        "colmap", "feature_extractor",
-        "--database_path", db_path,
-        "--image_path", image_dir,
-        "--ImageReader.single_camera", "1"
-    ]
-    subprocess.run(extractor_cmd, check=True)
+    Returns:
+        bool: True if FastMap sparse reconstruction completed successfully, False otherwise.
+    """
+    img_path = Path(image_dir).resolve()
+    out_path = Path(output_dir).resolve()
 
-    # Step 2: COLMAP Exhaustive Matcher
-    print("Running COLMAP exhaustive matching...")
-    matcher_cmd = [
-        "colmap", "exhaustive_matcher",
-        "--database_path", db_path
-    ]
-    subprocess.run(matcher_cmd, check=True)
+    if out_path.is_dir():
+        print(f"[FastMap] Cleaning existing output directory: {out_path}")
+        shutil.rmtree(out_path)
 
-    # Step 3: FastMap Pose Estimation & Sparse Reconstruction
-    print("Running FastMap GPU-accelerated pose estimation...")
-    cfg = Config()
-    os.makedirs(output_dir, exist_ok=True)
+    out_path.mkdir(parents=True, exist_ok=True)
+    db_dir = out_path.parent
+    db_path = db_dir / "database_fastmap.db"
+    if db_path.is_file():
+        db_path.unlink()
 
-    engine(
-        cfg=cfg,
-        device=device,
-        database_path=db_path,
-        output_dir=output_dir,
-        pinhole=False,
-        headless=True,
-        calibrated=False,
-        image_dir=image_dir,
-        gt_model_path=None
-    )
+    colmap_bin = shutil.which("colmap") or "colmap"
 
-    print(f"FastMap Structure from Motion completed. Outputs saved to {output_dir}/sparse/0")
+    try:
+        # Step 1: COLMAP Feature Extraction
+        print("[FastMap] Running COLMAP feature extraction...")
+        extractor_cmd = [
+            colmap_bin, "feature_extractor",
+            "--database_path", str(db_path),
+            "--image_path", str(img_path),
+            "--ImageReader.single_camera", "1",
+        ]
+        subprocess.run(extractor_cmd, check=True)
+
+        # Step 2: COLMAP Exhaustive Matcher
+        print("[FastMap] Running COLMAP exhaustive matching...")
+        matcher_cmd = [
+            colmap_bin, "exhaustive_matcher",
+            "--database_path", str(db_path),
+        ]
+        subprocess.run(matcher_cmd, check=True)
+
+        # Step 3: FastMap Pose Estimation & Sparse Reconstruction
+        print("[FastMap] Running FastMap GPU-accelerated pose estimation...")
+        cfg = Config()
+
+        engine(
+            cfg=cfg,
+            device=device,
+            database_path=str(db_path),
+            output_dir=str(out_path),
+            pinhole=False,
+            headless=True,
+            calibrated=False,
+            image_dir=str(img_path),
+            gt_model_path=None,
+        )
+
+        print(f"[Success] FastMap Structure from Motion completed. Outputs saved to {out_path}/sparse/0")
+        return True
+
+    except Exception as e:
+        print(f"[Error] FastMap execution failed: {e}")
+        return False
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="FastMap Structure from Motion Pipeline")
     parser.add_argument("--image_dir", type=str, required=True, help="Directory containing images")
     parser.add_argument("--output_dir", type=str, required=True, help="Output directory for reconstruction")
     parser.add_argument("--device", type=str, default="cuda:0", help="GPU device index")
+
     args = parser.parse_args()
 
-    run_fastmap_pipeline(args.image_dir, args.output_dir, args.device)
+    if not Path(args.image_dir).is_dir():
+        print(f"[Error] Image directory not found: '{args.image_dir}'")
+        sys.exit(1)
+
+    ok = run_fastmap_pipeline(args.image_dir, args.output_dir, device=args.device)
+    if not ok:
+        sys.exit(1)
