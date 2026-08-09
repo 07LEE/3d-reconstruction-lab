@@ -151,8 +151,8 @@ def run_vi_sfm_pipeline(image_dir: str, imu_path: str, output_dir: str, imu_form
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Visual-Inertial SfM Pipeline")
     parser.add_argument("--image_dir", type=str, required=True, help="Path to input images directory")
-    parser.add_argument("--imu_path", type=str, default="data/imu_data.csv", help="Path to IMU sensor data CSV/file")
-    parser.add_argument("--output_dir", type=str, default="data/vi_sfm_reconstruction", help="Path to output directory")
+    parser.add_argument("--imu_path", type=str, required=True, help="Path to IMU sensor data CSV/file")
+    parser.add_argument("--output_dir", type=str, required=True, help="Path to output directory")
     parser.add_argument("--format", type=str, default="euroc", help="IMU data format (euroc, tum, custom_csv)")
 
     args = parser.parse_args()

@@ -69,8 +69,8 @@ def visualize_depth_maps(depth_dir, output_dir):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Visualize COLMAP depth maps (.bin) to images (.png)")
-    parser.add_argument("--depth_dir", type=str, default="data/reconstruction/dense/stereo/depth_maps", help="Path to COLMAP depth maps")
-    parser.add_argument("--output_dir", type=str, default="data/reconstruction/dense/stereo/depth_visualized", help="Path to save visualized images")
+    parser.add_argument("--depth_dir", type=str, required=True, help="Path to COLMAP depth maps directory")
+    parser.add_argument("--output_dir", type=str, required=True, help="Path to save visualized PNG images")
     
     args = parser.parse_args()
     

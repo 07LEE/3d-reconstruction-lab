@@ -42,8 +42,8 @@ def clean_mesh(input_path, output_path, min_triangles=1000):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Clean MILo mesh by extracting largest connected component.")
-    parser.add_argument("--input", default="outputs/milo_mesh/mesh_learnable_sdf.ply", help="Input raw PLY mesh")
-    parser.add_argument("--output", default="outputs/milo_mesh/mesh_cleaned_largest.ply", help="Output cleaned PLY mesh")
+    parser.add_argument("--input", type=str, required=True, help="Input raw PLY mesh file path")
+    parser.add_argument("--output", type=str, required=True, help="Output cleaned PLY mesh file path")
     args = parser.parse_args()
     
     clean_mesh(args.input, args.output)
