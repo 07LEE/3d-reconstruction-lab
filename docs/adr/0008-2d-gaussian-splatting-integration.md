@@ -6,7 +6,7 @@ Context:
 Standard 3D Gaussian Splatting (3DGS) models scene geometry using 3D ellipsoids with non-zero thickness along surface normals. In multi-view indoor reconstruction, this introduces view-dependent depth ambiguities and geometric collapse, leading to noisy, multi-layered, or floater-ridden meshes. While SuGaR extracts textured meshes at the cost of high vertex counts, and MILo extracts compact SDF collision meshes, neither provides direct TSDF integration from exact ray-splat intersections.
 
 Decision:
-Integrate 2D Gaussian Splatting (2DGS) into the 3DRC pipeline as an optional Stage 2 representation (`scripts/02c_train_2dgs.sh`) and Stage 3 mesh engine (`scripts/03c_mesh_2dgs.sh`):
+Integrate 2D Gaussian Splatting (2DGS) into the 3DRC pipeline as an optional Stage 2 representation (`scripts/02c_train_2dgs.sh`) and Stage 3 mesh engine (`scripts/03c_mesh_tsdf.sh`):
 
 1. Surfel Representation: Employs 2D oriented planar disks to restrict Gaussian thickness to zero, computing exact analytical ray-splat intersections to render unbiased depth and surface normal maps.
 2. Volumetric TSDF Fusion: Renders depth/normal maps across viewpoints and integrates them via Open3D TSDF voxel volume (`outputs/<scene_name>/mesh/2dgs/tsdf_mesh.ply`).
@@ -24,6 +24,7 @@ Consequences:
 - Requires `open3d` and `trimesh` in the runtime environment for TSDF integration and postprocessing.
 
 Verification:
+
 1. `scripts/utils/verify_patches.sh` audits native `sm_120` SASS CUBIN in `diff_surfel_rasterization` (`[ok]`).
 2. End-to-end training and TSDF meshing validated on `data/test_multi`.
 

@@ -26,6 +26,9 @@ All submodules in `third_party/` (including `gaussian-splatting`) reference offi
 | `sugar` | `patches/third_party/sugar/0001-sugar-extension-dup-and-cpu-device.patch` | Extension fix, CPU `data_device` VRAM OOM fix, `weights_only=False` PyTorch 2.6+ fix |
 | `milo` | `patches/third_party/milo/0001-cstdint-and-cmake-fixes.patch` | `<cstdint>` includes for GCC 13+ in rasterizers and CMake 4.4 CXX standard / pybind11 tag fixes |
 | `vggt` | `patches/third_party/vggt/0001-pycolmap-313-compat.patch` | PyCOLMAP 3.13+ API compatibility and temporary directory handling |
+| `2d-gaussian-splatting` | `patches/third_party/2d-gaussian-splatting/0001-colmap-camera-models.patch` | Support for `SIMPLE_RADIAL` and `RADIAL` camera models in 2DGS |
+| `2d-gaussian-splatting` | `patches/third_party/2d-gaussian-splatting/0002-mesh-utils-bounds-and-empty-fix.patch` | Empty cluster bounds guard in mesh postprocessing |
+| `diff-surfel-rasterization` | `patches/third_party/2d-gaussian-splatting/submodules/diff-surfel-rasterization/0001-cstdint-and-zero-init.patch` | `<cstdint>` includes, zero-init structs, and backward SH gradient dimension match |
 
 ## Utility Scripts
 
@@ -33,4 +36,3 @@ All submodules in `third_party/` (including `gaussian-splatting`) reference offi
 
 - `./scripts/utils/apply_patches.sh`: Idempotently applies all tracked `.patch` files to submodules upon repository setup.
 - `./scripts/utils/verify_patches.sh`: Audits source code files and active Python environments to verify that all patches are intact.
-
