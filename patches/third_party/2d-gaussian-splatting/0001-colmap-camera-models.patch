@@ -1,0 +1,26 @@
+diff --git a/scene/dataset_readers.py b/scene/dataset_readers.py
+index 2a6f904..d51196c 100644
+--- a/scene/dataset_readers.py
++++ b/scene/dataset_readers.py
+@@ -91,6 +91,15 @@ def readColmapCameras(cam_extrinsics, cam_intrinsics, images_folder):
+             focal_length_y = intr.params[1]
+             FovY = focal2fov(focal_length_y, height)
+             FovX = focal2fov(focal_length_x, width)
++        elif intr.model=="SIMPLE_RADIAL":
++            focal_length_x = intr.params[0]
++            FovY = focal2fov(focal_length_x, height)
++            FovX = focal2fov(focal_length_x, width)
++        elif intr.model=="RADIAL":
++            focal_length_x = intr.params[0]
++            focal_length_y = intr.params[1]
++            FovY = focal2fov(focal_length_y, height)
++            FovX = focal2fov(focal_length_x, width)
+         else:
+             assert False, "Colmap camera model not handled: only undistorted datasets (PINHOLE or SIMPLE_PINHOLE cameras) supported!"
+ 
+diff --git a/submodules/diff-surfel-rasterization b/submodules/diff-surfel-rasterization
+--- a/submodules/diff-surfel-rasterization
++++ b/submodules/diff-surfel-rasterization
+@@ -1 +1 @@
+-Subproject commit e0ed0207b3e0669960cfad70852200a4a5847f61
++Subproject commit e0ed0207b3e0669960cfad70852200a4a5847f61-dirty

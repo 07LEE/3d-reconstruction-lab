@@ -40,7 +40,7 @@ Versions and commit SHAs deliberately live in envs/*.yml and submodule gitlinks,
 | MILo | active | Jointly optimizes a mesh with the Gaussians — claims ~10x fewer vertices than SuGaR | Motivation is collision-mesh practicality, not visual fidelity |
 | Gaussian Grouping | optional | Per-object segmentation masks — prerequisite for instance-separated mesh extraction | Requires gs_group environment |
 | PlanarGS | optional | Selective planar priors on detected indoor wall/floor regions | Integrated in third_party/PlanarGS (SJTU-ViSYS-team/PlanarGS). Primary candidate against PGSR. |
-| 2DGS | candidate | Cheap ablation: does PGSR's unbiased depth actually buy anything? | Run before committing to a PGSR replacement |
+| 2DGS | optional | 2D surfel planar disks with exact ray-splat intersection; renders unbiased depth and surface normals | Wired in scripts/02c_train_2dgs.sh with Blackwell sm_120 support |
 
 ## Stage 3 — Mesh Extraction
 
@@ -49,6 +49,7 @@ Versions and commit SHAs deliberately live in envs/*.yml and submodule gitlinks,
 | TSDF fusion | active | Default extraction from PGSR depth maps | Voxel-size sweep not yet done |
 | SuGaR | active | Comparison baseline for MILo's vertex-count claim | Needs CPU data_device patch (14.5 GiB -> 1.4 GiB VRAM) |
 | MILo (SDF) | active | mesh_extract_sdf.py — Marching Tetrahedra SDF isosurface extraction | Requires PINHOLE undistorted input dataset |
+| 2DGS (TSDF) | optional | Open3D TSDF integration from 2DGS surfel depth/normal renders | Wired in scripts/03c_mesh_2dgs.sh |
 | GOF / SDFRaster | candidate | Fallback if instance-separated TSDF and MILo both fall short on object detail | Under consideration for fine detail recovery |
 
 ## Stage 4 — Evaluation

@@ -90,7 +90,7 @@ CUOBJDUMP = os.path.join(CONDA_BASE, "envs/gs_train/bin/cuobjdump")
 
 ENVS = {
     "gs_milo": (["diff_gaussian_rasterization", "diff_gaussian_rasterization_ms", "diff_gaussian_rasterization_gof", "simple_knn", "fused_ssim"], "milo"),
-    "gs_train": (["diff_gaussian_rasterization", "simple_knn"], "gaussian-splatting"),
+    "gs_train": (["diff_gaussian_rasterization", "simple_knn", "diff_surfel_rasterization"], "gaussian-splatting"),
     "gs_sugar": (["diff_gaussian_rasterization", "simple_knn"], "sugar")
 }
 
@@ -103,7 +103,7 @@ for env, (mods, repo_sub) in ENVS.items():
         continue
     
     site_pkg = os.path.join(env_dir, "lib/python3.10/site-packages")
-    search_dirs = [site_pkg, os.path.join(REPO_ROOT, "third_party", repo_sub)]
+    search_dirs = [site_pkg, os.path.join(REPO_ROOT, "third_party", repo_sub), os.path.join(REPO_ROOT, "third_party/2d-gaussian-splatting")]
     
     for mod in mods:
         so_files = []

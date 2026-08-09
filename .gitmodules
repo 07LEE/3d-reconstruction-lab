@@ -30,3 +30,7 @@
 	path = third_party/PlanarGS
 	url = https://github.com/SJTU-ViSYS-team/PlanarGS.git
 	ignore = dirty
+[submodule "third_party/2d-gaussian-splatting"]
+	path = third_party/2d-gaussian-splatting
+	url = https://github.com/hbb1/2d-gaussian-splatting.git
+	ignore = dirty

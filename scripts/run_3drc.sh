@@ -25,11 +25,13 @@ show_help() {
     echo ""
     echo "Commands:"
     echo "  sfm [method]     Run Step 1 Camera Pose Estimation (hloc, vi_sfm, vggt, fastmap, sfm)"
-    echo "  train [backend]  Run Step 2 3DGS Training (3dgs, planargs)"
+    echo "  train [backend]  Run Step 2 Gaussian Training (3dgs, planargs, 2dgs)"
     echo "  planargs         Run Step 2b PlanarGS Training"
+    echo "  2dgs             Run Step 2c 2D Gaussian Splatting Training"
     echo "  view [type]      Run COLMAP GUI Visualization (hloc, fastmap)"
     echo "  sugar            Run Step 3 SuGaR Mesh Reconstruction"
     echo "  milo             Run Step 3b MILo Mesh Reconstruction"
+    echo "  mesh_2dgs        Run Step 3c 2DGS TSDF Mesh Extraction"
     echo "  grouping         Run Step 4 Gaussian Grouping Object Segmentation"
     echo "  eval [mesh] [gt] Run Step 5 Mesh Evaluation against LiDAR GT PointCloud"
     echo "  outputs          Inspect and summarize all generated output artifacts"
@@ -39,9 +41,11 @@ show_help() {
     echo "Examples:"
     echo "  ./scripts/run_3drc.sh sfm vi_sfm"
     echo "  ./scripts/run_3drc.sh train 3dgs"
+    echo "  ./scripts/run_3drc.sh train 2dgs"
     echo "  ./scripts/run_3drc.sh train planargs"
     echo "  ./scripts/run_3drc.sh sugar"
     echo "  ./scripts/run_3drc.sh milo"
+    echo "  ./scripts/run_3drc.sh mesh_2dgs"
     echo "  ./scripts/run_3drc.sh eval <mesh_path> [gt_pcd_path]"
     echo "  ./scripts/run_3drc.sh outputs"
     echo "  ./scripts/run_3drc.sh view hloc"
@@ -64,10 +68,17 @@ case "$COMMAND" in
         if [ "$BACKEND" = "planargs" ]; then
             echo "[3DRC CLI] Executing Step 2b: PlanarGS Training..."
             ./scripts/02b_train_planargs.sh
+        elif [ "$BACKEND" = "2dgs" ]; then
+            echo "[3DRC CLI] Executing Step 2c: 2D Gaussian Splatting Training..."
+            ./scripts/02c_train_2dgs.sh
         else
             echo "[3DRC CLI] Executing Step 2: 3DGS Training..."
             ./scripts/02_train_3dgs.sh
         fi
+        ;;
+    2dgs)
+        echo "[3DRC CLI] Executing Step 2c: 2D Gaussian Splatting Training..."
+        ./scripts/02c_train_2dgs.sh
         ;;
     planargs)
         echo "[3DRC CLI] Executing Step 2b: PlanarGS Training..."
@@ -85,6 +96,10 @@ case "$COMMAND" in
     milo)
         echo "[3DRC CLI] Executing Step 3b: MILo Mesh Reconstruction..."
         ./scripts/03b_train_milo.sh
+        ;;
+    mesh_2dgs)
+        echo "[3DRC CLI] Executing Step 3c: 2DGS TSDF Mesh Extraction..."
+        ./scripts/03c_mesh_2dgs.sh
         ;;
     grouping)
         echo "[3DRC CLI] Executing Step 4: Gaussian Grouping..."
