@@ -38,6 +38,10 @@ SUGAR_REGULARIZATION="dn_consistency"
 SUGAR_HIGH_POLY="True"
 SUGAR_REFINEMENT="short"
 
+# TSDF Mesh Extraction parameters
+TSDF_VOXEL_SIZE=0.005
+TSDF_DEPTH_TRUNC=6.0
+
 # Gaussian Grouping parameters
 GROUPING_DATASET="${SCENE_NAME}"
 GROUPING_DOWNSAMPLE=1
