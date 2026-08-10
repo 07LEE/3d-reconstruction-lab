@@ -275,6 +275,11 @@ def run_hloc_pipeline(image_dir: str | Path, output_dir: str | Path, weights_dir
     else:
         print("\n[Step 4/4] Running 3D Reconstruction (COLMAP Incremental Mapper)...")
         start_time = time.time()
+        mode_str = os.environ.get("CAMERA_MODE", "SINGLE").upper()
+        if not hasattr(pycolmap.CameraMode, mode_str):
+            valid = list(pycolmap.CameraMode.__members__.keys())
+            raise ValueError(f"Invalid CAMERA_MODE '{mode_str}'. Valid choices: {valid}")
+        cam_mode = getattr(pycolmap.CameraMode, mode_str)
         camera_model = os.environ.get("CAMERA_MODEL", "SIMPLE_RADIAL").upper()
 
         camera_options = pycolmap.IncrementalPipelineOptions()
@@ -284,7 +289,7 @@ def run_hloc_pipeline(image_dir: str | Path, output_dir: str | Path, weights_dir
             sfm_pairs,
             features,
             matches,
-            camera_mode=pycolmap.CameraMode.SINGLE,
+            camera_mode=cam_mode,
             camera_model=camera_model,
             options=camera_options,
         )

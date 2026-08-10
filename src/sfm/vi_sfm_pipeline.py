@@ -209,6 +209,11 @@ def run_vi_sfm_pipeline(image_dir: str | Path, imu_path: str | Path, output_dir:
         print(f"\n[Step 3/3] Sparse reconstruction already exists at {target_model} and pair list unchanged. Skipping mapping.")
     else:
         print(f"\n[Step 3/3] Running Incremental Visual Mapping...")
+        mode_str = os.environ.get("CAMERA_MODE", "SINGLE").upper()
+        if not hasattr(pycolmap.CameraMode, mode_str):
+            valid = list(pycolmap.CameraMode.__members__.keys())
+            raise ValueError(f"Invalid CAMERA_MODE '{mode_str}'. Valid choices: {valid}")
+        cam_mode = getattr(pycolmap.CameraMode, mode_str)
         camera_model = os.environ.get("CAMERA_MODEL", "SIMPLE_RADIAL").upper()
         camera_options = pycolmap.IncrementalPipelineOptions()
 
@@ -218,7 +223,7 @@ def run_vi_sfm_pipeline(image_dir: str | Path, imu_path: str | Path, output_dir:
             pairs_path,
             features_path,
             matches_path,
-            camera_mode=pycolmap.CameraMode.SINGLE,
+            camera_mode=cam_mode,
             camera_model=camera_model,
             options=camera_options,
         )
