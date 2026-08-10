@@ -26,4 +26,5 @@ This directory documents key architectural decisions, rationale, and context for
 - 0007-scene-based-output-hierarchy.md: Scene-Based Output Hierarchy for Multi-Dataset Pipeline Isolation
 - 0008-2d-gaussian-splatting-integration.md: 2D Gaussian Splatting Integration for Unbiased Depth and TSDF Mesh Reconstruction
 - 0009-dynamic-provenance-and-subpackage-architecture.md: Dynamic Upstream Provenance Tracking and Subpackage Architecture
+- 0010-multi-video-merged-sfm-and-cache-integrity.md: Multi-Video Merged SfM via Hybrid Sequential-Retrieval Matching and Cache Integrity
 

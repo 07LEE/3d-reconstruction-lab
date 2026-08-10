@@ -1,8 +1,8 @@
 #!/bin/bash
 set -euo pipefail
 
-# [Step 03c] TSDF Mesh Extraction Engine (Universal Depth/Normal Fusion)
-# Renders depth/normals from trained Gaussian/Surfel models and fuses via Open3D TSDF Integration
+# [Step 03c] 2DGS TSDF Mesh Extraction Engine (Surfel Depth/Normal Fusion)
+# Renders depth/normals from trained 2DGS surfel models and extracts TSDF mesh via Open3D
 
 CONFIG_PATH="configs/default_config.sh"
 if [ -f "$CONFIG_PATH" ]; then
@@ -15,26 +15,36 @@ source "$CONDA_PATH/etc/profile.d/conda.sh"
 conda activate gs_train
 set -u
 
+# Run patch & environment verification inside activated gs_train environment
+"$(dirname "$0")/utils/verify_patches.sh" || { echo "[FATAL] Patch verification failed!"; exit 1; }
+
 INPUT_DATASET="${1:-$DATA_DIR}"
 SCENE_NAME=$(basename "$INPUT_DATASET")
 
-# Dynamic source model selection (default: 2dgs, supports planargs, 3dgs, or custom model directory)
-SOURCE_MODEL_NAME="${2:-2dgs}"
-if [ -d "$SOURCE_MODEL_NAME" ]; then
-    MODEL_DIR="$SOURCE_MODEL_NAME"
-    SOURCE_MODEL_NAME=$(basename "$MODEL_DIR")
+if [ -n "${2:-}" ]; then
+    SOURCE_MODEL_NAME="$2"
+    if [ -d "$SOURCE_MODEL_NAME" ]; then
+        MODEL_DIR="$SOURCE_MODEL_NAME"
+        SOURCE_MODEL_NAME=$(basename "$MODEL_DIR")
+    elif [ -d "${OUTPUT_DIR}/${SCENE_NAME}/${SOURCE_MODEL_NAME}" ]; then
+        MODEL_DIR="${OUTPUT_DIR}/${SCENE_NAME}/${SOURCE_MODEL_NAME}"
+    else
+        echo "[FATAL] Source Gaussian model directory not found: '$2' (checked as exact path and in ${OUTPUT_DIR}/${SCENE_NAME}/$2)" >&2
+        echo "Usage: ./scripts/03c_mesh_tsdf.sh [dataset_path] [source_model_path_or_subdir]" >&2
+        exit 1
+    fi
 else
-    MODEL_DIR="${OUTPUT_DIR}/${SCENE_NAME}/${SOURCE_MODEL_NAME}"
+    SOURCE_MODEL_NAME="2dgs"
+    MODEL_DIR="${OUTPUT_DIR}/${SCENE_NAME}/2dgs"
+    if [ ! -d "$MODEL_DIR" ]; then
+        echo "[FATAL] Default 2DGS model directory not found at: $MODEL_DIR" >&2
+        echo "Usage: ./scripts/03c_mesh_tsdf.sh [dataset_path] [source_model_path_or_subdir]" >&2
+        exit 1
+    fi
 fi
 
 MESH_OUTPUT_DIR="${OUTPUT_DIR}/${SCENE_NAME}/mesh/${SOURCE_MODEL_NAME}"
 mkdir -p "$MESH_OUTPUT_DIR"
-
-if [ ! -d "$MODEL_DIR" ]; then
-    echo "[FATAL] Source Gaussian model directory not found at: $MODEL_DIR"
-    echo "Usage: ./scripts/03c_mesh_tsdf.sh [dataset_path] [source_model_subdir_or_path]"
-    exit 1
-fi
 
 # Detect active SfM pose source dynamically
 ACTIVE_SFM="unknown"
@@ -55,9 +65,9 @@ python third_party/2d-gaussian-splatting/render.py \
     --depth_trunc "$DEPTH_TRUNC"
 
 # Locate and sync exported TSDF mesh to canonical 3DRC mesh path
-EXPORTED_MESH=$(find "$MODEL_DIR/train" -name "*fuse_post.ply" | head -n 1)
+EXPORTED_MESH=$(find "$MODEL_DIR/train" -name "*fuse_post.ply" 2>/dev/null | head -n 1 || true)
 if [ -z "$EXPORTED_MESH" ]; then
-    EXPORTED_MESH=$(find "$MODEL_DIR/train" -name "*fuse*.ply" | head -n 1)
+    EXPORTED_MESH=$(find "$MODEL_DIR/train" -name "*fuse*.ply" 2>/dev/null | head -n 1 || true)
 fi
 
 if [ -n "$EXPORTED_MESH" ] && [ -f "$EXPORTED_MESH" ]; then
@@ -69,7 +79,7 @@ if [ -n "$EXPORTED_MESH" ] && [ -f "$EXPORTED_MESH" ]; then
     cat <<EOF > "$MESH_OUTPUT_DIR/pipeline_meta.json"
 {
   "stage": "Stage 3 (Mesh Extraction)",
-  "engine": "Open3D TSDF Voxel Integration",
+  "engine": "Open3D TSDF Voxel Integration (2DGS)",
   "source_model_path": "$MODEL_DIR",
   "source_model_type": "$SOURCE_MODEL_NAME",
   "source_dataset": "$INPUT_DATASET",
@@ -80,5 +90,6 @@ if [ -n "$EXPORTED_MESH" ] && [ -f "$EXPORTED_MESH" ]; then
 }
 EOF
 else
-    echo "[WARN] Could not find extracted fuse mesh in $MODEL_DIR/train"
+    echo "[FATAL] TSDF mesh extraction failed: No fuse mesh found in $MODEL_DIR/train" >&2
+    exit 1
 fi

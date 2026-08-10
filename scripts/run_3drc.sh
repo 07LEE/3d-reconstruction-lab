@@ -59,14 +59,38 @@ case "$COMMAND" in
         "$PYTHON_BIN" src/utils/inspect_outputs.py
         ;;
     sfm)
-        METHOD=${2:-$SFM_METHOD}
-        ARG_DATASET="${3:-}"
+        # Smart argument parsing for sfm: supports (method, dataset) or (dataset, method)
+        ARG1="${2:-}"
+        ARG2="${3:-}"
+        METHOD="$SFM_METHOD"
+        ARG_DATASET=""
+        if [ -n "$ARG1" ]; then
+            if [ -d "$ARG1" ] || [[ "$ARG1" == data/* ]]; then
+                ARG_DATASET="$ARG1"
+                [ -n "$ARG2" ] && METHOD="$ARG2"
+            else
+                METHOD="$ARG1"
+                [ -n "$ARG2" ] && ARG_DATASET="$ARG2"
+            fi
+        fi
         echo "[3DRC CLI] Executing Step 1: Camera Pose Estimation (Method: ${METHOD})..."
         ./scripts/01_sfm_hloc.sh "$METHOD" ${ARG_DATASET:+"$ARG_DATASET"}
         ;;
     train)
-        BACKEND=${2:-"3dgs"}
-        ARG_DATASET="${3:-}"
+        # Smart argument parsing for train: supports (backend, dataset) or (dataset, backend)
+        ARG1="${2:-}"
+        ARG2="${3:-}"
+        BACKEND="3dgs"
+        ARG_DATASET=""
+        if [ -n "$ARG1" ]; then
+            if [ -d "$ARG1" ] || [[ "$ARG1" == data/* ]]; then
+                ARG_DATASET="$ARG1"
+                [ -n "$ARG2" ] && BACKEND="$ARG2"
+            else
+                BACKEND="$ARG1"
+                [ -n "$ARG2" ] && ARG_DATASET="$ARG2"
+            fi
+        fi
         if [ "$BACKEND" = "planargs" ]; then
             echo "[3DRC CLI] Executing Step 2b: PlanarGS Training..."
             ./scripts/02b_train_planargs.sh ${ARG_DATASET:+"$ARG_DATASET"}
@@ -94,8 +118,19 @@ case "$COMMAND" in
         ./scripts/utils/view_reconstruction.sh "$TYPE"
         ;;
     sugar)
-        ARG_DATASET="${2:-}"
-        ARG_SOURCE_MODEL="${3:-}"
+        ARG1="${2:-}"
+        ARG2="${3:-}"
+        ARG_DATASET=""
+        ARG_SOURCE_MODEL=""
+        if [ -n "$ARG1" ]; then
+            if [ -d "$ARG1" ] || [[ "$ARG1" == data/* ]]; then
+                ARG_DATASET="$ARG1"
+                [ -n "$ARG2" ] && ARG_SOURCE_MODEL="$ARG2"
+            else
+                ARG_SOURCE_MODEL="$ARG1"
+                [ -n "$ARG2" ] && ARG_DATASET="$ARG2"
+            fi
+        fi
         echo "[3DRC CLI] Executing Step 3: SuGaR Mesh Reconstruction..."
         ./scripts/03_train_sugar.sh ${ARG_DATASET:+"$ARG_DATASET"} ${ARG_SOURCE_MODEL:+"$ARG_SOURCE_MODEL"}
         ;;
@@ -105,8 +140,19 @@ case "$COMMAND" in
         ./scripts/03b_train_milo.sh ${ARG_DATASET:+"$ARG_DATASET"}
         ;;
     tsdf|mesh_tsdf)
-        ARG_DATASET="${2:-}"
-        ARG_SOURCE_MODEL="${3:-}"
+        ARG1="${2:-}"
+        ARG2="${3:-}"
+        ARG_DATASET=""
+        ARG_SOURCE_MODEL=""
+        if [ -n "$ARG1" ]; then
+            if [ -d "$ARG1" ] || [[ "$ARG1" == data/* ]]; then
+                ARG_DATASET="$ARG1"
+                [ -n "$ARG2" ] && ARG_SOURCE_MODEL="$ARG2"
+            else
+                ARG_SOURCE_MODEL="$ARG1"
+                [ -n "$ARG2" ] && ARG_DATASET="$ARG2"
+            fi
+        fi
         echo "[3DRC CLI] Executing Step 3c: TSDF Mesh Extraction..."
         ./scripts/03c_mesh_tsdf.sh ${ARG_DATASET:+"$ARG_DATASET"} ${ARG_SOURCE_MODEL:+"$ARG_SOURCE_MODEL"}
         ;;
@@ -131,11 +177,25 @@ case "$COMMAND" in
         "$PYTHON_BIN" src/mesh/eval_mesh.py "${EVAL_ARGS[@]}"
         ;;
     pipeline)
-        SFM_OPT=${2:-"hloc"}
-        echo "[3DRC CLI] Starting End-to-End Automated Pipeline (SfM: ${SFM_OPT})..."
-        ./scripts/01_sfm_hloc.sh "$SFM_OPT"
-        ./scripts/02_train_3dgs.sh
-        ./scripts/03_train_sugar.sh
+        ARG1="${2:-}"
+        ARG2="${3:-}"
+        ARG_DATASET=""
+        ARG_METHOD=""
+        if [ -n "$ARG1" ]; then
+            if [ -d "$ARG1" ] || [[ "$ARG1" == data/* ]]; then
+                ARG_DATASET="$ARG1"
+                [ -n "$ARG2" ] && ARG_METHOD="$ARG2"
+            else
+                ARG_METHOD="$ARG1"
+                [ -n "$ARG2" ] && ARG_DATASET="$ARG2"
+            fi
+        fi
+        SFM_OPT="${ARG_METHOD:-$SFM_METHOD}"
+        TARGET_DATASET="${ARG_DATASET:-$DATA_DIR}"
+        echo "[3DRC CLI] Starting End-to-End Automated Pipeline (SfM: ${SFM_OPT}, Dataset: ${TARGET_DATASET})..."
+        ./scripts/01_sfm_hloc.sh "$SFM_OPT" "$TARGET_DATASET"
+        ./scripts/02_train_3dgs.sh "$TARGET_DATASET"
+        ./scripts/03_train_sugar.sh "$TARGET_DATASET"
         echo "[3DRC CLI] End-to-End Automated Pipeline Execution Finished!"
         ;;
     help|*)

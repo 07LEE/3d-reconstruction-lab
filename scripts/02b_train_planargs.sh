@@ -74,11 +74,19 @@ fi
 echo "Starting PlanarGS Training (Scene: $SCENE_NAME, Dataset: $INPUT_DATASET)..."
 cd third_party/PlanarGS || exit 1
 
+EXTRA_TRAIN_ARGS=()
+if [ "${GS_EVAL_MODE:-false}" = "true" ]; then
+    EXTRA_TRAIN_ARGS+=("--eval")
+fi
+
 python train.py \
     -s "$PROJECT_ROOT/$TARGET_DATA_DIR" \
     -m "$MODEL_OUTPUT" \
     -r "$DOWNSAMPLE_RATE" \
-    --data_device "$DATA_DEVICE"
+    --data_device "$DATA_DEVICE" \
+    --densify_grad_threshold "${DENSIFY_GRAD_THRESHOLD:-0.0002}" \
+    --iterations "${GS_ITERATIONS:-30000}" \
+    "${EXTRA_TRAIN_ARGS[@]}"
 
 # Dynamically record execution provenance metadata
 cat <<EOF > "$MODEL_OUTPUT/pipeline_meta.json"
@@ -88,6 +96,7 @@ cat <<EOF > "$MODEL_OUTPUT/pipeline_meta.json"
   "source_dataset": "$TARGET_DATA_DIR",
   "active_sfm": "$ACTIVE_SFM",
   "downsample_rate": $DOWNSAMPLE_RATE,
+  "iterations": ${GS_ITERATIONS:-30000},
   "timestamp": "$(date '+%Y-%m-%d %H:%M:%S')"
 }
 EOF

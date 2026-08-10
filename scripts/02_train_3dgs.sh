@@ -63,12 +63,19 @@ if [ -L "${TARGET_DATA_DIR}/sparse/0" ]; then
     ACTIVE_SFM=$(readlink "${TARGET_DATA_DIR}/sparse/0" | xargs basename)
 fi
 
+EXTRA_TRAIN_ARGS=()
+if [ "${GS_EVAL_MODE:-false}" = "true" ]; then
+    EXTRA_TRAIN_ARGS+=("--eval")
+fi
+
 python third_party/gaussian-splatting/train.py \
     -s "$TARGET_DATA_DIR" \
     --model_path "$MODEL_OUTPUT" \
     -r "$DOWNSAMPLE_RATE" \
     --densify_grad_threshold "$DENSIFY_GRAD_THRESHOLD" \
-    --data_device "$DATA_DEVICE"
+    --data_device "$DATA_DEVICE" \
+    --iterations "${GS_ITERATIONS:-30000}" \
+    "${EXTRA_TRAIN_ARGS[@]}"
 
 # Dynamically record execution provenance metadata
 cat <<EOF > "$MODEL_OUTPUT/pipeline_meta.json"
@@ -78,6 +85,7 @@ cat <<EOF > "$MODEL_OUTPUT/pipeline_meta.json"
   "source_dataset": "$TARGET_DATA_DIR",
   "active_sfm": "$ACTIVE_SFM",
   "downsample_rate": $DOWNSAMPLE_RATE,
+  "iterations": ${GS_ITERATIONS:-30000},
   "densify_grad_threshold": $DENSIFY_GRAD_THRESHOLD,
   "timestamp": "$(date '+%Y-%m-%d %H:%M:%S')"
 }

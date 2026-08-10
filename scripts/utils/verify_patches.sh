@@ -102,7 +102,7 @@ else
   fail=1
 fi
 
-# 6. Imported rasterizer check in active python env via NamedTuple _fields inspection
+# 11. Imported rasterizer check in active python env via NamedTuple _fields inspection
 PYTHON_BIN="${CONDA_BASE_DIR}/envs/gs_train/bin/python"
 if [ ! -x "$PYTHON_BIN" ]; then PYTHON_BIN="python3"; fi
 
@@ -123,7 +123,7 @@ print("[ok] Active python env has dr_aa rasterizer installed:", getattr(d, "__fi
 PY
 then :; else fail=1; fi
 
-# 7. Blackwell sm_120 CUBIN SASS binary verification across C++ CUDA extensions
+# 12. Blackwell sm_120 CUBIN SASS binary verification across C++ CUDA extensions
 echo "=== Verifying sm_120 CUBIN Binaries ==="
 export REPO_ROOT
 export CONDA_BASE_DIR

@@ -3,12 +3,13 @@
 from __future__ import annotations
 
 import argparse
+from datetime import datetime
+import hashlib
 import os
 import sys
 import time
-from datetime import datetime
 from pathlib import Path
-from typing import List, Tuple
+from typing import Dict, List, Tuple
 import torch
 
 # Add third_party/hloc to sys.path
@@ -24,7 +25,7 @@ def log_performance(image_dir: str | Path, output_dir: str | Path, strategy: str
     Args:
         image_dir: Input images directory.
         output_dir: Output sparse model directory.
-        strategy: Matching pair strategy ('sequential' or 'exhaustive').
+        strategy: Matching pair strategy ('sequential', 'exhaustive', or 'sequential+retrieval').
         time_extract: Duration of SuperPoint feature extraction in seconds.
         time_pairs: Duration of pair list generation in seconds.
         time_match: Duration of SuperGlue feature matching in seconds.
@@ -53,8 +54,37 @@ def log_performance(image_dir: str | Path, output_dir: str | Path, strategy: str
         f.write(f"Total Elapsed Time: {time_total:.2f} s\n")
         f.write(f"========================================\n")
 
-def generate_sequential_pairs(image_dir: Path, output_pairs_path: Path, overlap: int = 10) -> None:
-    """Generates an image pair list based on sequential video frame proximity.
+def group_images_by_prefix(images: List[str]) -> Dict[str, List[str]]:
+    """Groups image filenames by video prefix.
+
+    Prefix is determined by splitting before the last underscore if followed by digits,
+    or before the first underscore, or grouped as 'default' if no underscore exists.
+
+    Args:
+        images: List of image file names.
+
+    Returns:
+        Dict[str, List[str]]: Dictionary mapping prefix to sorted list of image names.
+    """
+    groups: Dict[str, List[str]] = {}
+    for img in images:
+        stem = Path(img).stem
+        if "_" in stem:
+            parts = stem.rsplit("_", 1)
+            if parts[1].isdigit():
+                prefix = parts[0]
+            else:
+                prefix = stem.split("_", 1)[0]
+        else:
+            prefix = "default"
+        groups.setdefault(prefix, []).append(img)
+
+    for prefix in groups:
+        groups[prefix].sort()
+    return groups
+
+def generate_sequential_pairs(image_dir: Path, output_pairs_path: Path, overlap: int = 10) -> List[Tuple[str, str]]:
+    """Generates an image pair list based on sequential video frame proximity within each prefix group.
 
     Args:
         image_dir: Path to directory containing sequentially named frame images.
@@ -62,31 +92,95 @@ def generate_sequential_pairs(image_dir: Path, output_pairs_path: Path, overlap:
         overlap: Maximum sequential distance between paired frames (default: 10).
 
     Returns:
-        None
+        List[Tuple[str, str]]: List of generated sequential pairs.
     """
-    images = sorted([f.name for f in image_dir.iterdir() if f.suffix.lower() in [".jpg", ".png", ".jpeg"]])
-    print(f"Found {len(images)} images. Generating sequential pairs with overlap {overlap}...")
+    images = [f.name for f in image_dir.iterdir() if f.suffix.lower() in [".jpg", ".png", ".jpeg"]]
+    groups = group_images_by_prefix(images)
+    print(f"Found {len(images)} images across {len(groups)} prefix group(s): {list(groups.keys())}. Generating sequential pairs with overlap {overlap}...")
 
     pairs: List[Tuple[str, str]] = []
-    for i in range(len(images)):
-        for j in range(1, overlap + 1):
-            if i + j < len(images):
-                pairs.append((images[i], images[i + j]))
+    for prefix, img_list in groups.items():
+        for i in range(len(img_list)):
+            for j in range(1, overlap + 1):
+                if i + j < len(img_list):
+                    pairs.append((img_list[i], img_list[i + j]))
 
     with open(output_pairs_path, "w", encoding="utf-8") as f:
         for p1, p2 in pairs:
             f.write(f"{p1} {p2}\n")
-    print(f"Generated {len(pairs)} pairs.")
+    print(f"Generated {len(pairs)} sequential pairs.")
+    return pairs
 
-def run_hloc_pipeline(image_dir: str | Path, output_dir: str | Path, weights_dir: str | Path, strategy: str = "sequential", overlap: int = 10) -> bool:
+def generate_retrieval_pairs(images: Path, global_features_path: Path, output_pairs_path: Path, retrieval_k: int = 30) -> List[Tuple[str, str]]:
+    """Generates global descriptor retrieval pairs using NetVLAD.
+
+    Args:
+        images: Path to image directory.
+        global_features_path: Path to global features HDF5 file.
+        output_pairs_path: Path to save temporary retrieval pair list.
+        retrieval_k: Number of nearest neighbors to retrieve per image (default: 30).
+
+    Returns:
+        List[Tuple[str, str]]: List of retrieved image pairs.
+    """
+    global_conf = extract_features.confs["netvlad"]
+    if not global_features_path.is_file():
+        print(f"Extracting global descriptors (NetVLAD)...")
+        extract_features.main(global_conf, images, feature_path=global_features_path)
+
+    pairs_from_retrieval.main(
+        descriptors=global_features_path,
+        output=output_pairs_path,
+        num_matched=retrieval_k,
+    )
+
+    pairs: List[Tuple[str, str]] = []
+    if output_pairs_path.is_file():
+        with open(output_pairs_path, "r", encoding="utf-8") as f:
+            for line in f:
+                parts = line.strip().split()
+                if len(parts) >= 2:
+                    pairs.append((parts[0], parts[1]))
+    return pairs
+
+def merge_and_deduplicate_pairs(pair_lists: List[List[Tuple[str, str]]], output_pairs_path: Path) -> List[Tuple[str, str]]:
+    """Merges multiple lists of image pairs, normalizes pair ordering, removes duplicates, and saves to file.
+
+    Args:
+        pair_lists: List of pair lists to merge.
+        output_pairs_path: Path to destination text file.
+
+    Returns:
+        List[Tuple[str, str]]: Canonical, deduplicated list of image pairs.
+    """
+    seen = set()
+    deduped: List[Tuple[str, str]] = []
+    for pairs in pair_lists:
+        for p1, p2 in pairs:
+            if p1 == p2:
+                continue
+            canonical = (min(p1, p2), max(p1, p2))
+            if canonical not in seen:
+                seen.add(canonical)
+                deduped.append(canonical)
+
+    with open(output_pairs_path, "w", encoding="utf-8") as f:
+        for p1, p2 in deduped:
+            f.write(f"{p1} {p2}\n")
+    print(f"Merged and deduplicated total pairs: {len(deduped)}")
+    return deduped
+
+def run_hloc_pipeline(image_dir: str | Path, output_dir: str | Path, weights_dir: str | Path, strategy: str = "sequential", overlap: int = 10, retrieval_k: int = 30, overwrite: bool = False) -> bool:
     """Executes the complete hloc SfM pipeline with SuperPoint and SuperGlue.
 
     Args:
         image_dir: Path to input images directory.
         output_dir: Path to output directory where sparse models and H5 caches are saved.
         weights_dir: Path to pretrained deep model weights directory (sets TORCH_HOME).
-        strategy: Matching pair strategy ('sequential' or 'exhaustive').
+        strategy: Matching pair strategy ('sequential', 'exhaustive', or 'sequential+retrieval').
         overlap: Sequential matching window size.
+        retrieval_k: Top-k nearest neighbors for global descriptor retrieval.
+        overwrite: If True, clears existing feature/match caches and sparse models.
 
     Returns:
         bool: True if reconstruction model was successfully generated, False otherwise.
@@ -102,6 +196,15 @@ def run_hloc_pipeline(image_dir: str | Path, output_dir: str | Path, weights_dir
     features = outputs / "features.h5"
     matches = outputs / "matches.h5"
     sfm_dir = outputs / "sfm"
+
+    if overwrite:
+        print("[hloc] Overwrite flag set. Clearing existing H5 caches and sparse reconstruction...")
+        for cache_file in [features, matches, outputs / "global_features.h5", outputs / "matches.pairs.sha256"]:
+            if cache_file.is_file():
+                cache_file.unlink()
+        if sfm_dir.is_dir():
+            import shutil
+            shutil.rmtree(sfm_dir)
 
     feature_conf = extract_features.confs["superpoint_aachen"]
     feature_conf["preprocessing"]["resize_max"] = 2400
@@ -128,6 +231,18 @@ def run_hloc_pipeline(image_dir: str | Path, output_dir: str | Path, weights_dir
         pairs_from_exhaustive.main(sfm_pairs, image_list=None, features=features)
     elif strategy == "sequential":
         generate_sequential_pairs(images, sfm_pairs, overlap=overlap)
+    elif strategy == "sequential+retrieval":
+        temp_seq_file = outputs / "pairs-seq-temp.txt"
+        temp_ret_file = outputs / "pairs-ret-temp.txt"
+        global_features = outputs / "global_features.h5"
+
+        seq_pairs = generate_sequential_pairs(images, temp_seq_file, overlap=overlap)
+        ret_pairs = generate_retrieval_pairs(images, global_features, temp_ret_file, retrieval_k=retrieval_k)
+
+        merge_and_deduplicate_pairs([seq_pairs, ret_pairs], sfm_pairs)
+
+        temp_seq_file.unlink(missing_ok=True)
+        temp_ret_file.unlink(missing_ok=True)
     else:
         print(f"[Error] Unknown strategy: {strategy}")
         return False
@@ -137,32 +252,49 @@ def run_hloc_pipeline(image_dir: str | Path, output_dir: str | Path, weights_dir
     # 3. Feature Matching
     print("\n[Step 3/4] Matching features (SuperGlue)...")
     start_time = time.time()
-    if not matches.is_file():
+    pairs_hash = hashlib.sha256(sfm_pairs.read_bytes()).hexdigest()
+    hash_file = outputs / "matches.pairs.sha256"
+    stale = (not hash_file.is_file()) or (hash_file.read_text(encoding="utf-8").strip() != pairs_hash)
+
+    if matches.is_file() and not stale:
+        print("Matches already exist and pair list unchanged. Skipping matching.")
+        time_match = 0.0
+    else:
         match_features.main(matcher_conf, sfm_pairs, features=features, matches=matches)
+        hash_file.write_text(pairs_hash, encoding="utf-8")
         time_match = time.time() - start_time
         print(f"Feature Matching elapsed: {time_match:.2f} seconds")
-    else:
-        print("Matches already exist. Skipping matching.")
-        time_match = 0.0
 
     # 4. Sparse Reconstruction
-    print("\n[Step 4/4] Running 3D Reconstruction (COLMAP Incremental Mapper)...")
-    start_time = time.time()
-    camera_model = os.environ.get("CAMERA_MODEL", "SIMPLE_RADIAL").upper()
+    target_model = sfm_dir / "0" if (sfm_dir / "0").is_dir() else sfm_dir
+    has_model = (target_model / "cameras.bin").is_file() or (target_model / "cameras.txt").is_file()
 
-    camera_options = pycolmap.IncrementalPipelineOptions()
-    reconstruction.main(
-        sfm_dir,
-        images,
-        sfm_pairs,
-        features,
-        matches,
-        camera_mode=pycolmap.CameraMode.SINGLE,
-        camera_model=camera_model,
-        options=camera_options,
-    )
-    time_sfm = time.time() - start_time
-    print(f"Sparse Reconstruction elapsed: {time_sfm:.2f} seconds")
+    if has_model and not overwrite and not stale:
+        print(f"\n[Step 4/4] Sparse reconstruction already exists at {target_model} and pair list unchanged. Skipping mapping.")
+        time_sfm = 0.0
+    else:
+        print("\n[Step 4/4] Running 3D Reconstruction (COLMAP Incremental Mapper)...")
+        start_time = time.time()
+        mode_str = os.environ.get("CAMERA_MODE", "SINGLE").upper()
+        if not hasattr(pycolmap.CameraMode, mode_str):
+            valid = list(pycolmap.CameraMode.__members__.keys())
+            raise ValueError(f"Invalid CAMERA_MODE '{mode_str}'. Valid choices: {valid}")
+        cam_mode = getattr(pycolmap.CameraMode, mode_str)
+        camera_model = os.environ.get("CAMERA_MODEL", "SIMPLE_RADIAL").upper()
+
+        camera_options = pycolmap.IncrementalPipelineOptions()
+        reconstruction.main(
+            sfm_dir,
+            images,
+            sfm_pairs,
+            features,
+            matches,
+            camera_mode=cam_mode,
+            camera_model=camera_model,
+            options=camera_options,
+        )
+        time_sfm = time.time() - start_time
+        print(f"Sparse Reconstruction elapsed: {time_sfm:.2f} seconds")
 
     time_total = time.time() - start_total
     print(f"\nTotal Pipeline Elapsed Time: {time_total:.2f} seconds")
@@ -183,8 +315,10 @@ if __name__ == "__main__":
     parser.add_argument("--image_dir", type=str, default="data/images", help="Path to input images directory")
     parser.add_argument("--output_dir", type=str, default="data/reconstruction_hloc", help="Path to output directory")
     parser.add_argument("--weights_dir", type=str, default="weights", help="Path to deep model weights directory")
-    parser.add_argument("--strategy", type=str, default="sequential", choices=["sequential", "exhaustive"], help="Pair matching strategy")
+    parser.add_argument("--strategy", type=str, default="sequential", choices=["sequential", "exhaustive", "sequential+retrieval"], help="Pair matching strategy")
     parser.add_argument("--overlap", type=int, default=10, help="Overlap window for sequential matching")
+    parser.add_argument("--retrieval_k", type=int, default=30, help="Top-K nearest neighbors for global descriptor retrieval matching")
+    parser.add_argument("--overwrite", action="store_true", help="Force complete re-extraction and reconstruction")
 
     args = parser.parse_args()
 
@@ -198,6 +332,8 @@ if __name__ == "__main__":
         args.weights_dir,
         strategy=args.strategy,
         overlap=args.overlap,
+        retrieval_k=args.retrieval_k,
+        overwrite=args.overwrite,
     )
     if not ok:
         sys.exit(1)
