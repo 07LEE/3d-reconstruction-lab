@@ -45,9 +45,23 @@ mkdir -p "$MILO_MODEL_DIR"
 
 # Ensure undistorted PINHOLE dataset workspace exists for MILo
 DENSE_DATASET="${INPUT_DATASET}/dense"
+SPARSE_IN="${INPUT_DATASET}/sparse/0"
+NEED_UNDISTORT=false
+
 if [ ! -d "$DENSE_DATASET/sparse" ]; then
+    NEED_UNDISTORT=true
+elif [ -f "$SPARSE_IN/cameras.bin" ] && [ -f "$DENSE_DATASET/sparse/cameras.bin" ] && [ "$SPARSE_IN/cameras.bin" -nt "$DENSE_DATASET/sparse/cameras.bin" ]; then
+    echo "[MILo] Detected updated SfM sparse model in $SPARSE_IN. Re-undistorting dense workspace..."
+    rm -rf "$DENSE_DATASET"
+    NEED_UNDISTORT=true
+elif [ -f "$INPUT_DATASET/sparse/0/sfm_info.json" ] && [ -f "$DENSE_DATASET/sparse/cameras.bin" ] && [ "$INPUT_DATASET/sparse/0/sfm_info.json" -nt "$DENSE_DATASET/sparse/cameras.bin" ]; then
+    echo "[MILo] Detected updated SfM metadata in $SPARSE_IN. Re-undistorting dense workspace..."
+    rm -rf "$DENSE_DATASET"
+    NEED_UNDISTORT=true
+fi
+
+if [ "$NEED_UNDISTORT" = true ]; then
     echo "Preparing undistorted PINHOLE dataset for MILo via src/prep/dense_undistort.py..."
-    SPARSE_IN="${INPUT_DATASET}/sparse/0"
     IMG_IN="${INPUT_DATASET}/raw_images"
     if [ ! -d "$IMG_IN" ]; then
         IMG_IN="${INPUT_DATASET}/images"

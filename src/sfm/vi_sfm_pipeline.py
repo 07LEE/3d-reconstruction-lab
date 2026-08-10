@@ -4,10 +4,11 @@ from __future__ import annotations
 
 import argparse
 import csv
+from datetime import datetime
+import hashlib
 import os
 import sys
 import time
-from datetime import datetime
 from pathlib import Path
 from typing import Any, Dict, Optional
 import numpy as np
@@ -122,7 +123,7 @@ def align_reconstruction_to_gravity(model_path: Path, gravity_vec: np.ndarray) -
     write_model(cameras, images, points3D, str(model_path), ext=ext)
     print(f"[VI-SfM] Gravity alignment successfully applied to points and cameras, saved to {model_path}.")
 
-def run_vi_sfm_pipeline(image_dir: str | Path, imu_path: str | Path, output_dir: str | Path, imu_format: str = "euroc") -> bool:
+def run_vi_sfm_pipeline(image_dir: str | Path, imu_path: str | Path, output_dir: str | Path, imu_format: str = "euroc", overwrite: bool = False) -> bool:
     """Executes Visual-Inertial (RGB + IMU) SfM reconstruction pipeline.
 
     Args:
@@ -130,6 +131,7 @@ def run_vi_sfm_pipeline(image_dir: str | Path, imu_path: str | Path, output_dir:
         imu_path: Path to input IMU data CSV/text file.
         output_dir: Target output directory for reconstructed models.
         imu_format: IMU data layout format identifier.
+        overwrite: If True, clears existing features/matches and sparse model.
 
     Returns:
         bool: True if reconstruction and gravity alignment succeeded, False otherwise.
@@ -141,6 +143,20 @@ def run_vi_sfm_pipeline(image_dir: str | Path, imu_path: str | Path, output_dir:
 
     out_path.mkdir(parents=True, exist_ok=True)
     sfm_dir = out_path / "sfm"
+
+    features_path = out_path / "features.h5"
+    matches_path = out_path / "matches.h5"
+    pairs_path = out_path / "pairs-sequential.h5"
+    hash_file = out_path / "matches.pairs.sha256"
+
+    if overwrite:
+        print("[VI-SfM] Overwrite flag set. Clearing existing H5 caches and sparse reconstruction...")
+        for cache_file in [features_path, matches_path, pairs_path, hash_file]:
+            if cache_file.is_file():
+                cache_file.unlink()
+        if sfm_dir.is_dir():
+            import shutil
+            shutil.rmtree(sfm_dir)
 
     print("==================================================")
     print(" 3DRC Visual-Inertial (RGB + IMU) SfM Pipeline")
@@ -154,10 +170,6 @@ def run_vi_sfm_pipeline(image_dir: str | Path, imu_path: str | Path, output_dir:
     gravity_vec = compute_gravity_vector(imu_data["acc"] if imu_data else None)
 
     # 2. Run Visual Feature Extraction & Deep Matching (SuperPoint + SuperGlue)
-    features_path = out_path / "features.h5"
-    matches_path = out_path / "matches.h5"
-    pairs_path = out_path / "pairs-sequential.h5"
-
     feature_conf = extract_features.confs["superpoint_aachen"]
     feature_conf["preprocessing"]["resize_max"] = 2400
     matcher_conf = match_features.confs["superglue"]
@@ -179,25 +191,37 @@ def run_vi_sfm_pipeline(image_dir: str | Path, imu_path: str | Path, output_dir:
         for p1, p2 in pairs:
             f.write(f"{p1} {p2}\n")
 
-    if not matches_path.is_file():
+    pairs_hash = hashlib.sha256(pairs_path.read_bytes()).hexdigest()
+    stale = (not hash_file.is_file()) or (hash_file.read_text(encoding="utf-8").strip() != pairs_hash)
+
+    if matches_path.is_file() and not stale:
+        print("\n[Step 2/3] Matches already exist and pair list unchanged. Skipping matching.")
+    else:
         print(f"\n[Step 2/3] Matching Features with SuperGlue...")
         match_features.main(matcher_conf, pairs_path, features=features_path, matches=matches_path)
+        hash_file.write_text(pairs_hash, encoding="utf-8")
 
     # 3. Incremental Visual Mapping
-    print(f"\n[Step 3/3] Running Incremental Visual Mapping...")
-    camera_model = os.environ.get("CAMERA_MODEL", "SIMPLE_RADIAL").upper()
-    camera_options = pycolmap.IncrementalPipelineOptions()
+    target_model = sfm_dir / "0" if (sfm_dir / "0").is_dir() else sfm_dir
+    has_model = (target_model / "cameras.bin").is_file() or (target_model / "cameras.txt").is_file()
 
-    reconstruction.main(
-        sfm_dir,
-        img_path,
-        pairs_path,
-        features_path,
-        matches_path,
-        camera_mode=pycolmap.CameraMode.SINGLE,
-        camera_model=camera_model,
-        options=camera_options,
-    )
+    if has_model and not overwrite and not stale:
+        print(f"\n[Step 3/3] Sparse reconstruction already exists at {target_model} and pair list unchanged. Skipping mapping.")
+    else:
+        print(f"\n[Step 3/3] Running Incremental Visual Mapping...")
+        camera_model = os.environ.get("CAMERA_MODEL", "SIMPLE_RADIAL").upper()
+        camera_options = pycolmap.IncrementalPipelineOptions()
+
+        reconstruction.main(
+            sfm_dir,
+            img_path,
+            pairs_path,
+            features_path,
+            matches_path,
+            camera_mode=pycolmap.CameraMode.SINGLE,
+            camera_model=camera_model,
+            options=camera_options,
+        )
 
     # 4. Gravity Alignment
     target_model = sfm_dir / "0" if (sfm_dir / "0").is_dir() else sfm_dir
@@ -230,13 +254,18 @@ if __name__ == "__main__":
     parser.add_argument("--imu_path", type=str, default="data/imu.csv", help="Path to raw IMU measurements CSV")
     parser.add_argument("--output_dir", type=str, required=True, help="Path to output directory for reconstruction")
     parser.add_argument("--imu_format", type=str, default="euroc", help="IMU data format (euroc, tum, or custom)")
-
-    args = parser.parse_args()
+    parser.add_argument("--overwrite", action="store_true", help="Force complete re-extraction and reconstruction")
 
     if not Path(args.image_dir).is_dir():
         print(f"[Error] Image directory not found: '{args.image_dir}'")
         sys.exit(1)
 
-    ok = run_vi_sfm_pipeline(args.image_dir, args.imu_path, args.output_dir, imu_format=args.imu_format)
+    ok = run_vi_sfm_pipeline(
+        args.image_dir,
+        args.imu_path,
+        args.output_dir,
+        imu_format=args.imu_format,
+        overwrite=args.overwrite,
+    )
     if not ok:
         sys.exit(1)

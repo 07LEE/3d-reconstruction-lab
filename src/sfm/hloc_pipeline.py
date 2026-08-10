@@ -170,7 +170,7 @@ def merge_and_deduplicate_pairs(pair_lists: List[List[Tuple[str, str]]], output_
     print(f"Merged and deduplicated total pairs: {len(deduped)}")
     return deduped
 
-def run_hloc_pipeline(image_dir: str | Path, output_dir: str | Path, weights_dir: str | Path, strategy: str = "sequential", overlap: int = 10, retrieval_k: int = 30) -> bool:
+def run_hloc_pipeline(image_dir: str | Path, output_dir: str | Path, weights_dir: str | Path, strategy: str = "sequential", overlap: int = 10, retrieval_k: int = 30, overwrite: bool = False) -> bool:
     """Executes the complete hloc SfM pipeline with SuperPoint and SuperGlue.
 
     Args:
@@ -180,6 +180,7 @@ def run_hloc_pipeline(image_dir: str | Path, output_dir: str | Path, weights_dir
         strategy: Matching pair strategy ('sequential', 'exhaustive', or 'sequential+retrieval').
         overlap: Sequential matching window size.
         retrieval_k: Top-k nearest neighbors for global descriptor retrieval.
+        overwrite: If True, clears existing feature/match caches and sparse models.
 
     Returns:
         bool: True if reconstruction model was successfully generated, False otherwise.
@@ -195,6 +196,15 @@ def run_hloc_pipeline(image_dir: str | Path, output_dir: str | Path, weights_dir
     features = outputs / "features.h5"
     matches = outputs / "matches.h5"
     sfm_dir = outputs / "sfm"
+
+    if overwrite:
+        print("[hloc] Overwrite flag set. Clearing existing H5 caches and sparse reconstruction...")
+        for cache_file in [features, matches, outputs / "global_features.h5", outputs / "matches.pairs.sha256"]:
+            if cache_file.is_file():
+                cache_file.unlink()
+        if sfm_dir.is_dir():
+            import shutil
+            shutil.rmtree(sfm_dir)
 
     feature_conf = extract_features.confs["superpoint_aachen"]
     feature_conf["preprocessing"]["resize_max"] = 2400
@@ -256,23 +266,30 @@ def run_hloc_pipeline(image_dir: str | Path, output_dir: str | Path, weights_dir
         print(f"Feature Matching elapsed: {time_match:.2f} seconds")
 
     # 4. Sparse Reconstruction
-    print("\n[Step 4/4] Running 3D Reconstruction (COLMAP Incremental Mapper)...")
-    start_time = time.time()
-    camera_model = os.environ.get("CAMERA_MODEL", "SIMPLE_RADIAL").upper()
+    target_model = sfm_dir / "0" if (sfm_dir / "0").is_dir() else sfm_dir
+    has_model = (target_model / "cameras.bin").is_file() or (target_model / "cameras.txt").is_file()
 
-    camera_options = pycolmap.IncrementalPipelineOptions()
-    reconstruction.main(
-        sfm_dir,
-        images,
-        sfm_pairs,
-        features,
-        matches,
-        camera_mode=pycolmap.CameraMode.SINGLE,
-        camera_model=camera_model,
-        options=camera_options,
-    )
-    time_sfm = time.time() - start_time
-    print(f"Sparse Reconstruction elapsed: {time_sfm:.2f} seconds")
+    if has_model and not overwrite and not stale:
+        print(f"\n[Step 4/4] Sparse reconstruction already exists at {target_model} and pair list unchanged. Skipping mapping.")
+        time_sfm = 0.0
+    else:
+        print("\n[Step 4/4] Running 3D Reconstruction (COLMAP Incremental Mapper)...")
+        start_time = time.time()
+        camera_model = os.environ.get("CAMERA_MODEL", "SIMPLE_RADIAL").upper()
+
+        camera_options = pycolmap.IncrementalPipelineOptions()
+        reconstruction.main(
+            sfm_dir,
+            images,
+            sfm_pairs,
+            features,
+            matches,
+            camera_mode=pycolmap.CameraMode.SINGLE,
+            camera_model=camera_model,
+            options=camera_options,
+        )
+        time_sfm = time.time() - start_time
+        print(f"Sparse Reconstruction elapsed: {time_sfm:.2f} seconds")
 
     time_total = time.time() - start_total
     print(f"\nTotal Pipeline Elapsed Time: {time_total:.2f} seconds")
@@ -296,6 +313,7 @@ if __name__ == "__main__":
     parser.add_argument("--strategy", type=str, default="sequential", choices=["sequential", "exhaustive", "sequential+retrieval"], help="Pair matching strategy")
     parser.add_argument("--overlap", type=int, default=10, help="Overlap window for sequential matching")
     parser.add_argument("--retrieval_k", type=int, default=30, help="Top-K nearest neighbors for global descriptor retrieval matching")
+    parser.add_argument("--overwrite", action="store_true", help="Force complete re-extraction and reconstruction")
 
     args = parser.parse_args()
 
@@ -310,6 +328,7 @@ if __name__ == "__main__":
         strategy=args.strategy,
         overlap=args.overlap,
         retrieval_k=args.retrieval_k,
+        overwrite=args.overwrite,
     )
     if not ok:
         sys.exit(1)

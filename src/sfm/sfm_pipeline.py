@@ -42,12 +42,13 @@ def log_performance(image_dir: str | Path, output_dir: str | Path, time_extract:
         f.write(f"Total Elapsed Time: {time_total:.2f} s\n")
         f.write(f"========================================\n")
 
-def run_sfm_pipeline(image_dir: str | Path, output_dir: str | Path) -> bool:
+def run_sfm_pipeline(image_dir: str | Path, output_dir: str | Path, overwrite: bool = False) -> bool:
     """Performs traditional Incremental SfM using Pycolmap and SIFT features.
 
     Args:
         image_dir: Path to directory containing input frame images.
         output_dir: Target directory where SQLite database and sparse models will be written.
+        overwrite: If True, clears existing database and sparse models for clean re-run.
 
     Returns:
         bool: True if reconstruction generated a valid sparse model, False otherwise.
@@ -57,6 +58,16 @@ def run_sfm_pipeline(image_dir: str | Path, output_dir: str | Path) -> bool:
     database_path = output_path / "database.db"
 
     output_path.mkdir(parents=True, exist_ok=True)
+    target_model = output_path / "0" if (output_path / "0").is_dir() else output_path
+    has_model = (target_model / "cameras.bin").is_file() or (target_model / "cameras.txt").is_file()
+
+    if has_model and not overwrite:
+        print(f"[SfM] Sparse reconstruction already exists at {target_model}. Skipping computation.")
+        return True
+
+    if overwrite and database_path.is_file():
+        print(f"[SfM] Removing existing SQLite database for overwrite: {database_path}")
+        database_path.unlink()
 
     mode_str = os.environ.get("CAMERA_MODE", "SINGLE").upper()
     if not hasattr(pycolmap.CameraMode, mode_str):
@@ -105,6 +116,7 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Pycolmap SfM Pipeline Script")
     parser.add_argument("--image_dir", type=str, default="data/images", help="Input image directory")
     parser.add_argument("--output_dir", type=str, default="data/reconstruction", help="Output results directory")
+    parser.add_argument("--overwrite", action="store_true", help="Force complete re-extraction and reconstruction")
 
     args = parser.parse_args()
 
@@ -112,6 +124,6 @@ if __name__ == "__main__":
         print(f"[Error] Image directory not found: '{args.image_dir}'")
         sys.exit(1)
 
-    ok = run_sfm_pipeline(args.image_dir, args.output_dir)
+    ok = run_sfm_pipeline(args.image_dir, args.output_dir, overwrite=args.overwrite)
     if not ok:
         sys.exit(1)
