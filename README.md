@@ -28,60 +28,60 @@ A personal workspace for hands-on experimentation with 3D reconstruction pipelin
 # 2. Run Step 1 Camera Pose Estimation (COLMAP, hloc, vi_sfm, VGGT)
 ./scripts/run_3drc.sh sfm
 
-# 3. Run Step 2 3DGS Training (Inria 3DGS / PlanarGS)
+# 3. Run Step 2 Gaussian Training (Inria 3DGS / PlanarGS / 2DGS)
 ./scripts/run_3drc.sh train 3dgs
 ./scripts/run_3drc.sh train planargs
+./scripts/run_3drc.sh train 2dgs
 
-# 4. Run Step 3 Mesh Reconstruction (SuGaR / MILo)
+# 4. Run Step 3 Mesh Reconstruction (SuGaR / MILo / TSDF)
 ./scripts/run_3drc.sh sugar
 ./scripts/run_3drc.sh milo
+./scripts/run_3drc.sh tsdf
 
-# 5. Evaluate 3D Mesh Topology & Accuracy
-python src/eval_mesh.py --mesh outputs/undistorted/mesh/milo/mesh_cleaned_largest.ply
+# 5. Evaluate 3D Mesh Topology & Geometric Accuracy
+./scripts/run_3drc.sh eval outputs/<scene_name>/mesh/milo/mesh_cleaned_largest.ply
+./scripts/run_3drc.sh eval outputs/<scene_name>/mesh/2dgs/tsdf_mesh.ply data/<scene_name>/lidar.pcd
+
+# 6. Inspect Generated Artifacts
+./scripts/run_3drc.sh outputs
 ```
 
 ## Environment Architecture
 
-- `gs_train`: Inria 3DGS training environment (`dr_aa` rasterizer).
-- `gs_sugar`: SuGaR mesh extraction environment.
+- `3drc`: Main pipeline orchestrator, Step 1 SfM (COLMAP, hloc, VGGT, FastMap, vi_sfm), preprocessing (`dense_undistort`), and Step 5 geometric evaluation (`eval_mesh`).
+- `gs_train`: Inria 3DGS, PlanarGS, and 2DGS training (`dr_aa` & `diff-surfel-rasterization`), plus Open3D TSDF mesh extraction.
+- `gs_sugar`: SuGaR surface-aligned mesh extraction environment.
 - `gs_milo`: MILo differentiable mesh-in-the-loop training and extraction environment.
-- `gs_group`: Gaussian Grouping segmentation environment.
+- `gs_group`: Gaussian Grouping 3D SAM instance segmentation environment.
 
 ## Pipeline Model Mapping
 
 | Tool | Pipeline Step | Core Role | Methodology |
 | --- | --- | --- | --- |
-| COLMAP (Default) | Step 1 (SfM) | Classic camera pose estimation | SIFT keypoint extraction + Incremental SfM BA |
-| hloc | Step 1 (SfM) | Deep learning camera pose estimation | SuperPoint + SuperGlue with COLMAP BA |
-| VGGT-Omega | Step 1 (SfM) | Immediate pose estimation | Feed-forward Visual Geometry Transformer |
-| vi_sfm | Step 1 (SfM) | Visual-Inertial pose estimation | RGB + IMU fusion with gravity alignment |
-| 3DGS (Inria) | Step 2 (Training) | High-fidelity 3D scene optimization | Differentiable 3D Gaussian rasterization |
-| PlanarGS | Step 2 (Training) | Indoor planar-regularized 3DGS | Selective planar priors on walls/floors |
-| SuGaR | Step 3 (Mesh Extraction) | UV-textured OBJ polygon mesh | Surface-Aligned Gaussian Regularization |
-| MILo | Step 3b (Mesh Extraction) | Compact 3D collision mesh | Differentiable Mesh-in-the-loop Optimization |
-| Gaussian Grouping | Step 4 (Segmentation) | 3D object instance segmentation | 3D Identity Embedding from SAM masks |
+| [COLMAP](https://github.com/colmap/colmap) | Step 1 (SfM) | Camera pose estimation | SIFT keypoint extraction + Incremental SfM BA |
+| [hloc](https://github.com/cvg/Hierarchical-Localization) | Step 1 (SfM) | Feature-matched camera pose estimation | SuperPoint + SuperGlue with COLMAP BA |
+| [VGGT-Omega](https://github.com/facebookresearch/vggt) | Step 1 (SfM) | Feed-forward pose estimation | Visual Geometry Transformer pose initialization |
+| [FastMap](https://github.com/pals-ttic/fastmap) | Step 1 (SfM) | GPU-accelerated pose estimation | Fast keypoint matching and mapping |
+| [vi_sfm](src/sfm/vi_sfm_pipeline.py) | Step 1 (SfM) | Visual-Inertial pose estimation | RGB + IMU fusion with gravity alignment |
+| [3DGS (Inria)](https://github.com/graphdeco-inria/gaussian-splatting) | Step 2 (Training) | 3D Gaussian scene optimization | Differentiable 3D Gaussian rasterization |
+| [PlanarGS](https://github.com/SJTU-ViSYS-team/PlanarGS) | Step 2 (Training) | Planar-regularized 3DGS | Planar priors on detected indoor surfaces |
+| [2DGS](https://github.com/hbb1/2d-gaussian-splatting) | Step 2c (Training) | Planar surfel representation | Exact ray-splat intersection with 2D oriented disks |
+| [SuGaR](https://github.com/Anttwo/SuGaR) | Step 3 (Mesh Extraction) | UV-textured OBJ polygon mesh | Surface-Aligned Gaussian Regularization |
+| [MILo](https://github.com/Anttwo/MILo) | Step 3b (Mesh Extraction) | Compact collision mesh | Differentiable Mesh-in-the-loop MT SDF |
+| [TSDF (Open3D)](https://github.com/isl-org/Open3D) | Step 3c (Mesh Extraction) | Volumetric polygon mesh | Volumetric Open3D TSDF Integration from depth/normals |
+| [Gaussian Grouping](https://github.com/lkeab/gaussian-grouping) | Step 4 (Segmentation) | 3D object instance segmentation | 3D Identity Embedding from SAM masks |
 
-## Submodule Patches Summary
+## Submodule Patches
 
-All submodules in `third_party/` reference official upstream repositories directly. Custom modifications are maintained as versioned patch files:
+All submodules in `third_party/` reference official upstream repositories directly. Custom modifications (e.g. Blackwell sm_120 CUBIN build fixes, camera model extensions) are maintained as versioned patch files in `patches/`.
 
-| Target Submodule | Patch File | Purpose |
-| --- | --- | --- |
-| `gaussian-splatting` | `0001-colmap-camera-models.patch` | Support for `SIMPLE_RADIAL`, `RADIAL`, `OPENCV` camera models |
-| `gaussian-splatting` | `0002-distcuda2-scipy-fallback.patch` | `scipy.spatial.KDTree` fallback for PCD initialization |
-| `diff-gaussian-rasterization` | `0001-zero-init-state-structs.patch` | Zero-initialization of CUDA state structs |
-| `diff-gaussian-rasterization` | `0002-cstdint-include.patch` | `<cstdint>` header include for GCC 13+/14 |
-| `sugar` | `0001-sugar-extension-dup-and-cpu-device.patch` | Extension fix, CPU `data_device` VRAM OOM fix, `weights_only=False` PyTorch 2.6+ fix |
-| `milo` | `0001-cstdint-and-cmake-fixes.patch` | `<cstdint>` includes for GCC 13+ in rasterizers and CMake 4.4 CXX standard / pybind11 tag fixes |
-| `vggt` | `0001-pycolmap-313-compat.patch` | PyCOLMAP 3.13 text export compatibility fix |
+For the complete patch catalog, patch application, and verification workflows, refer to the [Submodule Patches Guide](docs/submodule_patches.md).
 
 ## Detailed Documentation Guides
 
 For in-depth technical guides, execution options, and evaluation methodologies, refer to the documentation in [`docs/`](docs/):
 
-- [Pipeline Architecture Guide](docs/pipeline_architecture.md): Detailed workflow from SfM (Step 1) to Segmentation (Step 4).
-- [Pipeline Backends Guide](docs/backends.md): Living record of wired pipeline backends, integration status, and trade-offs.
-- [Blackwell (sm_120) Build Notes](docs/blackwell_build_notes.md): Troubleshooting matrix and native sm_120 CUBIN build guide.
-- [Mesh Reconstruction & Evaluation Guide](docs/mesh_reconstruction_and_eval.md): SuGaR/MILo mesh extraction and `src/eval_mesh.py` 3-axis quantitative evaluation.
-- [Submodule Patches Guide](docs/submodule_patches.md): Patch maintenance, `apply_patches.sh`, and `verify_patches.sh` mechanisms.
-- [Architecture Decision Records (ADR)](docs/adr/): Individual architecture decision records (0001-0006) with writing rules.
+- [Pipeline Architecture Guide](docs/pipeline_architecture.md): Complete end-to-end workflow from Dataset Preparation (Step 0) to SfM, Gaussian Training, Mesh Extraction, and Quantitative Evaluation (Step 5).
+- [Blackwell (sm_120) Build Notes](docs/blackwell_build_notes.md): Troubleshooting matrix and native sm_120 CUBIN build guide for RTX 50 Series.
+- [Submodule Patches Guide](docs/submodule_patches.md): Patch maintenance, `apply_patches.sh`, and `verify_patches.sh` mechanisms for official upstream submodules.
+- [Architecture Decision Records (ADR)](docs/adr/): Individual architecture decision records (0001-0009) with operational writing rules.

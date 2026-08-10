@@ -34,13 +34,19 @@ PROJECT_ROOT=$(pwd)
 INPUT_DATASET="${1:-$DATA_DIR}"
 SCENE_NAME=$(basename "$INPUT_DATASET")
 
+# Detect active SfM pose source dynamically
+ACTIVE_SFM="unknown"
+if [ -L "$PROJECT_ROOT/${INPUT_DATASET}/sparse/0" ]; then
+    ACTIVE_SFM=$(readlink "$PROJECT_ROOT/${INPUT_DATASET}/sparse/0" | xargs basename)
+fi
+
 MILO_MODEL_DIR="$PROJECT_ROOT/${OUTPUT_DIR}/${SCENE_NAME}/mesh/milo"
 mkdir -p "$MILO_MODEL_DIR"
 
 # Ensure undistorted PINHOLE dataset workspace exists for MILo
 DENSE_DATASET="${INPUT_DATASET}/dense"
 if [ ! -d "$DENSE_DATASET/sparse" ]; then
-    echo "Preparing undistorted PINHOLE dataset for MILo via src/dense_undistort.py..."
+    echo "Preparing undistorted PINHOLE dataset for MILo via src/prep/dense_undistort.py..."
     SPARSE_IN="${INPUT_DATASET}/sparse/0"
     IMG_IN="${INPUT_DATASET}/raw_images"
     if [ ! -d "$IMG_IN" ]; then
@@ -50,7 +56,7 @@ if [ ! -d "$DENSE_DATASET/sparse" ]; then
     if [ ! -x "$PYTHON_3DRC" ]; then
         PYTHON_3DRC="python3"
     fi
-    "$PYTHON_3DRC" src/dense_undistort.py \
+    "$PYTHON_3DRC" src/prep/dense_undistort.py \
         --input_dir "$SPARSE_IN" \
         --image_dir "$IMG_IN" \
         --output_dir "$DENSE_DATASET"
@@ -60,7 +66,7 @@ fi
 cd third_party/milo/milo || exit 1
 
 # Execute MILo Training & Mesh Extraction
-echo "Starting MILo Differentiable Mesh Training & Extraction (Scene: $SCENE_NAME, Dataset: $DENSE_DATASET)..."
+echo "Starting MILo Differentiable Mesh Training & Extraction (Scene: $SCENE_NAME, Dataset: $DENSE_DATASET, Active SfM: $ACTIVE_SFM)..."
 python train.py \
     -s "$PROJECT_ROOT/$DENSE_DATASET" \
     -m "$MILO_MODEL_DIR" \
@@ -79,9 +85,21 @@ python mesh_extract_sdf.py \
 echo "Cleaning floater components and generating viewer files in $MILO_MODEL_DIR..."
 cd "$PROJECT_ROOT"
 if [ -f "$MILO_MODEL_DIR/mesh_learnable_sdf.ply" ]; then
-    python3 src/clean_milo_mesh.py \
+    python3 src/mesh/clean_milo_mesh.py \
         --input "$MILO_MODEL_DIR/mesh_learnable_sdf.ply" \
         --output "$MILO_MODEL_DIR/mesh_cleaned_largest.ply" || true
 fi
+
+# Dynamically record execution provenance metadata
+cat <<EOF > "$MILO_MODEL_DIR/pipeline_meta.json"
+{
+  "stage": "Stage 3 (Mesh Reconstruction)",
+  "engine": "MILo (Mesh-in-the-Loop SDF)",
+  "source_dataset": "$INPUT_DATASET",
+  "active_sfm": "$ACTIVE_SFM",
+  "optimization_mode": "Joint End-to-End 3DGS + Marching Tetrahedra SDF",
+  "timestamp": "$(date '+%Y-%m-%d %H:%M:%S')"
+}
+EOF
 
 echo "MILo Pipeline Completed! Results saved to $MILO_MODEL_DIR"

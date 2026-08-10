@@ -31,12 +31,33 @@ cd third_party/sugar || exit 1
 INPUT_DATASET="${1:-$DATA_DIR}"
 SCENE_NAME=$(basename "$INPUT_DATASET")
 
-GS_CHECKPOINT="$PROJECT_ROOT/${OUTPUT_DIR}/${SCENE_NAME}/3dgs/inria_30k"
-SUGAR_MESH_DIR="$PROJECT_ROOT/${OUTPUT_DIR}/${SCENE_NAME}/mesh/sugar"
+# Dynamic source Gaussian checkpoint (default: 3dgs/inria_30k, or custom path/subdir)
+GS_SUBDIR="${2:-3dgs/inria_30k}"
+if [ -d "$GS_SUBDIR" ]; then
+    GS_CHECKPOINT="$GS_SUBDIR"
+    MODEL_LABEL=$(basename "$GS_CHECKPOINT")
+else
+    GS_CHECKPOINT="$PROJECT_ROOT/${OUTPUT_DIR}/${SCENE_NAME}/${GS_SUBDIR}"
+    MODEL_LABEL=$(echo "$GS_SUBDIR" | tr '/' '_')
+fi
+
+SUGAR_MESH_DIR="$PROJECT_ROOT/${OUTPUT_DIR}/${SCENE_NAME}/mesh/sugar_${MODEL_LABEL}"
 mkdir -p "$SUGAR_MESH_DIR"
 
+if [ ! -d "$GS_CHECKPOINT" ]; then
+    echo "[FATAL] Source Gaussian checkpoint directory not found at: $GS_CHECKPOINT"
+    echo "Usage: ./scripts/03_train_sugar.sh [dataset_path] [source_checkpoint_dir_or_subdir]"
+    exit 1
+fi
+
+# Detect active SfM pose source dynamically
+ACTIVE_SFM="unknown"
+if [ -L "$PROJECT_ROOT/${INPUT_DATASET}/sparse/0" ]; then
+    ACTIVE_SFM=$(readlink "$PROJECT_ROOT/${INPUT_DATASET}/sparse/0" | xargs basename)
+fi
+
 # Execute SuGaR Pipeline
-echo "Starting SuGaR Mesh Extraction (Scene: $SCENE_NAME, Dataset: $INPUT_DATASET)..."
+echo "Starting SuGaR Mesh Extraction (Scene: $SCENE_NAME, Source Checkpoint: $GS_CHECKPOINT, Active SfM: $ACTIVE_SFM)..."
 python train_full_pipeline.py \
     -s "$PROJECT_ROOT/$INPUT_DATASET" \
     --gs_output_dir "$GS_CHECKPOINT" \
@@ -50,5 +71,18 @@ echo "Syncing extracted SuGaR results to $SUGAR_MESH_DIR..."
 if [ -d "output" ]; then
     cp -r output/* "$SUGAR_MESH_DIR/" 2>/dev/null || true
 fi
+
+# Dynamically record execution provenance metadata
+cat <<EOF > "$SUGAR_MESH_DIR/pipeline_meta.json"
+{
+  "stage": "Stage 3 (Mesh Reconstruction)",
+  "engine": "SuGaR (Surface-Aligned Gaussians)",
+  "source_model_path": "$GS_CHECKPOINT",
+  "source_dataset": "$INPUT_DATASET",
+  "active_sfm": "$ACTIVE_SFM",
+  "regularization": "$SUGAR_REGULARIZATION",
+  "timestamp": "$(date '+%Y-%m-%d %H:%M:%S')"
+}
+EOF
 
 echo "SuGaR Pipeline Completed! Results saved to $SUGAR_MESH_DIR"

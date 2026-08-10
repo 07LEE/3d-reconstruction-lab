@@ -58,6 +58,11 @@ if [ -d "third_party/gaussian-splatting/submodules/simple-knn" ]; then
     (cd third_party/gaussian-splatting/submodules/simple-knn && pip install --no-build-isolation -e .)
 fi
 
+if [ -d "third_party/2d-gaussian-splatting/submodules/diff-surfel-rasterization" ]; then
+    echo "Installing diff-surfel-rasterization extension in gs_train..."
+    (cd third_party/2d-gaussian-splatting/submodules/diff-surfel-rasterization && pip install --no-build-isolation -e .)
+fi
+
 # Verify patch & environment integrity
 echo -e "\nVerifying Patch and Environment Integrity..."
 ./scripts/utils/verify_patches.sh

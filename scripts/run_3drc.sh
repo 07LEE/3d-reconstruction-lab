@@ -25,11 +25,13 @@ show_help() {
     echo ""
     echo "Commands:"
     echo "  sfm [method]     Run Step 1 Camera Pose Estimation (hloc, vi_sfm, vggt, fastmap, sfm)"
-    echo "  train [backend]  Run Step 2 3DGS Training (3dgs, planargs)"
+    echo "  train [backend]  Run Step 2 Gaussian Training (3dgs, planargs, 2dgs)"
     echo "  planargs         Run Step 2b PlanarGS Training"
+    echo "  2dgs             Run Step 2c 2D Gaussian Splatting Training"
     echo "  view [type]      Run COLMAP GUI Visualization (hloc, fastmap)"
     echo "  sugar            Run Step 3 SuGaR Mesh Reconstruction"
     echo "  milo             Run Step 3b MILo Mesh Reconstruction"
+    echo "  tsdf             Run Step 3c TSDF Mesh Extraction"
     echo "  grouping         Run Step 4 Gaussian Grouping Object Segmentation"
     echo "  eval [mesh] [gt] Run Step 5 Mesh Evaluation against LiDAR GT PointCloud"
     echo "  outputs          Inspect and summarize all generated output artifacts"
@@ -39,9 +41,11 @@ show_help() {
     echo "Examples:"
     echo "  ./scripts/run_3drc.sh sfm vi_sfm"
     echo "  ./scripts/run_3drc.sh train 3dgs"
+    echo "  ./scripts/run_3drc.sh train 2dgs"
     echo "  ./scripts/run_3drc.sh train planargs"
     echo "  ./scripts/run_3drc.sh sugar"
     echo "  ./scripts/run_3drc.sh milo"
+    echo "  ./scripts/run_3drc.sh tsdf"
     echo "  ./scripts/run_3drc.sh eval <mesh_path> [gt_pcd_path]"
     echo "  ./scripts/run_3drc.sh outputs"
     echo "  ./scripts/run_3drc.sh view hloc"
@@ -52,26 +56,37 @@ COMMAND=${1:-"help"}
 
 case "$COMMAND" in
     outputs)
-        "$PYTHON_BIN" src/inspect_outputs.py
+        "$PYTHON_BIN" src/utils/inspect_outputs.py
         ;;
     sfm)
         METHOD=${2:-$SFM_METHOD}
+        ARG_DATASET="${3:-}"
         echo "[3DRC CLI] Executing Step 1: Camera Pose Estimation (Method: ${METHOD})..."
-        ./scripts/01_sfm_hloc.sh "$METHOD"
+        ./scripts/01_sfm_hloc.sh "$METHOD" ${ARG_DATASET:+"$ARG_DATASET"}
         ;;
     train)
         BACKEND=${2:-"3dgs"}
+        ARG_DATASET="${3:-}"
         if [ "$BACKEND" = "planargs" ]; then
             echo "[3DRC CLI] Executing Step 2b: PlanarGS Training..."
-            ./scripts/02b_train_planargs.sh
+            ./scripts/02b_train_planargs.sh ${ARG_DATASET:+"$ARG_DATASET"}
+        elif [ "$BACKEND" = "2dgs" ]; then
+            echo "[3DRC CLI] Executing Step 2c: 2D Gaussian Splatting Training..."
+            ./scripts/02c_train_2dgs.sh ${ARG_DATASET:+"$ARG_DATASET"}
         else
             echo "[3DRC CLI] Executing Step 2: 3DGS Training..."
-            ./scripts/02_train_3dgs.sh
+            ./scripts/02_train_3dgs.sh ${ARG_DATASET:+"$ARG_DATASET"}
         fi
         ;;
+    2dgs)
+        ARG_DATASET="${2:-}"
+        echo "[3DRC CLI] Executing Step 2c: 2D Gaussian Splatting Training..."
+        ./scripts/02c_train_2dgs.sh ${ARG_DATASET:+"$ARG_DATASET"}
+        ;;
     planargs)
+        ARG_DATASET="${2:-}"
         echo "[3DRC CLI] Executing Step 2b: PlanarGS Training..."
-        ./scripts/02b_train_planargs.sh
+        ./scripts/02b_train_planargs.sh ${ARG_DATASET:+"$ARG_DATASET"}
         ;;
     view)
         TYPE=${2:-"hloc"}
@@ -79,31 +94,41 @@ case "$COMMAND" in
         ./scripts/utils/view_reconstruction.sh "$TYPE"
         ;;
     sugar)
+        ARG_DATASET="${2:-}"
+        ARG_SOURCE_MODEL="${3:-}"
         echo "[3DRC CLI] Executing Step 3: SuGaR Mesh Reconstruction..."
-        ./scripts/03_train_sugar.sh
+        ./scripts/03_train_sugar.sh ${ARG_DATASET:+"$ARG_DATASET"} ${ARG_SOURCE_MODEL:+"$ARG_SOURCE_MODEL"}
         ;;
     milo)
+        ARG_DATASET="${2:-}"
         echo "[3DRC CLI] Executing Step 3b: MILo Mesh Reconstruction..."
-        ./scripts/03b_train_milo.sh
+        ./scripts/03b_train_milo.sh ${ARG_DATASET:+"$ARG_DATASET"}
+        ;;
+    tsdf|mesh_tsdf)
+        ARG_DATASET="${2:-}"
+        ARG_SOURCE_MODEL="${3:-}"
+        echo "[3DRC CLI] Executing Step 3c: TSDF Mesh Extraction..."
+        ./scripts/03c_mesh_tsdf.sh ${ARG_DATASET:+"$ARG_DATASET"} ${ARG_SOURCE_MODEL:+"$ARG_SOURCE_MODEL"}
         ;;
     grouping)
+        ARG_DATASET="${2:-}"
         echo "[3DRC CLI] Executing Step 4: Gaussian Grouping..."
-        ./scripts/04_train_grouping.sh
+        ./scripts/04_train_grouping.sh ${ARG_DATASET:+"$ARG_DATASET"}
         ;;
     eval)
         MESH_PATH="${2:-}"
         GT_PATH="${3:-}"
         if [ -z "$MESH_PATH" ]; then
-            echo "Error: Mesh file path required for evaluation."
-            echo "Usage: ./scripts/run_3drc.sh eval <mesh_path> [gt_pointcloud_path]"
+            echo "[Error] Mesh path required for eval."
+            echo "Usage: ./scripts/run_3drc.sh eval <mesh_path> [gt_pcd_path]"
             exit 1
         fi
         EVAL_ARGS=("--mesh" "$MESH_PATH")
         if [ -n "$GT_PATH" ]; then
             EVAL_ARGS+=("--gt" "$GT_PATH")
         fi
-        echo "[3DRC CLI] Executing Mesh Evaluation on ${MESH_PATH}..."
-        "$PYTHON_BIN" src/eval_mesh.py "${EVAL_ARGS[@]}"
+        echo "[3DRC CLI] Executing Step 5: Mesh Quantitative Evaluation..."
+        "$PYTHON_BIN" src/mesh/eval_mesh.py "${EVAL_ARGS[@]}"
         ;;
     pipeline)
         SFM_OPT=${2:-"hloc"}

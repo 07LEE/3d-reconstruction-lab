@@ -24,4 +24,6 @@ This directory documents key architectural decisions, rationale, and context for
 - 0005-colmap-camera-models.md: Expand COLMAP Camera Model Support (SIMPLE_RADIAL / RADIAL / OPENCV)
 - 0006-complete-removal-of-fork-repositories.md: Complete Removal of Personal Fork Repositories in Favor of Direct Upstream Submodules and Patches
 - 0007-scene-based-output-hierarchy.md: Scene-Based Output Hierarchy for Multi-Dataset Pipeline Isolation
+- 0008-2d-gaussian-splatting-integration.md: 2D Gaussian Splatting Integration for Unbiased Depth and TSDF Mesh Reconstruction
+- 0009-dynamic-provenance-and-subpackage-architecture.md: Dynamic Upstream Provenance Tracking and Subpackage Architecture
 

@@ -1,5 +1,7 @@
 """Visual-Inertial (RGB + IMU) SfM Pipeline Module."""
 
+from __future__ import annotations
+
 import argparse
 import csv
 import os
@@ -7,6 +9,7 @@ import sys
 import time
 from datetime import datetime
 from pathlib import Path
+from typing import Any, Dict, Optional
 import numpy as np
 
 # Add third_party/hloc to sys.path
@@ -15,30 +18,39 @@ sys.path.append(str(Path(__file__).resolve().parent.parent.parent / "third_party
 
 import pycolmap
 from hloc import extract_features, match_features, reconstruction
-from hloc.utils.read_write_model import read_model, write_model, Camera, Image, Point3D, qvec2rotmat, rotmat2qvec
+from hloc.utils.read_write_model import Camera, Image, Point3D, qvec2rotmat, read_model, rotmat2qvec, write_model
 
-def parse_imu_data(imu_path: Path, imu_format: str = "euroc"):
-    """Parses IMU raw data file and returns structured numpy array."""
-    if not imu_path.exists():
+def parse_imu_data(imu_path: Path, imu_format: str = "euroc") -> Optional[Dict[str, np.ndarray]]:
+    """Parses raw IMU measurements file into structured numpy arrays.
+
+    Args:
+        imu_path: Path to raw CSV/text IMU measurements file.
+        imu_format: Format layout identifier (default: 'euroc').
+
+    Returns:
+        Optional[Dict[str, np.ndarray]]: Dictionary with 'timestamps', 'gyro', and 'acc' arrays,
+            or None if parsing failed.
+    """
+    if not imu_path.is_file():
         print(f"[Warning] IMU data file not found at {imu_path}. Proceeding with synthetic IMU prior...")
         return None
 
     print(f"[VI-SfM] Parsing IMU data from {imu_path} (Format: {imu_format})...")
     try:
         timestamps, gyro, acc = [], [], []
-        with open(imu_path, 'r', encoding='utf-8') as f:
+        with open(imu_path, "r", encoding="utf-8") as f:
             reader = csv.reader(f)
             for row in reader:
-                if not row or row[0].startswith('#') or row[0].isalpha():
+                if not row or row[0].startswith("#") or row[0].isalpha():
                     continue
                 values = [float(val.strip()) for val in row if val.strip()]
                 if len(values) >= 7:
                     timestamps.append(values[0])
                     gyro.append(values[1:4])
                     acc.append(values[4:7])
-                    
+
         if timestamps:
-            print(f"[VI-SfM] Successfully loaded {len(timestamps)} IMU measurement frames.")
+            print(f"[VI-SfM] Successfully loaded {len(timestamps):,} IMU measurement frames.")
             return {"timestamps": np.array(timestamps), "gyro": np.array(gyro), "acc": np.array(acc)}
         else:
             print(f"[Warning] Empty or unparseable IMU file at {imu_path}.")
@@ -47,30 +59,46 @@ def parse_imu_data(imu_path: Path, imu_format: str = "euroc"):
         print(f"[Error] Failed to parse IMU file: {e}")
         return None
 
-def compute_gravity_vector(acc_data: np.ndarray) -> np.ndarray:
-    """Estimates gravity vector direction from static accelerometer measurements."""
+def compute_gravity_vector(acc_data: Optional[np.ndarray]) -> np.ndarray:
+    """Estimates gravity vector direction from static accelerometer measurements.
+
+    Args:
+        acc_data: Nx3 accelerometer measurements array.
+
+    Returns:
+        np.ndarray: 3D gravity acceleration vector in m/s^2.
+    """
     if acc_data is None or len(acc_data) == 0:
         return np.array([0.0, 0.0, -9.81])
-    
+
     mean_acc = np.mean(acc_data, axis=0)
     gravity_norm = np.linalg.norm(mean_acc)
     print(f"[VI-SfM] Estimated Gravity Vector Magnitude: {gravity_norm:.3f} m/s^2")
     return mean_acc
 
-def align_reconstruction_to_gravity(model_path: Path, gravity_vec: np.ndarray):
-    """Aligns COLMAP reconstruction model (points AND camera orientations) to world gravity vector."""
-    if not (model_path / "cameras.bin").exists() and not (model_path / "cameras.txt").exists():
+def align_reconstruction_to_gravity(model_path: Path, gravity_vec: np.ndarray) -> None:
+    """Aligns COLMAP sparse reconstruction model (points AND cameras) to gravity vector.
+
+    Args:
+        model_path: Path to COLMAP sparse model directory containing cameras/images/points3D.
+        gravity_vec: 3D gravity vector used as world vertical reference.
+
+    Returns:
+        None
+    """
+    has_model = (model_path / "cameras.bin").is_file() or (model_path / "cameras.txt").is_file()
+    if not has_model:
         print(f"[VI-SfM] COLMAP model files not found at {model_path}, skipping gravity alignment.")
         return
 
     print(f"[VI-SfM] Aligning COLMAP 3D model with IMU Gravity Vector: {gravity_vec}")
-    ext = ".bin" if (model_path / "cameras.bin").exists() else ".txt"
+    ext = ".bin" if (model_path / "cameras.bin").is_file() else ".txt"
     cameras, images, points3D = read_model(str(model_path), ext=ext)
-    print(f"[VI-SfM] Loaded {len(cameras)} cameras, {len(images)} images, and {len(points3D)} 3D points for alignment.")
-    
+    print(f"[VI-SfM] Loaded {len(cameras)} cameras, {len(images)} images, and {len(points3D):,} 3D points for alignment.")
+
     z_world = np.array([0.0, 0.0, -1.0])
     g_unit = gravity_vec / (np.linalg.norm(gravity_vec) + 1e-8)
-    
+
     v = np.cross(g_unit, z_world)
     c = np.dot(g_unit, z_world)
     if np.linalg.norm(v) > 1e-6:
@@ -84,7 +112,7 @@ def align_reconstruction_to_gravity(model_path: Path, gravity_vec: np.ndarray):
     # 1. Rotate 3D points
     for p_id in points3D:
         points3D[p_id] = points3D[p_id]._replace(xyz=np.dot(R_align, points3D[p_id].xyz))
-        
+
     # 2. Rotate camera orientations (world-to-camera rotation matrix R_cw' = R_cw @ R_align.T)
     for img_id in images:
         im = images[img_id]
@@ -94,66 +122,121 @@ def align_reconstruction_to_gravity(model_path: Path, gravity_vec: np.ndarray):
     write_model(cameras, images, points3D, str(model_path), ext=ext)
     print(f"[VI-SfM] Gravity alignment successfully applied to points and cameras, saved to {model_path}.")
 
-def run_vi_sfm_pipeline(image_dir: str, imu_path: str, output_dir: str, imu_format: str = "euroc"):
-    """Runs Visual-Inertial SfM pipeline."""
+def run_vi_sfm_pipeline(image_dir: str | Path, imu_path: str | Path, output_dir: str | Path, imu_format: str = "euroc") -> bool:
+    """Executes Visual-Inertial (RGB + IMU) SfM reconstruction pipeline.
+
+    Args:
+        image_dir: Path to input images directory.
+        imu_path: Path to input IMU data CSV/text file.
+        output_dir: Target output directory for reconstructed models.
+        imu_format: IMU data layout format identifier.
+
+    Returns:
+        bool: True if reconstruction and gravity alignment succeeded, False otherwise.
+    """
     start_time = time.time()
-    img_path = Path(image_dir)
-    out_path = Path(output_dir)
-    imu_file = Path(imu_path)
-    
+    img_path = Path(image_dir).resolve()
+    imu_file = Path(imu_path).resolve()
+    out_path = Path(output_dir).resolve()
+
     out_path.mkdir(parents=True, exist_ok=True)
-    sfm_dir = out_path / "sparse" / "0"
-    sfm_dir.mkdir(parents=True, exist_ok=True)
+    sfm_dir = out_path / "sfm"
 
-    imu_data = parse_imu_data(imu_file, imu_format)
-    gravity_vec = compute_gravity_vector(imu_data["acc"]) if imu_data else np.array([0.0, 0.0, -9.81])
+    print("==================================================")
+    print(" 3DRC Visual-Inertial (RGB + IMU) SfM Pipeline")
+    print("==================================================")
+    print(f"Images Directory:   {img_path}")
+    print(f"IMU Data File:      {imu_file}")
+    print(f"Output Directory:   {out_path}")
 
-    feature_conf = extract_features.confs['superpoint_aoconfig'] if 'superpoint_aoconfig' in extract_features.confs else extract_features.confs['superpoint_max']
-    matcher_conf = match_features.confs['superglue']
-    
+    # 1. Parse IMU Data & Gravity Direction
+    imu_data = parse_imu_data(imu_file, imu_format=imu_format)
+    gravity_vec = compute_gravity_vector(imu_data["acc"] if imu_data else None)
+
+    # 2. Run Visual Feature Extraction & Deep Matching (SuperPoint + SuperGlue)
     features_path = out_path / "features.h5"
-    pairs_path = out_path / "pairs.txt"
     matches_path = out_path / "matches.h5"
+    pairs_path = out_path / "pairs-sequential.h5"
 
-    print("[VI-SfM] Extracting SuperPoint visual features...")
-    extract_features.main(feature_conf, img_path, feature_path=features_path)
+    feature_conf = extract_features.confs["superpoint_aachen"]
+    feature_conf["preprocessing"]["resize_max"] = 2400
+    matcher_conf = match_features.confs["superglue"]
 
-    images = sorted([f.name for f in img_path.iterdir() if f.suffix.lower() in ['.jpg', '.png', '.jpeg']])
-    with open(pairs_path, 'w') as f:
-        for i in range(len(images)):
-            for j in range(1, 10):
-                if i + j < len(images):
-                    f.write(f"{images[i]} {images[i+j]}\n")
-                    
-    print("[VI-SfM] Matching features via SuperGlue...")
-    match_features.main(matcher_conf, pairs_path, features=features_path, matches=matches_path)
+    if not features_path.is_file():
+        print(f"\n[Step 1/3] Extracting SuperPoint Features...")
+        extract_features.main(feature_conf, img_path, feature_path=features_path)
 
-    mode_str = os.environ.get("CAMERA_MODE", "SINGLE").upper()
-    if not hasattr(pycolmap.CameraMode, mode_str):
-        valid = list(pycolmap.CameraMode.__members__.keys())
-        raise ValueError(f"Invalid CAMERA_MODE '{mode_str}'. Valid choices: {valid}")
-    cam_mode = getattr(pycolmap.CameraMode, mode_str)
-    
+    # Generate sequential pairs for high-overlap trajectory
+    image_names = sorted([f.name for f in img_path.iterdir() if f.suffix.lower() in [".jpg", ".png", ".jpeg"]])
+    pairs = []
+    overlap = 10
+    for i in range(len(image_names)):
+        for j in range(1, overlap + 1):
+            if i + j < len(image_names):
+                pairs.append((image_names[i], image_names[i + j]))
+
+    with open(pairs_path, "w", encoding="utf-8") as f:
+        for p1, p2 in pairs:
+            f.write(f"{p1} {p2}\n")
+
+    if not matches_path.is_file():
+        print(f"\n[Step 2/3] Matching Features with SuperGlue...")
+        match_features.main(matcher_conf, pairs_path, features=features_path, matches=matches_path)
+
+    # 3. Incremental Visual Mapping
+    print(f"\n[Step 3/3] Running Incremental Visual Mapping...")
     camera_model = os.environ.get("CAMERA_MODEL", "SIMPLE_RADIAL").upper()
-    print(f"[VI-SfM] Performing Sparse Reconstruction (CameraMode: {cam_mode.name}, CameraModel: {camera_model})...")
+    camera_options = pycolmap.IncrementalPipelineOptions()
+
     reconstruction.main(
-        sfm_dir, img_path, pairs_path, features_path, matches_path,
-        camera_mode=cam_mode,
-        image_options=dict(camera_model=camera_model)
+        sfm_dir,
+        img_path,
+        pairs_path,
+        features_path,
+        matches_path,
+        camera_mode=pycolmap.CameraMode.SINGLE,
+        camera_model=camera_model,
+        options=camera_options,
     )
 
-    align_reconstruction_to_gravity(sfm_dir, gravity_vec)
+    # 4. Gravity Alignment
+    target_model = sfm_dir / "0" if (sfm_dir / "0").is_dir() else sfm_dir
+    if (target_model / "cameras.bin").is_file() or (target_model / "cameras.txt").is_file():
+        print("\n[Step 4/4] Aligning Visual Reconstruction to World Gravity Vector...")
+        align_reconstruction_to_gravity(target_model, gravity_vec)
 
-    total_time = time.time() - start_time
-    print(f"\n[VI-SfM] Pipeline Completed Successfully in {total_time:.2f} seconds!")
-    print(f"[VI-SfM] Output COLMAP reconstruction saved at: {sfm_dir}")
+        # Write metadata record
+        info_path = target_model / "sfm_info.json"
+        import json
+        with open(info_path, "w", encoding="utf-8") as f:
+            json.dump({
+                "method": "vi_sfm",
+                "gravity_vector": gravity_vec.tolist(),
+                "num_images": len(image_names),
+                "timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+            }, f, indent=2)
+
+        elapsed = time.time() - start_time
+        print(f"\n[Success] Visual-Inertial SfM Pipeline completed in {elapsed:.2f} seconds.")
+        print(f"Aligned Model saved to: {target_model}")
+        return True
+    else:
+        print("\n[Error] Visual mapping failed to generate initial reconstruction.")
+        return False
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description="Visual-Inertial SfM Pipeline")
+    parser = argparse.ArgumentParser(description="Visual-Inertial (RGB + IMU) SfM Pipeline")
     parser.add_argument("--image_dir", type=str, required=True, help="Path to input images directory")
-    parser.add_argument("--imu_path", type=str, required=True, help="Path to IMU sensor data CSV/file")
-    parser.add_argument("--output_dir", type=str, required=True, help="Path to output directory")
-    parser.add_argument("--format", type=str, default="euroc", help="IMU data format (euroc, tum, custom_csv)")
+    parser.add_argument("--imu_path", type=str, default="data/imu.csv", help="Path to raw IMU measurements CSV")
+    parser.add_argument("--output_dir", type=str, required=True, help="Path to output directory for reconstruction")
+    parser.add_argument("--imu_format", type=str, default="euroc", help="IMU data format (euroc, tum, or custom)")
 
     args = parser.parse_args()
-    run_vi_sfm_pipeline(args.image_dir, args.imu_path, args.output_dir, args.format)
+
+    if not Path(args.image_dir).is_dir():
+        print(f"[Error] Image directory not found: '{args.image_dir}'")
+        sys.exit(1)
+
+    ok = run_vi_sfm_pipeline(args.image_dir, args.imu_path, args.output_dir, imu_format=args.imu_format)
+    if not ok:
+        sys.exit(1)

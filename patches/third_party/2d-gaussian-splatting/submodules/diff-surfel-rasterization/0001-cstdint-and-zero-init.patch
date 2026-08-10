@@ -1,0 +1,65 @@
+diff --git a/cuda_rasterizer/rasterizer_impl.cu b/cuda_rasterizer/rasterizer_impl.cu
+index 811a040..f4eb64b 100644
+--- a/cuda_rasterizer/rasterizer_impl.cu
++++ b/cuda_rasterizer/rasterizer_impl.cu
+@@ -154,7 +154,7 @@ void CudaRasterizer::Rasterizer::markVisible(
+ 
+ CudaRasterizer::GeometryState CudaRasterizer::GeometryState::fromChunk(char*& chunk, size_t P)
+ {
+-	GeometryState geom;
++	GeometryState geom = {};
+ 	obtain(chunk, geom.depths, P, 128);
+ 	obtain(chunk, geom.clamped, P * 3, 128);
+ 	obtain(chunk, geom.internal_radii, P, 128);
+@@ -171,7 +171,7 @@ CudaRasterizer::GeometryState CudaRasterizer::GeometryState::fromChunk(char*& ch
+ 
+ CudaRasterizer::ImageState CudaRasterizer::ImageState::fromChunk(char*& chunk, size_t N)
+ {
+-	ImageState img;
++	ImageState img = {};
+ 	obtain(chunk, img.accum_alpha, N * 3, 128);
+ 	obtain(chunk, img.n_contrib, N * 2, 128);
+ 	obtain(chunk, img.ranges, N, 128);
+@@ -180,7 +180,7 @@ CudaRasterizer::ImageState CudaRasterizer::ImageState::fromChunk(char*& chunk, s
+ 
+ CudaRasterizer::BinningState CudaRasterizer::BinningState::fromChunk(char*& chunk, size_t P)
+ {
+-	BinningState binning;
++	BinningState binning = {};
+ 	obtain(chunk, binning.point_list, P, 128);
+ 	obtain(chunk, binning.point_list_unsorted, P, 128);
+ 	obtain(chunk, binning.point_list_keys, P, 128);
+diff --git a/cuda_rasterizer/rasterizer_impl.h b/cuda_rasterizer/rasterizer_impl.h
+index 7245905..6bb2c4c 100644
+--- a/cuda_rasterizer/rasterizer_impl.h
++++ b/cuda_rasterizer/rasterizer_impl.h
+@@ -13,6 +13,7 @@
+ 
+ #include <iostream>
+ #include <vector>
++#include <cstdint>
+ #include "rasterizer.h"
+ #include <cuda_runtime_api.h>
+ 
+diff --git a/rasterize_points.cu b/rasterize_points.cu
+index cdecf26..f52ad33 100644
+--- a/rasterize_points.cu
++++ b/rasterize_points.cu
+@@ -100,7 +100,7 @@ std::tuple<int, torch::Tensor, torch::Tensor, torch::Tensor, torch::Tensor, torc
+   if(P != 0)
+   {
+ 	  int M = 0;
+-	  if(sh.size(0) != 0)
++	  if(sh.dim() >= 2)
+ 	  {
+ 		M = sh.size(1);
+ 	  }
+@@ -180,7 +180,7 @@ std::tuple<torch::Tensor, torch::Tensor, torch::Tensor, torch::Tensor, torch::Te
+   const int W = dL_dout_color.size(2);
+   
+   int M = 0;
+-  if(sh.size(0) != 0)
++  if(sh.dim() >= 2)
+   {	
+ 	M = sh.size(1);
+   }

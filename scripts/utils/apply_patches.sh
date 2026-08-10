@@ -35,5 +35,7 @@ apply_patch_dir "${REPO_ROOT}/third_party/gaussian-splatting/submodules/diff-gau
 apply_patch_dir "${REPO_ROOT}/third_party/sugar" "${REPO_ROOT}/patches/third_party/sugar"
 apply_patch_dir "${REPO_ROOT}/third_party/milo" "${REPO_ROOT}/patches/third_party/milo"
 apply_patch_dir "${REPO_ROOT}/third_party/vggt" "${REPO_ROOT}/patches/third_party/vggt"
+apply_patch_dir "${REPO_ROOT}/third_party/2d-gaussian-splatting" "${REPO_ROOT}/patches/third_party/2d-gaussian-splatting"
+apply_patch_dir "${REPO_ROOT}/third_party/2d-gaussian-splatting/submodules/diff-surfel-rasterization" "${REPO_ROOT}/patches/third_party/2d-gaussian-splatting/submodules/diff-surfel-rasterization"
 
 echo "=== Apply Patches Completed ==="
