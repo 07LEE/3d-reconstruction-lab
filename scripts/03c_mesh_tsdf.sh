@@ -21,26 +21,30 @@ set -u
 INPUT_DATASET="${1:-$DATA_DIR}"
 SCENE_NAME=$(basename "$INPUT_DATASET")
 
-# Dynamic source model selection (default: 2dgs, or custom model directory)
-SOURCE_MODEL_NAME="${2:-2dgs}"
-if [ -d "$SOURCE_MODEL_NAME" ]; then
-    MODEL_DIR="$SOURCE_MODEL_NAME"
-    SOURCE_MODEL_NAME=$(basename "$MODEL_DIR")
-elif [ -d "${OUTPUT_DIR}/${SCENE_NAME}/${SOURCE_MODEL_NAME}" ]; then
-    MODEL_DIR="${OUTPUT_DIR}/${SCENE_NAME}/${SOURCE_MODEL_NAME}"
+if [ -n "${2:-}" ]; then
+    SOURCE_MODEL_NAME="$2"
+    if [ -d "$SOURCE_MODEL_NAME" ]; then
+        MODEL_DIR="$SOURCE_MODEL_NAME"
+        SOURCE_MODEL_NAME=$(basename "$MODEL_DIR")
+    elif [ -d "${OUTPUT_DIR}/${SCENE_NAME}/${SOURCE_MODEL_NAME}" ]; then
+        MODEL_DIR="${OUTPUT_DIR}/${SCENE_NAME}/${SOURCE_MODEL_NAME}"
+    else
+        echo "[FATAL] Source Gaussian model directory not found: '$2' (checked as exact path and in ${OUTPUT_DIR}/${SCENE_NAME}/$2)" >&2
+        echo "Usage: ./scripts/03c_mesh_tsdf.sh [dataset_path] [source_model_path_or_subdir]" >&2
+        exit 1
+    fi
 else
-    MODEL_DIR="${OUTPUT_DIR}/${SCENE_NAME}/2dgs"
     SOURCE_MODEL_NAME="2dgs"
+    MODEL_DIR="${OUTPUT_DIR}/${SCENE_NAME}/2dgs"
+    if [ ! -d "$MODEL_DIR" ]; then
+        echo "[FATAL] Default 2DGS model directory not found at: $MODEL_DIR" >&2
+        echo "Usage: ./scripts/03c_mesh_tsdf.sh [dataset_path] [source_model_path_or_subdir]" >&2
+        exit 1
+    fi
 fi
 
 MESH_OUTPUT_DIR="${OUTPUT_DIR}/${SCENE_NAME}/mesh/${SOURCE_MODEL_NAME}"
 mkdir -p "$MESH_OUTPUT_DIR"
-
-if [ ! -d "$MODEL_DIR" ]; then
-    echo "[FATAL] Source Gaussian model directory not found at: $MODEL_DIR"
-    echo "Usage: ./scripts/03c_mesh_tsdf.sh [dataset_path] [source_model_path_or_subdir]"
-    exit 1
-fi
 
 # Detect active SfM pose source dynamically
 ACTIVE_SFM="unknown"

@@ -31,6 +31,7 @@ IMU_FORMAT="euroc"  # Options: euroc, tum, custom_csv
 DOWNSAMPLE_RATE=4
 DATA_DEVICE="cpu"
 DENSIFY_GRAD_THRESHOLD=0.0002
+GS_ITERATIONS=30000
 GS_EVAL_MODE="false"  # Options: false (full reconstruction), true (holdout evaluation)
 
 # SuGaR parameters

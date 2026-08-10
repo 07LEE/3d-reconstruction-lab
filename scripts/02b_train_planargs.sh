@@ -94,6 +94,7 @@ cat <<EOF > "$MODEL_OUTPUT/pipeline_meta.json"
   "source_dataset": "$TARGET_DATA_DIR",
   "active_sfm": "$ACTIVE_SFM",
   "downsample_rate": $DOWNSAMPLE_RATE,
+  "iterations": ${GS_ITERATIONS:-30000},
   "timestamp": "$(date '+%Y-%m-%d %H:%M:%S')"
 }
 EOF
