@@ -20,7 +20,8 @@ set -u
 
 INPUT_DATASET="${1:-$DATA_DIR}"
 
-if [ -d "${INPUT_DATASET}/sparse/0" ] || [ -d "${INPUT_DATASET}/sparse" ]; then
+if [ -f "${INPUT_DATASET}/sparse/0/cameras.bin" ] || [ -f "${INPUT_DATASET}/sparse/0/cameras.txt" ] || \
+   [ -f "${INPUT_DATASET}/sparse/cameras.bin" ] || [ -f "${INPUT_DATASET}/sparse/cameras.txt" ]; then
     echo "Using existing pre-computed dataset structure at: ${INPUT_DATASET}"
     TARGET_DATA_DIR="${INPUT_DATASET}"
 else
