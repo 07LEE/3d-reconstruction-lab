@@ -64,7 +64,8 @@ fi
 python third_party/2d-gaussian-splatting/train.py \
     -s "$TARGET_DATA_DIR" \
     -m "$MODEL_OUTPUT" \
-    --data_device cpu \
+    -r "$DOWNSAMPLE_RATE" \
+    --data_device "$DATA_DEVICE" \
     --eval \
     --iterations 30000
 
@@ -75,6 +76,7 @@ cat <<EOF > "$MODEL_OUTPUT/pipeline_meta.json"
   "engine": "2D Gaussian Splatting (Surfels)",
   "source_dataset": "$TARGET_DATA_DIR",
   "active_sfm": "$ACTIVE_SFM",
+  "downsample_rate": $DOWNSAMPLE_RATE,
   "iterations": 30000,
   "timestamp": "$(date '+%Y-%m-%d %H:%M:%S')"
 }
