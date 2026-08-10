@@ -65,13 +65,6 @@ elif [ "$METHOD" = "vggt" ]; then
     fi
     python third_party/vggt/demo_colmap.py \
         --scene_dir "$INPUT_DATASET"
-elif [ "$METHOD" = "vi_sfm" ]; then
-    echo "Starting Visual-Inertial (RGB + IMU) SfM Pipeline..."
-    python -m src.sfm.vi_sfm_pipeline \
-        --image_dir "$IMAGE_DIR_TARGET" \
-        --imu_path "$IMU_DATA_PATH" \
-        --output_dir "${INPUT_DATASET}" \
-        --format "$IMU_FORMAT"
 else
     echo "Starting High-Precision hloc SfM Pipeline..."
     python -m src.sfm.hloc_pipeline \

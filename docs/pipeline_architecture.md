@@ -2,7 +2,7 @@
 title: Pipeline Architecture Guide
 description: Technical architecture, stage workflows, and execution guide for the 3DRC reconstruction pipeline.
 category: guide
-last_updated: 2026-08-09
+last_updated: 2026-08-10
 ---
 
 # 3DRC Pipeline Architecture Guide
@@ -21,7 +21,7 @@ This document provides technical details, configuration parameters, and executio
             │
             ▼
 ┌─────────────────────────┐
-│   Step 1: SfM & Pose    │  (hloc, VGGT-Omega, vi_sfm, COLMAP, FastMap)
+│   Step 1: SfM & Pose    │  (hloc, VGGT-Omega, COLMAP, FastMap)
 └───────────┬─────────────┘
             │  (Sparse Reconstruction & Intrinsic/Extrinsic Cameras)
             ▼
@@ -77,8 +77,7 @@ Determines camera intrinsics, extrinsics, and sparse 3D point clouds from uncali
 
 | Method | Script | Input Requirements | Key Strengths |
 | --- | --- | --- | --- |
-| hloc (Default) | `01_sfm_hloc.sh` | RGB Images | Deep SuperPoint + SuperGlue matching |
-| vi_sfm | `01_sfm_hloc.sh vi_sfm` | RGB Images + IMU `imu_data.csv` | Metric scale, gravity alignment |
+| hloc (Default) | `01_sfm_hloc.sh` | RGB Images | Deep SuperPoint + SuperGlue (Sequential, Exhaustive, Sequential+Retrieval for multi-video) |
 | VGGT-Omega | `01_sfm_hloc.sh vggt` | RGB Images | Feed-forward transformer pose estimation |
 | FastMap | `01_sfm_hloc.sh fastmap` | RGB Images | Fast keypoint matching for large scenes |
 | COLMAP | `01_sfm_hloc.sh sfm` | RGB Images | Standard SIFT + incremental SfM |
@@ -89,8 +88,8 @@ Determines camera intrinsics, extrinsics, and sparse 3D point clouds from uncali
 # Standard deep learning SfM (hloc)
 ./scripts/01_sfm_hloc.sh
 
-# Visual-Inertial SfM (RGB + IMU with gravity vector alignment)
-./scripts/01_sfm_hloc.sh vi_sfm
+# Multi-video merged SfM with NetVLAD global retrieval
+SFM_STRATEGY="sequential+retrieval" ./scripts/01_sfm_hloc.sh hloc data/<multi_video_scene>
 
 # Transformer-based instant pose estimation (VGGT)
 ./scripts/01_sfm_hloc.sh vggt

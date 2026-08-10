@@ -2,7 +2,7 @@
 title: Architecture Decision Records (ADR)
 description: Index and operational rules for Architecture Decision Records in 3DRC.
 category: adr
-last_updated: 2026-08-09
+last_updated: 2026-08-10
 ---
 
 # Architecture Decision Records (ADR)

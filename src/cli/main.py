@@ -45,7 +45,7 @@ def main() -> None:
 
     # sfm subcommand
     sfm_parser = subparsers.add_parser("sfm", help="Step 1: Camera Pose Estimation")
-    sfm_parser.add_argument("--method", type=str, default="hloc", choices=["hloc", "vi_sfm", "vggt", "fastmap", "sfm"], help="SfM estimation method")
+    sfm_parser.add_argument("--method", type=str, default="hloc", choices=["hloc", "vggt", "fastmap", "sfm"], help="SfM estimation method")
 
     # train subcommand
     train_parser = subparsers.add_parser("train", help="Step 2: Gaussian Splatting Model Training")
