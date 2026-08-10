@@ -3,11 +3,16 @@
 # 3DRC Pipeline Configuration File
 
 # Dynamic Scene Name Resolution
-# Priority: 1) $SCENE_NAME environment variable, 2) First positional arg if directory, 3) Default scene "20260429_140922"
+# Priority: 1) First positional arg if directory, 2) $SCENE_NAME environment variable, 3) Default scene "20260429_140922" (with informational notice)
 if [ -n "${1:-}" ] && [ -d "$1" ]; then
     SCENE_NAME=$(basename "$1")
+elif [ -n "${SCENE_NAME:-}" ]; then
+    SCENE_NAME="${SCENE_NAME}"
 else
-    SCENE_NAME="${SCENE_NAME:-20260429_140922}"
+    SCENE_NAME="20260429_140922"
+    if [ "${QUIET_CONFIG:-false}" != "true" ]; then
+        echo "[3DRC Config] No dataset path or SCENE_NAME provided. Defaulting to '${SCENE_NAME}'."
+    fi
 fi
 
 # Dynamic Paths Derived from SCENE_NAME
@@ -45,6 +50,10 @@ SUGAR_REFINEMENT="short"
 # TSDF Mesh Extraction parameters
 TSDF_VOXEL_SIZE=0.005
 TSDF_DEPTH_TRUNC=6.0
+
+# MILo parameters
+MILO_IMP_METRIC="indoor"  # Options: indoor, outdoor
+MILO_RASTERIZER="radegs"  # Options: radegs, 2dgs, 3dgs
 
 # Gaussian Grouping parameters
 GROUPING_DATASET="${SCENE_NAME}"

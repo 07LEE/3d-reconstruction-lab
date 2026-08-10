@@ -84,16 +84,16 @@ echo "Starting MILo Differentiable Mesh Training & Extraction (Scene: $SCENE_NAM
 python train.py \
     -s "$PROJECT_ROOT/$DENSE_DATASET" \
     -m "$MILO_MODEL_DIR" \
-    --imp_metric indoor \
-    --rasterizer radegs \
-    --data_device cpu
+    --imp_metric "${MILO_IMP_METRIC:-indoor}" \
+    --rasterizer "${MILO_RASTERIZER:-radegs}" \
+    --data_device "${DATA_DEVICE:-cpu}"
 
 echo "Extracting final MILo surface mesh..."
 python mesh_extract_sdf.py \
     -s "$PROJECT_ROOT/$DENSE_DATASET" \
     -m "$MILO_MODEL_DIR" \
-    --rasterizer radegs \
-    --data_device cpu
+    --rasterizer "${MILO_RASTERIZER:-radegs}" \
+    --data_device "${DATA_DEVICE:-cpu}"
 
 # Clean floater components and generate viewer files
 echo "Cleaning floater components and generating viewer files in $MILO_MODEL_DIR..."

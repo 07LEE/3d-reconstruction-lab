@@ -84,6 +84,8 @@ python train.py \
     -m "$MODEL_OUTPUT" \
     -r "$DOWNSAMPLE_RATE" \
     --data_device "$DATA_DEVICE" \
+    --densify_grad_threshold "${DENSIFY_GRAD_THRESHOLD:-0.0002}" \
+    --iterations "${GS_ITERATIONS:-30000}" \
     "${EXTRA_TRAIN_ARGS[@]}"
 
 # Dynamically record execution provenance metadata

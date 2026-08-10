@@ -74,6 +74,7 @@ python third_party/gaussian-splatting/train.py \
     -r "$DOWNSAMPLE_RATE" \
     --densify_grad_threshold "$DENSIFY_GRAD_THRESHOLD" \
     --data_device "$DATA_DEVICE" \
+    --iterations "${GS_ITERATIONS:-30000}" \
     "${EXTRA_TRAIN_ARGS[@]}"
 
 # Dynamically record execution provenance metadata
