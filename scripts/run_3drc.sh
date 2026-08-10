@@ -177,11 +177,25 @@ case "$COMMAND" in
         "$PYTHON_BIN" src/mesh/eval_mesh.py "${EVAL_ARGS[@]}"
         ;;
     pipeline)
-        SFM_OPT=${2:-"hloc"}
-        echo "[3DRC CLI] Starting End-to-End Automated Pipeline (SfM: ${SFM_OPT})..."
-        ./scripts/01_sfm_hloc.sh "$SFM_OPT"
-        ./scripts/02_train_3dgs.sh
-        ./scripts/03_train_sugar.sh
+        ARG1="${2:-}"
+        ARG2="${3:-}"
+        ARG_DATASET=""
+        ARG_METHOD=""
+        if [ -n "$ARG1" ]; then
+            if [ -d "$ARG1" ] || [[ "$ARG1" == data/* ]]; then
+                ARG_DATASET="$ARG1"
+                [ -n "$ARG2" ] && ARG_METHOD="$ARG2"
+            else
+                ARG_METHOD="$ARG1"
+                [ -n "$ARG2" ] && ARG_DATASET="$ARG2"
+            fi
+        fi
+        SFM_OPT="${ARG_METHOD:-$SFM_METHOD}"
+        TARGET_DATASET="${ARG_DATASET:-$DATA_DIR}"
+        echo "[3DRC CLI] Starting End-to-End Automated Pipeline (SfM: ${SFM_OPT}, Dataset: ${TARGET_DATASET})..."
+        ./scripts/01_sfm_hloc.sh "$SFM_OPT" "$TARGET_DATASET"
+        ./scripts/02_train_3dgs.sh "$TARGET_DATASET"
+        ./scripts/03_train_sugar.sh "$TARGET_DATASET"
         echo "[3DRC CLI] End-to-End Automated Pipeline Execution Finished!"
         ;;
     help|*)

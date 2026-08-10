@@ -21,8 +21,23 @@ if [ -f "$CONDA_PATH/etc/profile.d/conda.sh" ]; then
     [ "${CONDA_DEFAULT_ENV:-}" = "3drc" ] || { echo "[FATAL] Conda environment '3drc' activation failed!"; exit 1; }
 fi
 
-METHOD=${1:-$SFM_METHOD}
-INPUT_DATASET="${2:-$DATA_DIR}"
+ARG1="${1:-}"
+ARG2="${2:-}"
+ARG_DATASET=""
+ARG_METHOD=""
+
+if [ -n "$ARG1" ]; then
+    if [ -d "$ARG1" ] || [[ "$ARG1" == data/* ]]; then
+        ARG_DATASET="$ARG1"
+        [ -n "$ARG2" ] && ARG_METHOD="$ARG2"
+    else
+        ARG_METHOD="$ARG1"
+        [ -n "$ARG2" ] && ARG_DATASET="$ARG2"
+    fi
+fi
+
+METHOD="${ARG_METHOD:-$SFM_METHOD}"
+INPUT_DATASET="${ARG_DATASET:-$DATA_DIR}"
 
 IMAGE_DIR_TARGET="${INPUT_DATASET}/raw_images"
 if [ ! -d "$IMAGE_DIR_TARGET" ]; then
