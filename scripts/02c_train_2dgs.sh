@@ -62,12 +62,17 @@ if [ -L "${TARGET_DATA_DIR}/sparse/0" ]; then
     ACTIVE_SFM=$(readlink "${TARGET_DATA_DIR}/sparse/0" | xargs basename)
 fi
 
+EXTRA_TRAIN_ARGS=()
+if [ "${GS_EVAL_MODE:-false}" = "true" ]; then
+    EXTRA_TRAIN_ARGS+=("--eval")
+fi
+
 python third_party/2d-gaussian-splatting/train.py \
     -s "$TARGET_DATA_DIR" \
     -m "$MODEL_OUTPUT" \
     -r "$DOWNSAMPLE_RATE" \
     --data_device "$DATA_DEVICE" \
-    --eval \
+    "${EXTRA_TRAIN_ARGS[@]}" \
     --iterations 30000
 
 # Dynamically record execution provenance metadata

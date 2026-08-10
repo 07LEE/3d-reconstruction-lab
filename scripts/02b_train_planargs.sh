@@ -74,11 +74,17 @@ fi
 echo "Starting PlanarGS Training (Scene: $SCENE_NAME, Dataset: $INPUT_DATASET)..."
 cd third_party/PlanarGS || exit 1
 
+EXTRA_TRAIN_ARGS=()
+if [ "${GS_EVAL_MODE:-false}" = "true" ]; then
+    EXTRA_TRAIN_ARGS+=("--eval")
+fi
+
 python train.py \
     -s "$PROJECT_ROOT/$TARGET_DATA_DIR" \
     -m "$MODEL_OUTPUT" \
     -r "$DOWNSAMPLE_RATE" \
-    --data_device "$DATA_DEVICE"
+    --data_device "$DATA_DEVICE" \
+    "${EXTRA_TRAIN_ARGS[@]}"
 
 # Dynamically record execution provenance metadata
 cat <<EOF > "$MODEL_OUTPUT/pipeline_meta.json"
