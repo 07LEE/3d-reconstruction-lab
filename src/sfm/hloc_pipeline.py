@@ -3,10 +3,11 @@
 from __future__ import annotations
 
 import argparse
+from datetime import datetime
+import hashlib
 import os
 import sys
 import time
-from datetime import datetime
 from pathlib import Path
 from typing import Dict, List, Tuple
 import torch
@@ -241,13 +242,18 @@ def run_hloc_pipeline(image_dir: str | Path, output_dir: str | Path, weights_dir
     # 3. Feature Matching
     print("\n[Step 3/4] Matching features (SuperGlue)...")
     start_time = time.time()
-    if not matches.is_file():
+    pairs_hash = hashlib.sha256(sfm_pairs.read_bytes()).hexdigest()
+    hash_file = outputs / "matches.pairs.sha256"
+    stale = (not hash_file.is_file()) or (hash_file.read_text(encoding="utf-8").strip() != pairs_hash)
+
+    if matches.is_file() and not stale:
+        print("Matches already exist and pair list unchanged. Skipping matching.")
+        time_match = 0.0
+    else:
         match_features.main(matcher_conf, sfm_pairs, features=features, matches=matches)
+        hash_file.write_text(pairs_hash, encoding="utf-8")
         time_match = time.time() - start_time
         print(f"Feature Matching elapsed: {time_match:.2f} seconds")
-    else:
-        print("Matches already exist. Skipping matching.")
-        time_match = 0.0
 
     # 4. Sparse Reconstruction
     print("\n[Step 4/4] Running 3D Reconstruction (COLMAP Incremental Mapper)...")
