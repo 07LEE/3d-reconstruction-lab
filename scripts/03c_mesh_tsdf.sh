@@ -48,7 +48,7 @@ DEPTH_TRUNC="${TSDF_DEPTH_TRUNC:-6.0}"
 
 python third_party/2d-gaussian-splatting/render.py \
     -m "$MODEL_DIR" \
-    --data_device cpu \
+    --data_device "$DATA_DEVICE" \
     --skip_train \
     --skip_test \
     --voxel_size "$VOXEL_SIZE" \

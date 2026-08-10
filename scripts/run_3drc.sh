@@ -60,29 +60,33 @@ case "$COMMAND" in
         ;;
     sfm)
         METHOD=${2:-$SFM_METHOD}
+        ARG_DATASET="${3:-}"
         echo "[3DRC CLI] Executing Step 1: Camera Pose Estimation (Method: ${METHOD})..."
-        ./scripts/01_sfm_hloc.sh "$METHOD"
+        ./scripts/01_sfm_hloc.sh "$METHOD" ${ARG_DATASET:+"$ARG_DATASET"}
         ;;
     train)
         BACKEND=${2:-"3dgs"}
+        ARG_DATASET="${3:-}"
         if [ "$BACKEND" = "planargs" ]; then
             echo "[3DRC CLI] Executing Step 2b: PlanarGS Training..."
-            ./scripts/02b_train_planargs.sh
+            ./scripts/02b_train_planargs.sh ${ARG_DATASET:+"$ARG_DATASET"}
         elif [ "$BACKEND" = "2dgs" ]; then
             echo "[3DRC CLI] Executing Step 2c: 2D Gaussian Splatting Training..."
-            ./scripts/02c_train_2dgs.sh
+            ./scripts/02c_train_2dgs.sh ${ARG_DATASET:+"$ARG_DATASET"}
         else
             echo "[3DRC CLI] Executing Step 2: 3DGS Training..."
-            ./scripts/02_train_3dgs.sh
+            ./scripts/02_train_3dgs.sh ${ARG_DATASET:+"$ARG_DATASET"}
         fi
         ;;
     2dgs)
+        ARG_DATASET="${2:-}"
         echo "[3DRC CLI] Executing Step 2c: 2D Gaussian Splatting Training..."
-        ./scripts/02c_train_2dgs.sh
+        ./scripts/02c_train_2dgs.sh ${ARG_DATASET:+"$ARG_DATASET"}
         ;;
     planargs)
+        ARG_DATASET="${2:-}"
         echo "[3DRC CLI] Executing Step 2b: PlanarGS Training..."
-        ./scripts/02b_train_planargs.sh
+        ./scripts/02b_train_planargs.sh ${ARG_DATASET:+"$ARG_DATASET"}
         ;;
     view)
         TYPE=${2:-"hloc"}
@@ -107,8 +111,9 @@ case "$COMMAND" in
         ./scripts/03c_mesh_tsdf.sh ${ARG_DATASET:+"$ARG_DATASET"} ${ARG_SOURCE_MODEL:+"$ARG_SOURCE_MODEL"}
         ;;
     grouping)
+        ARG_DATASET="${2:-}"
         echo "[3DRC CLI] Executing Step 4: Gaussian Grouping..."
-        ./scripts/04_train_grouping.sh
+        ./scripts/04_train_grouping.sh ${ARG_DATASET:+"$ARG_DATASET"}
         ;;
     eval)
         MESH_PATH="${2:-}"
