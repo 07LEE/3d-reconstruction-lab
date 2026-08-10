@@ -35,7 +35,45 @@ else
   fail=1
 fi
 
-# 4. SuGaR CPU data_device OOM patch check
+# 4. Inria diff-gaussian-rasterization cstdint include check
+DIFF_GAUSS_H="${REPO_ROOT}/third_party/gaussian-splatting/submodules/diff-gaussian-rasterization/cuda_rasterizer/rasterizer_impl.h"
+if [ -f "${DIFF_GAUSS_H}" ] && grep -q "#include <cstdint>" "${DIFF_GAUSS_H}"; then
+  echo "[ok] diff-gaussian-rasterization cstdint include patch in rasterizer_impl.h"
+else
+  echo "[LOST] diff-gaussian-rasterization cstdint include patch missing in rasterizer_impl.h"
+  fail=1
+fi
+
+# 5. 2DGS camera model patch check (SIMPLE_RADIAL)
+READERS_2D_PY="${REPO_ROOT}/third_party/2d-gaussian-splatting/scene/dataset_readers.py"
+if [ -f "${READERS_2D_PY}" ] && grep -q "SIMPLE_RADIAL" "${READERS_2D_PY}"; then
+  echo "[ok] 2DGS camera models patch (SIMPLE_RADIAL) in dataset_readers.py"
+else
+  echo "[LOST] 2DGS camera models patch (SIMPLE_RADIAL) missing in 2d-gaussian-splatting dataset_readers.py"
+  fail=1
+fi
+
+# 6. 2DGS mesh_utils bounds & empty cluster patch check
+MESH_UTILS_PY="${REPO_ROOT}/third_party/2d-gaussian-splatting/utils/mesh_utils.py"
+if [ -f "${MESH_UTILS_PY}" ] && grep -q "len(cluster_n_triangles) == 0" "${MESH_UTILS_PY}"; then
+  echo "[ok] 2DGS mesh_utils empty cluster and bounds patch in mesh_utils.py"
+else
+  echo "[LOST] 2DGS mesh_utils patch missing in mesh_utils.py"
+  fail=1
+fi
+
+# 7. 2DGS diff-surfel-rasterization cstdint and zero-init check
+SURFEL_RAST_CU="${REPO_ROOT}/third_party/2d-gaussian-splatting/submodules/diff-surfel-rasterization/cuda_rasterizer/rasterizer_impl.cu"
+SURFEL_RAST_H="${REPO_ROOT}/third_party/2d-gaussian-splatting/submodules/diff-surfel-rasterization/cuda_rasterizer/rasterizer_impl.h"
+if [ -f "${SURFEL_RAST_CU}" ] && grep -q "GeometryState geom = {}" "${SURFEL_RAST_CU}" && \
+   [ -f "${SURFEL_RAST_H}" ] && grep -q "#include <cstdint>" "${SURFEL_RAST_H}"; then
+  echo "[ok] diff-surfel-rasterization cstdint & zero-init patch"
+else
+  echo "[LOST] diff-surfel-rasterization patch missing in rasterizer_impl.cu/h"
+  fail=1
+fi
+
+# 8. SuGaR CPU data_device OOM patch check
 SUGAR_MODEL="${REPO_ROOT}/third_party/sugar/sugar_scene/gs_model.py"
 if [ -f "${SUGAR_MODEL}" ] && grep -q 'self.data_device = "cpu"' "${SUGAR_MODEL}"; then
   echo "[ok] SuGaR CPU data_device OOM patch in gs_model.py"
@@ -44,7 +82,18 @@ else
   fail=1
 fi
 
-# 5. VGGT PyCOLMAP 3.13 patch check
+# 9. Milo KDTree fallback & cstdint check
+MILO_MODEL="${REPO_ROOT}/third_party/milo/milo/scene/gaussian_model.py"
+MILO_RAST_H="${REPO_ROOT}/third_party/milo/submodules/diff-gaussian-rasterization/cuda_rasterizer/rasterizer_impl.h"
+if [ -f "${MILO_MODEL}" ] && grep -q "KDTree" "${MILO_MODEL}" && \
+   [ -f "${MILO_RAST_H}" ] && grep -q "#include <cstdint>" "${MILO_RAST_H}"; then
+  echo "[ok] Milo KDTree fallback and cstdint patch"
+else
+  echo "[LOST] Milo patch missing in gaussian_model.py or rasterizer_impl.h"
+  fail=1
+fi
+
+# 10. VGGT PyCOLMAP 3.13 patch check
 VGGT_PY="${REPO_ROOT}/third_party/vggt/vggt/dependency/np_to_pycolmap.py"
 if [ -f "${VGGT_PY}" ] && grep -q 'tmp_dir = tempfile.mkdtemp' "${VGGT_PY}"; then
   echo "[ok] VGGT PyCOLMAP 3.13 patch in np_to_pycolmap.py"
