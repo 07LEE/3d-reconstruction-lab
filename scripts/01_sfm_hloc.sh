@@ -62,8 +62,8 @@ else
     python -m src.sfm.hloc_pipeline \
         --image_dir "$IMAGE_DIR_TARGET" \
         --output_dir "${INPUT_DATASET}/cache" \
-        --strategy sequential \
-        --overlap 100
+        --strategy "${SFM_STRATEGY:-sequential}" \
+        --overlap "${SFM_OVERLAP:-100}"
 fi
 
 # Move/copy outputs to method specific directory

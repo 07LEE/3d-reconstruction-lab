@@ -22,6 +22,9 @@ export PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True
 
 # SfM parameters
 SFM_METHOD="sfm"  # Options: sfm, fastmap, hloc, vi_sfm
+SFM_STRATEGY="sequential"  # Options: sequential, exhaustive, sequential+retrieval
+SFM_OVERLAP=100
+SFM_RETRIEVAL_K=30
 export CAMERA_MODE="SINGLE"  # Options: SINGLE, PER_FOLDER, PER_IMAGE, AUTO
 export CAMERA_MODEL="SIMPLE_RADIAL"  # Options: SIMPLE_RADIAL, PINHOLE, OPENCV
 IMU_DATA_PATH="${DATA_DIR}/imu_data.csv"
