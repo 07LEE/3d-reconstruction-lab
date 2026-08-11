@@ -8,7 +8,7 @@ Standard 3DGS uses unconstrained 3D ellipsoids. To evaluate anchor-guided Gaussi
 Decision:
 1. Add official `city-super/scaffold-gs` repository as a git submodule under `third_party/scaffold-gs`.
 2. Add `--method scaffoldgs` to CLI (`src/cli/main.py`) and script routing (`scripts/run_3drc.sh`, `scripts/02d_train_scaffoldgs.sh`).
-3. Configure `gs_scaffold` conda environment profile with fallback to `gs_train`.
+3. Configure dedicated `gs_scaffold` conda environment profile to guarantee strict isolation and prevent rasterizer name collisions with `gs_train`.
 
 Consequences:
-Adds Scaffold-GS training backend to Stage 2 pipeline choices, requiring `wandb`, `einops`, `lpips`, `laspy`, `colorama`, and `gcc-12` host compiler.
+Adds Scaffold-GS training backend to Stage 2 pipeline choices, requiring `wandb`, `einops`, `lpips`, `laspy`, `colorama`, and `gcc-12` host compiler. Note: Scaffold-GS is an anchor-guided neural rendering backend; explicit mesh extraction is out of scope (Non-goal).

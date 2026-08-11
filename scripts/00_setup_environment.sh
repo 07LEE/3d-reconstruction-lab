@@ -31,8 +31,8 @@ if [ -f "$CONDA_PATH/etc/profile.d/conda.sh" ]; then
     source "$CONDA_PATH/etc/profile.d/conda.sh"
 fi
 
-echo -e "\n[Step 3/4] Ensuring Conda Environments (3drc, gs_train, gs_sugar, gs_group, gs_milo)..."
-for env_name in 3drc gs_train gs_sugar gs_group gs_milo; do
+echo -e "\n[Step 3/4] Ensuring Conda Environments (3drc, gs_train, gs_sugar, gs_group, gs_milo, gs_scaffold)..."
+for env_name in 3drc gs_train gs_sugar gs_group gs_milo gs_scaffold; do
     if ! conda env list | awk '{print $1}' | grep -qx "$env_name"; then
         echo "Creating Conda environment '$env_name'..."
         if [ -f "envs/$env_name.yml" ]; then
@@ -43,9 +43,11 @@ for env_name in 3drc gs_train gs_sugar gs_group gs_milo; do
     fi
 done
 
-# 4. Build CUDA Extensions in gs_train
-echo -e "\n[Step 4/4] Building CUDA Extensions in 'gs_train'..."
+# 4. Build CUDA Extensions in gs_train & gs_scaffold
+echo -e "\n[Step 4/4] Building CUDA Extensions in 'gs_train' and 'gs_scaffold'..."
 source scripts/utils/setup_build_env.sh || { echo "[FATAL] Build environment setup failed."; exit 1; }
+
+echo "Installing extensions in gs_train..."
 conda activate gs_train
 
 if [ -d "third_party/gaussian-splatting/submodules/diff-gaussian-rasterization" ]; then
@@ -63,11 +65,26 @@ if [ -d "third_party/2d-gaussian-splatting/submodules/diff-surfel-rasterization"
     (cd third_party/2d-gaussian-splatting/submodules/diff-surfel-rasterization && pip install --no-build-isolation -e .)
 fi
 
+if conda env list | awk '{print $1}' | grep -qx "gs_scaffold"; then
+    echo "Installing Scaffold-GS dedicated extensions in gs_scaffold..."
+    conda activate gs_scaffold
+
+    if [ -d "third_party/scaffold-gs/submodules/diff-gaussian-rasterization" ]; then
+        echo "Installing diff-gaussian-rasterization (Scaffold-GS fork) in gs_scaffold..."
+        (cd third_party/scaffold-gs/submodules/diff-gaussian-rasterization && pip install --no-build-isolation -e .)
+    fi
+
+    if [ -d "third_party/scaffold-gs/submodules/simple-knn" ]; then
+        echo "Installing simple-knn extension in gs_scaffold..."
+        (cd third_party/scaffold-gs/submodules/simple-knn && pip install --no-build-isolation -e .)
+    fi
+fi
+
 # Verify patch & environment integrity
 echo -e "\nVerifying Patch and Environment Integrity..."
 ./scripts/utils/verify_patches.sh
 
 echo -e "\n=================================================="
 echo " 3DRC Environment Setup Completed Successfully!"
-echo " Environments (3drc, gs_train, gs_sugar, gs_group, gs_milo) are ready."
+echo " Environments (3drc, gs_train, gs_sugar, gs_group, gs_milo, gs_scaffold) are ready."
 echo "=================================================="

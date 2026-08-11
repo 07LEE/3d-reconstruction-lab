@@ -111,28 +111,34 @@ else
   fail=1
 fi
 
-# 11. Imported rasterizer check in active python env via NamedTuple _fields inspection
-PYTHON_BIN="${CONDA_BASE_DIR}/envs/gs_train/bin/python"
+# 12. Imported rasterizer check in active python env
+ACTIVE_ENV="${CONDA_DEFAULT_ENV:-gs_train}"
+PYTHON_BIN="${CONDA_BASE_DIR}/envs/${ACTIVE_ENV}/bin/python"
 if [ ! -x "$PYTHON_BIN" ]; then PYTHON_BIN="python3"; fi
 
-if "$PYTHON_BIN" - <<'PY'
-import sys
+if "$PYTHON_BIN" - <<PY
+import os, sys
+active_env = "${ACTIVE_ENV}"
 try:
     import diff_gaussian_rasterization as d
     from diff_gaussian_rasterization import GaussianRasterizationSettings as S
 except Exception as e:
-    print("[FAIL] import failed: %s: %s" % (type(e).__name__, e))
+    print(f"[FAIL] [{active_env}] import failed: {type(e).__name__}: {e}")
     sys.exit(1)
 
-if "antialiasing" not in getattr(S, "_fields", ()):
-    print("[WRONG] non-dr_aa rasterizer installed:", getattr(d, "__file__", "unknown"))
-    sys.exit(1)
-
-print("[ok] Active python env has dr_aa rasterizer installed:", getattr(d, "__file__", "unknown"))
+if active_env == "gs_train":
+    if "antialiasing" not in getattr(S, "_fields", ()):
+        print("[WRONG] [gs_train] non-dr_aa rasterizer installed:", getattr(d, "__file__", "unknown"))
+        sys.exit(1)
+    print("[ok] Active python env (gs_train) has dr_aa rasterizer installed:", getattr(d, "__file__", "unknown"))
+elif active_env == "gs_scaffold":
+    print("[ok] Active python env (gs_scaffold) has dedicated scaffold-gs rasterizer installed:", getattr(d, "__file__", "unknown"))
+else:
+    print(f"[ok] Active python env ({active_env}) loaded rasterizer:", getattr(d, "__file__", "unknown"))
 PY
 then :; else fail=1; fi
 
-# 12. Blackwell sm_120 CUBIN SASS binary verification across C++ CUDA extensions
+# 13. Blackwell sm_120 CUBIN SASS binary verification across C++ CUDA extensions
 echo "=== Verifying sm_120 CUBIN Binaries ==="
 export REPO_ROOT
 export CONDA_BASE_DIR
@@ -149,7 +155,8 @@ CUOBJDUMP = os.path.join(CONDA_BASE, "envs/gs_train/bin/cuobjdump")
 ENVS = {
     "gs_milo": (["diff_gaussian_rasterization", "diff_gaussian_rasterization_ms", "diff_gaussian_rasterization_gof", "simple_knn", "fused_ssim"], "milo"),
     "gs_train": (["diff_gaussian_rasterization", "simple_knn", "diff_surfel_rasterization"], "gaussian-splatting"),
-    "gs_sugar": (["diff_gaussian_rasterization", "simple_knn"], "sugar")
+    "gs_sugar": (["diff_gaussian_rasterization", "simple_knn"], "sugar"),
+    "gs_scaffold": (["diff_gaussian_rasterization", "simple_knn"], "scaffold-gs")
 }
 
 fail = 0

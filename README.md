@@ -1,6 +1,6 @@
-# 3D Reconstruction Test Workspace
+# 3D Reconstruction Lab
 
-A personal workspace for hands-on experimentation with 3D reconstruction pipelines — SfM, Gaussian Splatting, and mesh extraction — on Blackwell hardware.
+A personal lab environment for hands-on experimentation and benchmarking of 3D reconstruction pipelines — SfM, Gaussian Splatting variants, and mesh extraction engines — on Blackwell hardware.
 
 ## System Requirements
 
