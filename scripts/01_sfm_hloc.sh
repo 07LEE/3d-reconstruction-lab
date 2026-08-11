@@ -44,46 +44,48 @@ if [ ! -d "$IMAGE_DIR_TARGET" ]; then
     IMAGE_DIR_TARGET="$IMAGE_DIR"
 fi
 
-# Validate SfM method
-if [ "$METHOD" != "sfm" ] && [ "$METHOD" != "fastmap" ] && [ "$METHOD" != "vggt" ] && [ "$METHOD" != "hloc" ]; then
-    echo "[FATAL] Unknown SfM method: $METHOD" >&2
-    exit 1
-fi
-
 SPARSE_BASE_DIR="${INPUT_DATASET}/sparse"
 SPARSE_METHOD_DIR="${SPARSE_BASE_DIR}/${METHOD}"
-mkdir -p "$SPARSE_METHOD_DIR"
 
-if [ "$METHOD" = "sfm" ]; then
-    echo "Starting Traditional SIFT SfM Pipeline..."
-    python -m src.sfm.sfm_pipeline \
-        --image_dir "$IMAGE_DIR_TARGET" \
-        --output_dir "${INPUT_DATASET}"
-elif [ "$METHOD" = "fastmap" ]; then
-    echo "Starting Super-Fast FastMap GPU SfM Pipeline..."
-    python -m src.sfm.fastmap_pipeline \
-        --image_dir "$IMAGE_DIR_TARGET" \
-        --output_dir "${INPUT_DATASET}"
-elif [ "$METHOD" = "vggt" ]; then
-    echo "Starting VGGT-Omega feed-forward pose estimation..."
-    if [ ! -d "${INPUT_DATASET}/images" ] && [ -d "${INPUT_DATASET}/raw_images" ]; then
-        ln -s raw_images "${INPUT_DATASET}/images"
-    fi
-    python third_party/vggt/demo_colmap.py \
-        --scene_dir "$INPUT_DATASET"
-elif [ "$METHOD" = "hloc" ]; then
-    echo "Starting High-Precision hloc SfM Pipeline..."
-    python -m src.sfm.hloc_pipeline \
-        --image_dir "$IMAGE_DIR_TARGET" \
-        --output_dir "${INPUT_DATASET}/cache" \
-        --strategy "${SFM_STRATEGY:-sequential}" \
-        --overlap "${SFM_OVERLAP:-100}" \
-        --retrieval_k "${SFM_RETRIEVAL_K:-30}"
-else
-    # Guard logic in case validation above is bypassed
-    echo "[FATAL] Bypassed SfM method check: $METHOD" >&2
-    exit 1
-fi
+case "$METHOD" in
+    sfm)
+        mkdir -p "$SPARSE_METHOD_DIR"
+        echo "Starting Traditional SIFT SfM Pipeline..."
+        python -m src.sfm.sfm_pipeline \
+            --image_dir "$IMAGE_DIR_TARGET" \
+            --output_dir "${INPUT_DATASET}"
+        ;;
+    fastmap)
+        mkdir -p "$SPARSE_METHOD_DIR"
+        echo "Starting Super-Fast FastMap GPU SfM Pipeline..."
+        python -m src.sfm.fastmap_pipeline \
+            --image_dir "$IMAGE_DIR_TARGET" \
+            --output_dir "${INPUT_DATASET}"
+        ;;
+    vggt)
+        mkdir -p "$SPARSE_METHOD_DIR"
+        echo "Starting VGGT-Omega feed-forward pose estimation..."
+        if [ ! -d "${INPUT_DATASET}/images" ] && [ -d "${INPUT_DATASET}/raw_images" ]; then
+            ln -s raw_images "${INPUT_DATASET}/images"
+        fi
+        python third_party/vggt/demo_colmap.py \
+            --scene_dir "$INPUT_DATASET"
+        ;;
+    hloc)
+        mkdir -p "$SPARSE_METHOD_DIR"
+        echo "Starting High-Precision hloc SfM Pipeline..."
+        python -m src.sfm.hloc_pipeline \
+            --image_dir "$IMAGE_DIR_TARGET" \
+            --output_dir "${INPUT_DATASET}/cache" \
+            --strategy "${SFM_STRATEGY:-sequential}" \
+            --overlap "${SFM_OVERLAP:-100}" \
+            --retrieval_k "${SFM_RETRIEVAL_K:-30}"
+        ;;
+    *)
+        echo "[FATAL] Unknown SfM method: $METHOD" >&2
+        exit 1
+        ;;
+esac
 
 # Move/copy outputs to method specific directory
 if [ -d "${INPUT_DATASET}/cache/sfm" ]; then
