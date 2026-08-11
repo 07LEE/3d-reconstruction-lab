@@ -49,7 +49,7 @@ show_help() {
     echo "  ./scripts/run_3drc.sh eval <mesh_path> [gt_pcd_path]"
     echo "  ./scripts/run_3drc.sh outputs"
     echo "  ./scripts/run_3drc.sh view hloc"
-    echo "  ./scripts/run_3drc.sh pipeline vi_sfm"
+    echo "  ./scripts/run_3drc.sh pipeline hloc"
 }
 
 COMMAND=${1:-"help"}

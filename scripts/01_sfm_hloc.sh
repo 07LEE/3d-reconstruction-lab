@@ -44,6 +44,12 @@ if [ ! -d "$IMAGE_DIR_TARGET" ]; then
     IMAGE_DIR_TARGET="$IMAGE_DIR"
 fi
 
+# Validate SfM method
+if [ "$METHOD" != "sfm" ] && [ "$METHOD" != "fastmap" ] && [ "$METHOD" != "vggt" ] && [ "$METHOD" != "hloc" ]; then
+    echo "[FATAL] Unknown SfM method: $METHOD" >&2
+    exit 1
+fi
+
 SPARSE_BASE_DIR="${INPUT_DATASET}/sparse"
 SPARSE_METHOD_DIR="${SPARSE_BASE_DIR}/${METHOD}"
 mkdir -p "$SPARSE_METHOD_DIR"
@@ -65,7 +71,7 @@ elif [ "$METHOD" = "vggt" ]; then
     fi
     python third_party/vggt/demo_colmap.py \
         --scene_dir "$INPUT_DATASET"
-else
+elif [ "$METHOD" = "hloc" ]; then
     echo "Starting High-Precision hloc SfM Pipeline..."
     python -m src.sfm.hloc_pipeline \
         --image_dir "$IMAGE_DIR_TARGET" \
@@ -73,6 +79,10 @@ else
         --strategy "${SFM_STRATEGY:-sequential}" \
         --overlap "${SFM_OVERLAP:-100}" \
         --retrieval_k "${SFM_RETRIEVAL_K:-30}"
+else
+    # Guard logic in case validation above is bypassed
+    echo "[FATAL] Bypassed SfM method check: $METHOD" >&2
+    exit 1
 fi
 
 # Move/copy outputs to method specific directory
