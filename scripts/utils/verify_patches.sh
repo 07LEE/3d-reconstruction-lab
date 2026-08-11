@@ -102,6 +102,15 @@ else
   fail=1
 fi
 
+# 11. Scaffold-GS rasterizer & visible_filter compatibility patch check
+SCAFFOLD_INIT="${REPO_ROOT}/third_party/scaffold-gs/gaussian_renderer/__init__.py"
+if [ -f "${SCAFFOLD_INIT}" ] && grep -q "_create_raster_settings" "${SCAFFOLD_INIT}"; then
+  echo "[ok] Scaffold-GS rasterizer & visible_filter patch in gaussian_renderer/__init__.py"
+else
+  echo "[LOST] Scaffold-GS rasterizer patch missing in gaussian_renderer/__init__.py"
+  fail=1
+fi
+
 # 11. Imported rasterizer check in active python env via NamedTuple _fields inspection
 PYTHON_BIN="${CONDA_BASE_DIR}/envs/gs_train/bin/python"
 if [ ! -x "$PYTHON_BIN" ]; then PYTHON_BIN="python3"; fi
