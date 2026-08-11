@@ -68,6 +68,7 @@ fi
 if conda env list | awk '{print $1}' | grep -qx "gs_scaffold"; then
     echo "Installing Scaffold-GS dedicated extensions in gs_scaffold..."
     conda activate gs_scaffold
+    source scripts/utils/setup_build_env.sh
 
     if [ -d "third_party/scaffold-gs/submodules/diff-gaussian-rasterization" ]; then
         echo "Installing diff-gaussian-rasterization (Scaffold-GS fork) in gs_scaffold..."
