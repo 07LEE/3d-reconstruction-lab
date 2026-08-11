@@ -111,32 +111,41 @@ else
   fail=1
 fi
 
-# 12. Imported rasterizer check in active python env
-ACTIVE_ENV="${CONDA_DEFAULT_ENV:-gs_train}"
-PYTHON_BIN="${CONDA_BASE_DIR}/envs/${ACTIVE_ENV}/bin/python"
-if [ ! -x "$PYTHON_BIN" ]; then PYTHON_BIN="python3"; fi
-
-if "$PYTHON_BIN" - <<PY
-import os, sys
-active_env = "${ACTIVE_ENV}"
+# 12. Multi-environment explicit rasterizer verification
+TRAIN_PYTHON="${CONDA_BASE_DIR}/envs/gs_train/bin/python"
+if [ -x "$TRAIN_PYTHON" ]; then
+    if "$TRAIN_PYTHON" - <<'PY'
+import sys
 try:
     import diff_gaussian_rasterization as d
     from diff_gaussian_rasterization import GaussianRasterizationSettings as S
 except Exception as e:
-    print(f"[FAIL] [{active_env}] import failed: {type(e).__name__}: {e}")
+    print(f"[FAIL] [gs_train] import failed: {type(e).__name__}: {e}")
     sys.exit(1)
 
-if active_env == "gs_train":
-    if "antialiasing" not in getattr(S, "_fields", ()):
-        print("[WRONG] [gs_train] non-dr_aa rasterizer installed:", getattr(d, "__file__", "unknown"))
-        sys.exit(1)
-    print("[ok] Active python env (gs_train) has dr_aa rasterizer installed:", getattr(d, "__file__", "unknown"))
-elif active_env == "gs_scaffold":
-    print("[ok] Active python env (gs_scaffold) has dedicated scaffold-gs rasterizer installed:", getattr(d, "__file__", "unknown"))
-else:
-    print(f"[ok] Active python env ({active_env}) loaded rasterizer:", getattr(d, "__file__", "unknown"))
+if "antialiasing" not in getattr(S, "_fields", ()):
+    print("[WRONG] [gs_train] non-dr_aa rasterizer installed:", getattr(d, "__file__", "unknown"))
+    sys.exit(1)
+
+print("[ok] Explicit check: gs_train has dr_aa rasterizer installed:", getattr(d, "__file__", "unknown"))
 PY
-then :; else fail=1; fi
+    then :; else fail=1; fi
+fi
+
+SCAFFOLD_PYTHON="${CONDA_BASE_DIR}/envs/gs_scaffold/bin/python"
+if [ -x "$SCAFFOLD_PYTHON" ]; then
+    if "$SCAFFOLD_PYTHON" - <<'PY'
+import sys
+try:
+    import diff_gaussian_rasterization as d
+except Exception as e:
+    print(f"[FAIL] [gs_scaffold] import failed: {type(e).__name__}: {e}")
+    sys.exit(1)
+
+print("[ok] Explicit check: gs_scaffold has dedicated rasterizer installed:", getattr(d, "__file__", "unknown"))
+PY
+    then :; else fail=1; fi
+fi
 
 # 13. Blackwell sm_120 CUBIN SASS binary verification across C++ CUDA extensions
 echo "=== Verifying sm_120 CUBIN Binaries ==="

@@ -81,6 +81,9 @@ if conda env list | awk '{print $1}' | grep -qx "gs_scaffold"; then
     fi
 fi
 
+# Reset active conda environment to primary training environment (gs_train)
+conda activate gs_train
+
 # Verify patch & environment integrity
 echo -e "\nVerifying Patch and Environment Integrity..."
 ./scripts/utils/verify_patches.sh

@@ -7,7 +7,7 @@ last_updated: 2026-08-10
 
 # 3DRC Pipeline Architecture Guide
 
-This document provides technical details, configuration parameters, and execution guides for all pipeline steps in the 3DRC workspace.
+This document provides technical details, configuration parameters, and execution guides for all pipeline steps in the 3DRC Lab environment.
 
 ## Pipeline Architecture Overview
 

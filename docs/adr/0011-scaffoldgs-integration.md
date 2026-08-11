@@ -3,7 +3,7 @@
 Status: Accepted (2026-08-11)
 
 Context:
-Standard 3DGS uses unconstrained 3D ellipsoids. To evaluate anchor-guided Gaussian representation for view-dependent object detail within the 3DRC testbed, a Scaffold-GS training option is required.
+Standard 3DGS uses unconstrained 3D ellipsoids. To evaluate anchor-guided Gaussian representation for view-dependent object detail within the 3DRC Lab environment, a Scaffold-GS training option is required.
 
 Decision:
 1. Add official `city-super/scaffold-gs` repository as a git submodule under `third_party/scaffold-gs`.
