@@ -106,6 +106,7 @@ Optimizes 3D/2D Gaussian Splatting scene representations using differentiable ra
 | Inria 3DGS (Default) | `02_train_3dgs.sh` | Sparse COLMAP Poses | Reference implementation baseline |
 | PlanarGS | `02b_train_planargs.sh` | Sparse COLMAP Poses | Planar regularization on detected indoor surfaces |
 | 2DGS | `02c_train_2dgs.sh` | Sparse COLMAP Poses | 2D planar surfel representation with analytical ray-splat intersection |
+| Scaffold-GS | `02d_train_scaffoldgs.sh` | Sparse COLMAP Poses | Anchor-based representation for view-dependent object detail |
 
 ### Step 2 Execution Commands
 
@@ -118,11 +119,15 @@ Optimizes 3D/2D Gaussian Splatting scene representations using differentiable ra
 
 # 2D Gaussian Splatting surfel training (2DGS)
 ./scripts/02c_train_2dgs.sh data/<scene_name>
+
+# Anchor-based Scaffold-GS training (Scaffold-GS)
+./scripts/02d_train_scaffoldgs.sh data/<scene_name>
 ```
 
 - Output Checkpoint (Inria 3DGS): `outputs/<scene_name>/3dgs/inria_30k/`
 - Output Checkpoint (PlanarGS): `outputs/<scene_name>/3dgs/planargs/`
 - Output Checkpoint (2DGS): `outputs/<scene_name>/2dgs/`
+- Output Checkpoint (Scaffold-GS): `outputs/<scene_name>/scaffoldgs/`
 
 ## Step 3: 3D Mesh Reconstruction (SuGaR, MILo & TSDF)
 

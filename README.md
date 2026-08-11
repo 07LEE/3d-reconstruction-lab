@@ -28,10 +28,11 @@ A personal workspace for hands-on experimentation with 3D reconstruction pipelin
 # 2. Run Step 1 Camera Pose Estimation (COLMAP, hloc, VGGT, FastMap)
 ./scripts/run_3drc.sh sfm
 
-# 3. Run Step 2 Gaussian Training (Inria 3DGS / PlanarGS / 2DGS)
+# 3. Run Step 2 Gaussian Training (Inria 3DGS / PlanarGS / 2DGS / Scaffold-GS)
 ./scripts/run_3drc.sh train 3dgs
 ./scripts/run_3drc.sh train planargs
 ./scripts/run_3drc.sh train 2dgs
+./scripts/run_3drc.sh train scaffoldgs
 
 # 4. Run Step 3 Mesh Reconstruction (SuGaR / MILo / TSDF)
 ./scripts/run_3drc.sh sugar
@@ -65,6 +66,7 @@ A personal workspace for hands-on experimentation with 3D reconstruction pipelin
 | [3DGS (Inria)](https://github.com/graphdeco-inria/gaussian-splatting) | Step 2 (Training) | 3D Gaussian scene optimization | Differentiable 3D Gaussian rasterization |
 | [PlanarGS](https://github.com/SJTU-ViSYS-team/PlanarGS) | Step 2 (Training) | Planar-regularized 3DGS | Planar priors on detected indoor surfaces |
 | [2DGS](https://github.com/hbb1/2d-gaussian-splatting) | Step 2c (Training) | Planar surfel representation | Exact ray-splat intersection with 2D oriented disks |
+| [Scaffold-GS](https://github.com/city-super/scaffold-gs) | Step 2d (Training) | Anchor-based 3DGS representation | Learnable anchors for view-dependent attribute prediction |
 | [SuGaR](https://github.com/Anttwo/SuGaR) | Step 3 (Mesh Extraction) | UV-textured OBJ polygon mesh | Surface-Aligned Gaussian Regularization |
 | [MILo](https://github.com/Anttwo/MILo) | Step 3b (Mesh Extraction) | Compact collision mesh | Differentiable Mesh-in-the-loop MT SDF |
 | [TSDF (Open3D)](https://github.com/isl-org/Open3D) | Step 3c (Mesh Extraction) | Volumetric polygon mesh | Volumetric Open3D TSDF Integration from depth/normals |
