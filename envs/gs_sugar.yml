@@ -19,3 +19,8 @@ dependencies:
       - lpips
       - laspy
       - scipy
+      - jaxtyping
+      - typeguard
+      - wadler-lindig
+      - colorama
+      - open3d

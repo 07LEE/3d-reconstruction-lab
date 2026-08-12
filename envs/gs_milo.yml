@@ -1,22 +1,27 @@
 name: gs_milo
 channels:
-  - pytorch
-  - nvidia
-  - conda-forge
   - defaults
+  - nvidia
 dependencies:
   - python=3.10
   - pip
-  - cmake
-  - gmp
-  - cgal
-  - trimesh
-  - open3d
-  - plyfile
-  - rich
-  - tqdm
-  - scipy
-  - matplotlib
-  - pyyaml
   - pip:
-    - ./third_party/milo/submodules/nvdiffrast
+      - --extra-index-url https://download.pytorch.org/whl/cu128
+      - torch==2.11.0+cu128
+      - torchvision==0.26.0+cu128
+      - torchaudio==2.11.0+cu128
+      - numpy
+      - plyfile
+      - tqdm
+      - opencv-python
+      - einops
+      - wandb
+      - lpips
+      - laspy
+      - scipy
+      - jaxtyping
+      - typeguard
+      - wadler-lindig
+      - colorama
+      - open3d
+      - nvdiffrast
