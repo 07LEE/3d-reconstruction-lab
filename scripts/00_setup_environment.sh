@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # 3DRC Automated Environment Setup Script
-# Initializes submodules, applies patches, and configures split Conda environments (gs_train, gs_scaffold, gs_sugar, gs_group, gs_milo).
+# Initializes submodules, applies patches, and configures split Conda environments (3drc, gs_train, gs_scaffold, gs_sugar, gs_group, gs_milo).
 
 set -e
 
@@ -43,13 +43,22 @@ for env_name in 3drc gs_train gs_sugar gs_group gs_milo gs_scaffold; do
     fi
 done
 
-# 4. Build CUDA Extensions across all 5 Environments
-echo -e "\n[Step 4/4] Building CUDA Extensions in all environments..."
+# 4. Build CUDA Extensions & Submodules across Environments
+echo -e "\n[Step 4/4] Building CUDA Extensions and Submodules..."
 export CC=/usr/bin/gcc-12
 export CXX=/usr/bin/g++-12
 source scripts/utils/setup_build_env.sh || { echo "[FATAL] Build environment setup failed."; exit 1; }
 
-# 4a. gs_train extensions
+# 4a. 3drc submodules (hloc)
+if conda env list | awk '{print $1}' | grep -qx "3drc"; then
+    echo "Installing submodules in '3drc'..."
+    conda activate 3drc
+    if [ -d "third_party/hloc" ]; then
+        (cd third_party/hloc && pip install --no-build-isolation -e .)
+    fi
+fi
+
+# 4b. gs_train extensions
 echo "Installing extensions in 'gs_train'..."
 conda activate gs_train
 source scripts/utils/setup_build_env.sh
@@ -64,7 +73,7 @@ if [ -d "third_party/2d-gaussian-splatting/submodules/diff-surfel-rasterization"
     (cd third_party/2d-gaussian-splatting/submodules/diff-surfel-rasterization && pip install --no-build-isolation -e .)
 fi
 
-# 4b. gs_scaffold extensions
+# 4c. gs_scaffold extensions
 if conda env list | awk '{print $1}' | grep -qx "gs_scaffold"; then
     echo "Installing extensions in 'gs_scaffold'..."
     conda activate gs_scaffold
@@ -78,7 +87,7 @@ if conda env list | awk '{print $1}' | grep -qx "gs_scaffold"; then
     fi
 fi
 
-# 4c. gs_sugar extensions
+# 4d. gs_sugar extensions
 if conda env list | awk '{print $1}' | grep -qx "gs_sugar"; then
     echo "Installing extensions in 'gs_sugar'..."
     conda activate gs_sugar
@@ -92,7 +101,7 @@ if conda env list | awk '{print $1}' | grep -qx "gs_sugar"; then
     fi
 fi
 
-# 4d. gs_group extensions
+# 4e. gs_group extensions
 if conda env list | awk '{print $1}' | grep -qx "gs_group"; then
     echo "Installing extensions in 'gs_group'..."
     conda activate gs_group
@@ -108,7 +117,7 @@ if conda env list | awk '{print $1}' | grep -qx "gs_group"; then
     fi
 fi
 
-# 4e. gs_milo extensions
+# 4f. gs_milo extensions
 if conda env list | awk '{print $1}' | grep -qx "gs_milo"; then
     echo "Installing extensions in 'gs_milo'..."
     conda activate gs_milo

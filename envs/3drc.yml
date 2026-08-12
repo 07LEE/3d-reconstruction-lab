@@ -13,7 +13,7 @@ dependencies:
   - tqdm>=4.64.0
   - opencv>=4.6.0
   - matplotlib>=3.5.0
-  - pycolmap>=0.3.0
+  - pycolmap>=3.13.0
   - pyyaml
   - plyfile
   - open3d
@@ -24,7 +24,6 @@ dependencies:
       - torch==2.11.0+cu128
       - torchvision==0.26.0+cu128
       - torchaudio==2.11.0+cu128
-      - hloc>=1.5
       - lightglue>=0.2
       - pydegensac
       - pyquaternion
