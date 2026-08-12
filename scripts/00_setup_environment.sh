@@ -49,96 +49,48 @@ export CC=/usr/bin/gcc-12
 export CXX=/usr/bin/g++-12
 source scripts/utils/setup_build_env.sh || { echo "[FATAL] Build environment setup failed."; exit 1; }
 
-# 4a. 3drc submodules (hloc)
-if conda env list | awk '{print $1}' | grep -qx "3drc"; then
-    echo "Installing submodules in '3drc'..."
-    conda activate 3drc
-    if [ -d "third_party/hloc" ]; then
-        (cd third_party/hloc && pip install --no-build-isolation -e .)
+# Helper function for absolute isolated pip install
+install_ext() {
+    local env_target="$1"
+    local module_path="$2"
+    local pip_bin="$CONDA_PATH/envs/$env_target/bin/pip"
+
+    if [ -d "$module_path" ] && [ -x "$pip_bin" ]; then
+        echo "Installing $module_path into '$env_target'..."
+        "$pip_bin" install --no-cache-dir --no-build-isolation "$module_path"
     fi
-fi
+}
+
+# 4a. 3drc submodules (hloc)
+install_ext "3drc" "third_party/hloc"
 
 # 4b. gs_train extensions
-echo "Installing extensions in 'gs_train'..."
-conda activate gs_train
-source scripts/utils/setup_build_env.sh
-
-if [ -d "third_party/gaussian-splatting/submodules/diff-gaussian-rasterization" ]; then
-    (cd third_party/gaussian-splatting/submodules/diff-gaussian-rasterization && pip install --no-build-isolation -e .)
-fi
-if [ -d "third_party/gaussian-splatting/submodules/simple-knn" ]; then
-    (cd third_party/gaussian-splatting/submodules/simple-knn && pip install --no-build-isolation -e .)
-fi
-if [ -d "third_party/2d-gaussian-splatting/submodules/diff-surfel-rasterization" ]; then
-    (cd third_party/2d-gaussian-splatting/submodules/diff-surfel-rasterization && pip install --no-build-isolation -e .)
-fi
+install_ext "gs_train" "third_party/gaussian-splatting/submodules/diff-gaussian-rasterization"
+install_ext "gs_train" "third_party/gaussian-splatting/submodules/simple-knn"
+install_ext "gs_train" "third_party/2d-gaussian-splatting/submodules/diff-surfel-rasterization"
 
 # 4c. gs_scaffold extensions
-if conda env list | awk '{print $1}' | grep -qx "gs_scaffold"; then
-    echo "Installing extensions in 'gs_scaffold'..."
-    conda activate gs_scaffold
-    source scripts/utils/setup_build_env.sh
-
-    if [ -d "third_party/scaffold-gs/submodules/diff-gaussian-rasterization" ]; then
-        (cd third_party/scaffold-gs/submodules/diff-gaussian-rasterization && pip install --no-build-isolation -e .)
-    fi
-    if [ -d "third_party/scaffold-gs/submodules/simple-knn" ]; then
-        (cd third_party/scaffold-gs/submodules/simple-knn && pip install --no-build-isolation -e .)
-    fi
-fi
+install_ext "gs_scaffold" "third_party/scaffold-gs/submodules/diff-gaussian-rasterization"
+install_ext "gs_scaffold" "third_party/scaffold-gs/submodules/simple-knn"
 
 # 4d. gs_sugar extensions
-if conda env list | awk '{print $1}' | grep -qx "gs_sugar"; then
-    echo "Installing extensions in 'gs_sugar'..."
-    conda activate gs_sugar
-    source scripts/utils/setup_build_env.sh
-
-    if [ -d "third_party/gaussian-splatting/submodules/diff-gaussian-rasterization" ]; then
-        (cd third_party/gaussian-splatting/submodules/diff-gaussian-rasterization && pip install --no-build-isolation -e .)
-    fi
-    if [ -d "third_party/gaussian-splatting/submodules/simple-knn" ]; then
-        (cd third_party/gaussian-splatting/submodules/simple-knn && pip install --no-build-isolation -e .)
-    fi
-fi
+install_ext "gs_sugar" "third_party/gaussian-splatting/submodules/diff-gaussian-rasterization"
+install_ext "gs_sugar" "third_party/gaussian-splatting/submodules/simple-knn"
 
 # 4e. gs_group extensions
-if conda env list | awk '{print $1}' | grep -qx "gs_group"; then
-    echo "Installing extensions in 'gs_group'..."
-    conda activate gs_group
-    source scripts/utils/setup_build_env.sh
-
-    if [ -d "third_party/gaussian-grouping/submodules/diff-gaussian-rasterization" ]; then
-        (cd third_party/gaussian-grouping/submodules/diff-gaussian-rasterization && pip install --no-build-isolation -e .)
-    elif [ -d "third_party/gaussian-splatting/submodules/diff-gaussian-rasterization" ]; then
-        (cd third_party/gaussian-splatting/submodules/diff-gaussian-rasterization && pip install --no-build-isolation -e .)
-    fi
-    if [ -d "third_party/gaussian-splatting/submodules/simple-knn" ]; then
-        (cd third_party/gaussian-splatting/submodules/simple-knn && pip install --no-build-isolation -e .)
-    fi
+if [ -d "third_party/gaussian-grouping/submodules/diff-gaussian-rasterization" ]; then
+    install_ext "gs_group" "third_party/gaussian-grouping/submodules/diff-gaussian-rasterization"
+else
+    install_ext "gs_group" "third_party/gaussian-splatting/submodules/diff-gaussian-rasterization"
 fi
+install_ext "gs_group" "third_party/gaussian-splatting/submodules/simple-knn"
 
 # 4f. gs_milo extensions
-if conda env list | awk '{print $1}' | grep -qx "gs_milo"; then
-    echo "Installing extensions in 'gs_milo'..."
-    conda activate gs_milo
-    source scripts/utils/setup_build_env.sh
-
-    if [ -d "third_party/milo/submodules/diff-gaussian-rasterization" ]; then
-        (cd third_party/milo/submodules/diff-gaussian-rasterization && pip install --no-build-isolation -e .)
-    fi
-    if [ -d "third_party/milo/submodules/diff-gaussian-rasterization_ms" ]; then
-        (cd third_party/milo/submodules/diff-gaussian-rasterization_ms && pip install --no-build-isolation -e .)
-    fi
-    if [ -d "third_party/milo/submodules/diff-gaussian-rasterization_gof" ]; then
-        (cd third_party/milo/submodules/diff-gaussian-rasterization_gof && pip install --no-build-isolation -e .)
-    fi
-    if [ -d "third_party/milo/submodules/simple-knn" ]; then
-        (cd third_party/milo/submodules/simple-knn && pip install --no-build-isolation -e .)
-    fi
-    if [ -d "third_party/milo/submodules/fused-ssim" ]; then
-        (cd third_party/milo/submodules/fused-ssim && pip install --no-build-isolation -e .)
-    fi
-fi
+install_ext "gs_milo" "third_party/milo/submodules/diff-gaussian-rasterization"
+install_ext "gs_milo" "third_party/milo/submodules/diff-gaussian-rasterization_ms"
+install_ext "gs_milo" "third_party/milo/submodules/diff-gaussian-rasterization_gof"
+install_ext "gs_milo" "third_party/milo/submodules/simple-knn"
+install_ext "gs_milo" "third_party/milo/submodules/fused-ssim"
 
 # Reset active conda environment to primary training environment (gs_train)
 conda activate gs_train

@@ -12,6 +12,8 @@ fi
 export TORCH_CUDA_ARCH_LIST="${TORCH_CUDA_ARCH_LIST:-12.0+PTX}"
 
 if [ -x /usr/bin/g++-12 ]; then
+    export CC=/usr/bin/gcc-12
+    export CXX=/usr/bin/g++-12
     export NVCC_CCBIN=/usr/bin/g++-12
     export NVCC_PREPEND_FLAGS="-ccbin /usr/bin/g++-12"
 fi
