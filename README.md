@@ -11,7 +11,7 @@ A personal lab environment for hands-on experimentation and benchmarking of 3D r
 ## Verified Configuration
 
 - GPU: NVIDIA GeForce RTX 5070 Ti (Blackwell Architecture, `sm_120`, 16GB VRAM)
-- CUDA: CUDA 12.8 Toolkit / PyTorch 2.12.0+cu128
+- CUDA: CUDA 12.8 Toolkit / PyTorch 2.11.0+cu128
 - Host OS: Ubuntu 24.04 LTS (GCC 12 host compiler via `-ccbin /usr/bin/g++-12`)
 - CUBIN Binaries: Native `sm_120` SASS CUBIN with `12.0+PTX` fallback
 - Rasterizer Performance Benchmark (RTX 5070 Ti, 1,112-frame indoor scene):
@@ -85,4 +85,4 @@ For in-depth technical guides, execution options, and evaluation methodologies, 
 - [Pipeline Architecture Guide](docs/pipeline_architecture.md): Complete end-to-end workflow from Dataset Preparation (Step 0) to SfM, Gaussian Training, Mesh Extraction, and Quantitative Evaluation (Step 5).
 - [Blackwell (sm_120) Build Notes](docs/blackwell_build_notes.md): Troubleshooting matrix and native sm_120 CUBIN build guide for RTX 50 Series.
 - [Submodule Patches Guide](docs/submodule_patches.md): Patch maintenance, `apply_patches.sh`, and `verify_patches.sh` mechanisms for official upstream submodules.
-- [Architecture Decision Records (ADR)](docs/adr/): Individual architecture decision records (0001-0010) with operational writing rules.
+- [Architecture Decision Records (ADR)](docs/adr/): Architecture decision records with operational writing rules.
