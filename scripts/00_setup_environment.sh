@@ -57,7 +57,7 @@ install_ext() {
 
     if [ -d "$module_path" ] && [ -x "$pip_bin" ]; then
         echo "Installing $module_path into '$env_target'..."
-        "$pip_bin" install --no-cache-dir --no-build-isolation "$module_path"
+        "$pip_bin" install --no-cache-dir --no-build-isolation -e "$module_path"
     fi
 }
 

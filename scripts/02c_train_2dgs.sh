@@ -21,14 +21,9 @@ set -u
 INPUT_DATASET="${1:-$DATA_DIR}"
 
 if [ -f "${INPUT_DATASET}/sparse/0/cameras.bin" ] || [ -f "${INPUT_DATASET}/sparse/0/cameras.txt" ] || \
-   [ -f "${INPUT_DATASET}/sparse/hloc/cameras.bin" ] || [ -f "${INPUT_DATASET}/sparse/hloc/cameras.txt" ] || \
    [ -f "${INPUT_DATASET}/sparse/cameras.bin" ] || [ -f "${INPUT_DATASET}/sparse/cameras.txt" ]; then
     echo "Using existing pre-computed dataset structure at: ${INPUT_DATASET}"
     TARGET_DATA_DIR="${INPUT_DATASET}"
-    if [ -f "${INPUT_DATASET}/sparse/hloc/cameras.bin" ] && [ ! -d "${INPUT_DATASET}/sparse/0" ]; then
-        mkdir -p "${INPUT_DATASET}/sparse/0"
-        cp -r "${INPUT_DATASET}/sparse/hloc/"* "${INPUT_DATASET}/sparse/0/"
-    fi
 else
     # Guard: Ensure SfM reconstruction model exists before proceeding
     SRC="${INPUT_DATASET}/cache/sfm"
