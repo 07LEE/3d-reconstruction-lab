@@ -15,15 +15,7 @@ get_term_width() {
 
 log_header() {
     local title="$1"
-    local width
-    width=$(get_term_width)
-    local sep
-    sep=$(printf '=%.0s' $(seq 1 "$width"))
-    echo ""
-    echo "$sep"
-    echo "  $title"
-    echo "$sep"
-    echo ""
+    echo "[STEP]  $title"
 }
 
 log_info() {

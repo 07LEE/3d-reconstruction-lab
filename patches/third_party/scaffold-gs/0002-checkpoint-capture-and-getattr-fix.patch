@@ -1,0 +1,62 @@
+diff --git a/scene/gaussian_model.py b/scene/gaussian_model.py
+index 1d57a5a..95b4ea3 100755
+--- a/scene/gaussian_model.py
++++ b/scene/gaussian_model.py
+@@ -150,12 +150,12 @@ class GaussianModel:
+         return (
+             self._anchor,
+             self._offset,
+-            self._local,
++            self._anchor_feat,
+             self._scaling,
+             self._rotation,
+             self._opacity,
+             self.max_radii2D,
+-            self.denom,
++            getattr(self, 'offset_denom', None),
+             self.optimizer.state_dict(),
+             self.spatial_lr_scale,
+         )
+@@ -164,16 +164,17 @@ class GaussianModel:
+         (self.active_sh_degree, 
+         self._anchor, 
+         self._offset,
+-        self._local,
++        self._anchor_feat,
+         self._scaling, 
+         self._rotation, 
+         self._opacity,
+         self.max_radii2D, 
+-        denom,
++        offset_denom,
+         opt_dict, 
+         self.spatial_lr_scale) = model_args
+         self.training_setup(training_args)
+-        self.denom = denom
++        if offset_denom is not None:
++            self.offset_denom = offset_denom
+         self.optimizer.load_state_dict(opt_dict)
+ 
+     def set_appearance(self, num_cameras):
+diff --git a/train.py b/train.py
+index 166cc4c..64ba295 100755
+--- a/train.py
++++ b/train.py
+@@ -161,7 +161,7 @@ def training(dataset, opt, pipe, dataset_name, testing_iterations, saving_iterat
+             # Log and save
+             training_report(tb_writer, dataset_name, iteration, Ll1, loss, l1_loss, iter_start.elapsed_time(iter_end), testing_iterations, scene, render, (pipe, background), wandb, logger)
+             if (iteration in saving_iterations):
+-                logger.info("\n[ITER {}] Saving Gaussians".format(iteration))
++                progress_bar.write("[INFO]  [ITER {}] Saving Gaussians".format(iteration))
+                 scene.save(iteration)
+             
+             # densification
+@@ -183,7 +183,7 @@ def training(dataset, opt, pipe, dataset_name, testing_iterations, saving_iterat
+                 gaussians.optimizer.step()
+                 gaussians.optimizer.zero_grad(set_to_none = True)
+             if (iteration in checkpoint_iterations):
+-                logger.info("\n[ITER {}] Saving Checkpoint".format(iteration))
++                progress_bar.write("[INFO]  [ITER {}] Saving Checkpoint".format(iteration))
+                 torch.save((gaussians.capture(), iteration), scene.model_path + "/chkpnt" + str(iteration) + ".pth")
+ 
+ def prepare_output_and_logger(args):    

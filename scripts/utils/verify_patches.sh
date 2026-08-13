@@ -155,6 +155,17 @@ else
   fail=1
 fi
 
+# 12. Scaffold-GS checkpoint capture & getattr safeguard patch check
+SCAFFOLD_MODEL="${REPO_ROOT}/third_party/scaffold-gs/scene/gaussian_model.py"
+patch_count=$((patch_count + 1))
+if [ -f "${SCAFFOLD_MODEL}" ] && grep -q "getattr(self, 'offset_denom', None)" "${SCAFFOLD_MODEL}"; then
+  log_check "ok" "Scaffold-GS checkpoint capture & getattr patch in scene/gaussian_model.py"
+  patch_passed=$((patch_passed + 1))
+else
+  log_check "LOST" "Scaffold-GS checkpoint capture patch missing in scene/gaussian_model.py"
+  fail=1
+fi
+
 # 12. Multi-environment explicit rasterizer verification
 env_count=0
 env_passed=0
@@ -288,19 +299,10 @@ fi
 # Print clean formatted summary box if non-verbose and all checks passed
 if [ "$fail" -eq 0 ]; then
     if [ "$VERBOSE" = "0" ]; then
-        TERM_COLS=$(tput cols 2>/dev/null || echo 80)
-        WIDTH=$(( TERM_COLS > 100 ? 100 : (TERM_COLS < 60 ? 60 : TERM_COLS) ))
-        SEP_LINE=$(printf '=%.0s' $(seq 1 "$WIDTH"))
-
-        echo ""
-        echo "$SEP_LINE"
-        echo "  Environment & Patch Verification Summary"
-        echo "$SEP_LINE"
+        echo "[VERIFY] Environment & Patch Verification Summary"
         printf "  • Source Code Patches (%2d/%2d)                : [ OK ]\n" "$patch_passed" "$patch_count"
         printf "  • Conda Rasterizer Installs (%2d/%2d)          : [ OK ]\n" "$env_passed" "$env_count"
         printf "  • CUDA Extensions sm_120 CUBIN (%2d/%2d)        : [ OK ]\n" "$cubin_total" "$cubin_total"
-        echo "$SEP_LINE"
-        echo ""
     fi
 else
     echo ""

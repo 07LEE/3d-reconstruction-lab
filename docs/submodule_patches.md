@@ -2,7 +2,7 @@
 title: Submodule Patches and Environment Integrity Guide
 description: Tracked submodule patches in patches/ and environment verification system details.
 category: guide
-last_updated: 2026-08-09
+last_updated: 2026-08-14
 ---
 
 # Submodule Patches and Environment Integrity Guide
@@ -29,6 +29,8 @@ All submodules in `third_party/` (including `gaussian-splatting`) reference offi
 | `2d-gaussian-splatting` | `patches/third_party/2d-gaussian-splatting/0001-colmap-camera-models.patch` | Support for `SIMPLE_RADIAL` and `RADIAL` camera models in 2DGS |
 | `2d-gaussian-splatting` | `patches/third_party/2d-gaussian-splatting/0002-mesh-utils-bounds-and-empty-fix.patch` | Empty cluster bounds guard in mesh postprocessing |
 | `diff-surfel-rasterization` | `patches/third_party/2d-gaussian-splatting/submodules/diff-surfel-rasterization/0001-cstdint-and-zero-init.patch` | `<cstdint>` includes, zero-init structs, and backward SH gradient dimension match |
+| `scaffold-gs` | `patches/third_party/scaffold-gs/0001-rasterizer-antialiasing-compat.patch` | `antialiasing` kwarg guard and `visible_filter` fallback for dr_aa rasterizer |
+| `scaffold-gs` | `patches/third_party/scaffold-gs/0002-checkpoint-capture-and-getattr-fix.patch` | Fix `_anchor_feat` typo and `getattr` guard for deleted `offset_denom` after 15k `update_until` |
 
 ## Utility Scripts
 
