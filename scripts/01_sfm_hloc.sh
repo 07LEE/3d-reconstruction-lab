@@ -102,6 +102,27 @@ esac
 # Move/copy outputs to method specific directory
 if [ -d "${INPUT_DATASET}/cache/sfm" ]; then
     cp -r "${INPUT_DATASET}/cache/sfm"/* "$SPARSE_METHOD_DIR/" 2>/dev/null || true
+    # If COLMAP created submodels in models/, promote the largest submodel (by images.bin size) to root of $SPARSE_METHOD_DIR
+    if [ -d "${INPUT_DATASET}/cache/sfm/models" ]; then
+        LARGEST_MODEL=""
+        MAX_SIZE=0
+        for mdir in "${INPUT_DATASET}/cache/sfm/models"/*; do
+            if [ -d "$mdir" ]; then
+                IMG_BIN="$mdir/images.bin"
+                if [ -f "$IMG_BIN" ]; then
+                    SIZE=$(stat -c%s "$IMG_BIN" 2>/dev/null || echo 0)
+                    if [ "$SIZE" -gt "$MAX_SIZE" ]; then
+                        MAX_SIZE=$SIZE
+                        LARGEST_MODEL="$mdir"
+                    fi
+                fi
+            fi
+        done
+        if [ -n "$LARGEST_MODEL" ]; then
+            echo "[INFO] Promoting largest reconstruction submodel ($(basename "$LARGEST_MODEL")) to root of ${SPARSE_METHOD_DIR}..."
+            cp -f "$LARGEST_MODEL"/* "$SPARSE_METHOD_DIR/" 2>/dev/null || true
+        fi
+    fi
 fi
 if [ -d "${INPUT_DATASET}/0" ]; then
     mv "${INPUT_DATASET}/0"/* "$SPARSE_METHOD_DIR/" 2>/dev/null || true

@@ -47,12 +47,13 @@ fi
 
 # Ensure images directory/link exists for 3DGS dataloader
 if [ -d "${TARGET_DATA_DIR}/raw_images" ]; then
-    if [ ! -e "${TARGET_DATA_DIR}/images" ]; then
-        echo "Creating images symlink in ${TARGET_DATA_DIR}/images..."
-        ln -s raw_images "${TARGET_DATA_DIR}/images" 2>/dev/null || cp -r "${TARGET_DATA_DIR}/raw_images" "${TARGET_DATA_DIR}/images"
-    elif [ -d "${TARGET_DATA_DIR}/images" ] && [ ! -L "${TARGET_DATA_DIR}/images" ]; then
-        echo "Syncing missing raw_images to ${TARGET_DATA_DIR}/images..."
-        cp -n "${TARGET_DATA_DIR}/raw_images"/* "${TARGET_DATA_DIR}/images/" 2>/dev/null || true
+    if [ -d "${TARGET_DATA_DIR}/images" ] && [ ! -L "${TARGET_DATA_DIR}/images" ]; then
+        echo "[INFO] Removing non-symlink images directory to enforce strict symlink..."
+        rm -rf "${TARGET_DATA_DIR}/images"
+    fi
+    if [ ! -L "${TARGET_DATA_DIR}/images" ]; then
+        echo "[INFO] Creating strict images symlink in ${TARGET_DATA_DIR}/images..."
+        ln -sf raw_images "${TARGET_DATA_DIR}/images" || { echo "[FATAL] Failed to create symlink ${TARGET_DATA_DIR}/images -> raw_images"; exit 1; }
     fi
 fi
 
