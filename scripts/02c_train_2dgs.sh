@@ -86,6 +86,13 @@ if [ -n "$CHECKPOINTS_LIST" ]; then
     EXTRA_TRAIN_ARGS+=("--checkpoint_iterations" $CHECKPOINTS_LIST)
 fi
 
+# Auto-resume from latest checkpoint if available
+LATEST_CHKPNT=$(ls -v "${MODEL_OUTPUT}"/chkpnt*.pth 2>/dev/null | tail -n 1 || true)
+if [ -n "$LATEST_CHKPNT" ]; then
+    log_info "Auto-resuming 2DGS training from latest checkpoint: $(basename "$LATEST_CHKPNT")"
+    EXTRA_TRAIN_ARGS+=("--start_checkpoint" "$LATEST_CHKPNT")
+fi
+
 python third_party/2d-gaussian-splatting/train.py \
     -s "$TARGET_DATA_DIR" \
     -m "$MODEL_OUTPUT" \
