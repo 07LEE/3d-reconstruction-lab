@@ -208,11 +208,6 @@ def run_hloc_pipeline(image_dir: str | Path, output_dir: str | Path, weights_dir
         if sfm_dir.is_dir():
             import shutil
             shutil.rmtree(sfm_dir)
-    elif reconstruct_only or os.environ.get("RECONSTRUCT_ONLY", "0") == "1":
-        print("[hloc] Reconstruct-only flag set. Clearing existing sfm output directory while preserving H5 matches...")
-        if sfm_dir.is_dir():
-            import shutil
-            shutil.rmtree(sfm_dir)
 
     feature_conf = extract_features.confs["superpoint_aachen"]
     feature_conf["preprocessing"]["resize_max"] = 2400
@@ -274,10 +269,16 @@ def run_hloc_pipeline(image_dir: str | Path, output_dir: str | Path, weights_dir
         print(f"Feature Matching elapsed: {time_match:.2f} seconds")
 
     # 4. Sparse Reconstruction
+    is_reconstruct_only = reconstruct_only or os.environ.get("RECONSTRUCT_ONLY", "0") == "1"
+    if is_reconstruct_only and sfm_dir.is_dir():
+        print("[hloc] Reconstruct-only flag set. Clearing existing sfm output directory prior to mapping...")
+        import shutil
+        shutil.rmtree(sfm_dir)
+
     target_model = sfm_dir / "0" if (sfm_dir / "0").is_dir() else sfm_dir
     has_model = (target_model / "cameras.bin").is_file() or (target_model / "cameras.txt").is_file()
 
-    if has_model and not overwrite and not stale:
+    if has_model and not overwrite and not stale and not is_reconstruct_only:
         print(f"\n[Step 4/4] Sparse reconstruction already exists at {target_model} and pair list unchanged. Skipping mapping.")
         time_sfm = 0.0
     else:
