@@ -56,9 +56,14 @@ else
 fi
 
 # Ensure images directory/link exists for PlanarGS dataloader
-if [ ! -d "${TARGET_DATA_DIR}/images" ] && [ -d "${TARGET_DATA_DIR}/raw_images" ]; then
-    echo "Creating images symlink in ${TARGET_DATA_DIR}/images..."
-    ln -s raw_images "${TARGET_DATA_DIR}/images" 2>/dev/null || cp -r "${TARGET_DATA_DIR}/raw_images" "${TARGET_DATA_DIR}/images"
+if [ -d "${TARGET_DATA_DIR}/raw_images" ]; then
+    if [ ! -e "${TARGET_DATA_DIR}/images" ]; then
+        echo "Creating images symlink in ${TARGET_DATA_DIR}/images..."
+        ln -s raw_images "${TARGET_DATA_DIR}/images" 2>/dev/null || cp -r "${TARGET_DATA_DIR}/raw_images" "${TARGET_DATA_DIR}/images"
+    elif [ -d "${TARGET_DATA_DIR}/images" ] && [ ! -L "${TARGET_DATA_DIR}/images" ]; then
+        echo "Syncing missing raw_images to ${TARGET_DATA_DIR}/images..."
+        cp -n "${TARGET_DATA_DIR}/raw_images"/* "${TARGET_DATA_DIR}/images/" 2>/dev/null || true
+    fi
 fi
 
 SCENE_NAME=$(basename "$INPUT_DATASET")
