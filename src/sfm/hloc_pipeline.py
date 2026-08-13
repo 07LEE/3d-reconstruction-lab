@@ -12,8 +12,10 @@ from pathlib import Path
 from typing import Dict, List, Tuple
 import torch
 
-# Add third_party/hloc to sys.path
-sys.path.append(str(Path(__file__).resolve().parent.parent.parent / "third_party" / "hloc"))
+# Add third_party/hloc and its nested third_party to sys.path
+hloc_dir = Path(__file__).resolve().parent.parent.parent / "third_party" / "hloc"
+sys.path.append(str(hloc_dir))
+sys.path.append(str(hloc_dir / "third_party"))
 sys.path.append(str(Path(__file__).resolve().parent.parent.parent / "third_party"))
 
 import pycolmap
@@ -205,6 +207,11 @@ def run_hloc_pipeline(image_dir: str | Path, output_dir: str | Path, weights_dir
         if sfm_dir.is_dir():
             import shutil
             shutil.rmtree(sfm_dir)
+    elif os.environ.get("RECONSTRUCT_ONLY", "0") == "1":
+        print("[hloc] Reconstruct-only flag set. Clearing existing sfm output directory while preserving H5 matches...")
+        if sfm_dir.is_dir():
+            import shutil
+            shutil.rmtree(sfm_dir)
 
     feature_conf = extract_features.confs["superpoint_aachen"]
     feature_conf["preprocessing"]["resize_max"] = 2400
@@ -274,6 +281,7 @@ def run_hloc_pipeline(image_dir: str | Path, output_dir: str | Path, weights_dir
         time_sfm = 0.0
     else:
         print("\n[Step 4/4] Running 3D Reconstruction (COLMAP Incremental Mapper)...")
+        (sfm_dir / "models").mkdir(parents=True, exist_ok=True)
         start_time = time.time()
         mode_str = os.environ.get("CAMERA_MODE", "SINGLE").upper()
         if not hasattr(pycolmap.CameraMode, mode_str):
@@ -283,6 +291,8 @@ def run_hloc_pipeline(image_dir: str | Path, output_dir: str | Path, weights_dir
         camera_model = os.environ.get("CAMERA_MODEL", "SIMPLE_RADIAL").upper()
 
         camera_options = pycolmap.IncrementalPipelineOptions()
+        image_options = {"camera_model": camera_model}
+        mapper_options = camera_options.todict() if hasattr(camera_options, "todict") else {}
         reconstruction.main(
             sfm_dir,
             images,
@@ -290,8 +300,8 @@ def run_hloc_pipeline(image_dir: str | Path, output_dir: str | Path, weights_dir
             features,
             matches,
             camera_mode=cam_mode,
-            camera_model=camera_model,
-            options=camera_options,
+            image_options=image_options,
+            mapper_options=mapper_options,
         )
         time_sfm = time.time() - start_time
         print(f"Sparse Reconstruction elapsed: {time_sfm:.2f} seconds")
