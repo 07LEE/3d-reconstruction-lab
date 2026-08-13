@@ -6,7 +6,7 @@ A personal lab environment for hands-on experimentation and benchmarking of 3D r
 
 - NVIDIA GPU with CUDA support (16GB+ VRAM recommended)
 - CUDA Toolkit 12.8+ (required for `sm_120`; 12.4+ for older architectures)
-- PyTorch 2.6+ with matching CUDA build
+- PyTorch 2.11.0+cu128 (Stable, `sm_120` native CUBIN required for Blackwell)
 
 ## Verified Configuration
 
