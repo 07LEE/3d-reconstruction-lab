@@ -2,12 +2,12 @@
 title: Pipeline Architecture Guide
 description: Technical architecture, stage workflows, and execution guide for the 3DRC reconstruction pipeline.
 category: guide
-last_updated: 2026-08-09
+last_updated: 2026-08-10
 ---
 
 # 3DRC Pipeline Architecture Guide
 
-This document provides technical details, configuration parameters, and execution guides for all pipeline steps in the 3DRC workspace.
+This document provides technical details, configuration parameters, and execution guides for all pipeline steps in the 3DRC Lab environment.
 
 ## Pipeline Architecture Overview
 
@@ -21,7 +21,7 @@ This document provides technical details, configuration parameters, and executio
             │
             ▼
 ┌─────────────────────────┐
-│   Step 1: SfM & Pose    │  (hloc, VGGT-Omega, vi_sfm, COLMAP, FastMap)
+│   Step 1: SfM & Pose    │  (hloc, VGGT-Omega, COLMAP, FastMap)
 └───────────┬─────────────┘
             │  (Sparse Reconstruction & Intrinsic/Extrinsic Cameras)
             ▼
@@ -77,8 +77,7 @@ Determines camera intrinsics, extrinsics, and sparse 3D point clouds from uncali
 
 | Method | Script | Input Requirements | Key Strengths |
 | --- | --- | --- | --- |
-| hloc (Default) | `01_sfm_hloc.sh` | RGB Images | Deep SuperPoint + SuperGlue matching |
-| vi_sfm | `01_sfm_hloc.sh vi_sfm` | RGB Images + IMU `imu_data.csv` | Metric scale, gravity alignment |
+| hloc (Default) | `01_sfm_hloc.sh` | RGB Images | Deep SuperPoint + SuperGlue (Sequential, Exhaustive, Sequential+Retrieval for multi-video) |
 | VGGT-Omega | `01_sfm_hloc.sh vggt` | RGB Images | Feed-forward transformer pose estimation |
 | FastMap | `01_sfm_hloc.sh fastmap` | RGB Images | Fast keypoint matching for large scenes |
 | COLMAP | `01_sfm_hloc.sh sfm` | RGB Images | Standard SIFT + incremental SfM |
@@ -89,8 +88,8 @@ Determines camera intrinsics, extrinsics, and sparse 3D point clouds from uncali
 # Standard deep learning SfM (hloc)
 ./scripts/01_sfm_hloc.sh
 
-# Visual-Inertial SfM (RGB + IMU with gravity vector alignment)
-./scripts/01_sfm_hloc.sh vi_sfm
+# Multi-video merged SfM with NetVLAD global retrieval
+SFM_STRATEGY="sequential+retrieval" ./scripts/01_sfm_hloc.sh hloc data/<multi_video_scene>
 
 # Transformer-based instant pose estimation (VGGT)
 ./scripts/01_sfm_hloc.sh vggt
@@ -107,6 +106,7 @@ Optimizes 3D/2D Gaussian Splatting scene representations using differentiable ra
 | Inria 3DGS (Default) | `02_train_3dgs.sh` | Sparse COLMAP Poses | Reference implementation baseline |
 | PlanarGS | `02b_train_planargs.sh` | Sparse COLMAP Poses | Planar regularization on detected indoor surfaces |
 | 2DGS | `02c_train_2dgs.sh` | Sparse COLMAP Poses | 2D planar surfel representation with analytical ray-splat intersection |
+| Scaffold-GS | `02d_train_scaffoldgs.sh` | Sparse COLMAP Poses | Anchor-based representation for view-dependent object detail |
 
 ### Step 2 Execution Commands
 
@@ -119,11 +119,15 @@ Optimizes 3D/2D Gaussian Splatting scene representations using differentiable ra
 
 # 2D Gaussian Splatting surfel training (2DGS)
 ./scripts/02c_train_2dgs.sh data/<scene_name>
+
+# Anchor-based Scaffold-GS training (Scaffold-GS)
+./scripts/02d_train_scaffoldgs.sh data/<scene_name>
 ```
 
 - Output Checkpoint (Inria 3DGS): `outputs/<scene_name>/3dgs/inria_30k/`
 - Output Checkpoint (PlanarGS): `outputs/<scene_name>/3dgs/planargs/`
 - Output Checkpoint (2DGS): `outputs/<scene_name>/2dgs/`
+- Output Checkpoint (Scaffold-GS): `outputs/<scene_name>/scaffoldgs/`
 
 ## Step 3: 3D Mesh Reconstruction (SuGaR, MILo & TSDF)
 

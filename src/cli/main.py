@@ -45,11 +45,11 @@ def main() -> None:
 
     # sfm subcommand
     sfm_parser = subparsers.add_parser("sfm", help="Step 1: Camera Pose Estimation")
-    sfm_parser.add_argument("--method", type=str, default="hloc", choices=["hloc", "vi_sfm", "vggt", "fastmap", "sfm"], help="SfM estimation method")
+    sfm_parser.add_argument("--method", type=str, default="hloc", choices=["hloc", "vggt", "fastmap", "sfm"], help="SfM estimation method")
 
     # train subcommand
     train_parser = subparsers.add_parser("train", help="Step 2: Gaussian Splatting Model Training")
-    train_parser.add_argument("--method", type=str, default="3dgs", choices=["3dgs", "planargs", "2dgs"], help="Gaussian training backend")
+    train_parser.add_argument("--method", type=str, default="3dgs", choices=["3dgs", "planargs", "2dgs", "scaffoldgs"], help="Gaussian training backend")
 
     # 2dgs shortcut
     subparsers.add_parser("2dgs", help="Step 2c: 2D Gaussian Splatting Surfel Training")

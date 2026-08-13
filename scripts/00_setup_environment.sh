@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # 3DRC Automated Environment Setup Script
-# Initializes submodules, applies patches, and configures split Conda environments (gs_train, gs_sugar, gs_group).
+# Initializes submodules, applies patches, and configures split Conda environments (3drc, gs_train, gs_scaffold, gs_sugar, gs_group, gs_milo).
 
 set -e
 
@@ -31,8 +31,8 @@ if [ -f "$CONDA_PATH/etc/profile.d/conda.sh" ]; then
     source "$CONDA_PATH/etc/profile.d/conda.sh"
 fi
 
-echo -e "\n[Step 3/4] Ensuring Conda Environments (3drc, gs_train, gs_sugar, gs_group, gs_milo)..."
-for env_name in 3drc gs_train gs_sugar gs_group gs_milo; do
+echo -e "\n[Step 3/4] Ensuring Conda Environments (3drc, gs_train, gs_sugar, gs_group, gs_milo, gs_scaffold)..."
+for env_name in 3drc gs_train gs_sugar gs_group gs_milo gs_scaffold; do
     if ! conda env list | awk '{print $1}' | grep -qx "$env_name"; then
         echo "Creating Conda environment '$env_name'..."
         if [ -f "envs/$env_name.yml" ]; then
@@ -43,25 +43,57 @@ for env_name in 3drc gs_train gs_sugar gs_group gs_milo; do
     fi
 done
 
-# 4. Build CUDA Extensions in gs_train
-echo -e "\n[Step 4/4] Building CUDA Extensions in 'gs_train'..."
+# 4. Build CUDA Extensions & Submodules across Environments
+echo -e "\n[Step 4/4] Building CUDA Extensions and Submodules..."
+export CC=/usr/bin/gcc-12
+export CXX=/usr/bin/g++-12
 source scripts/utils/setup_build_env.sh || { echo "[FATAL] Build environment setup failed."; exit 1; }
+
+# Helper function for absolute isolated pip install
+install_ext() {
+    local env_target="$1"
+    local module_path="$2"
+    local pip_bin="$CONDA_PATH/envs/$env_target/bin/pip"
+
+    if [ -d "$module_path" ] && [ -x "$pip_bin" ]; then
+        echo "Installing $module_path into '$env_target'..."
+        "$pip_bin" install --no-cache-dir --no-build-isolation -e "$module_path"
+    fi
+}
+
+# 4a. 3drc submodules (hloc)
+install_ext "3drc" "third_party/hloc"
+
+# 4b. gs_train extensions
+install_ext "gs_train" "third_party/gaussian-splatting/submodules/diff-gaussian-rasterization"
+install_ext "gs_train" "third_party/gaussian-splatting/submodules/simple-knn"
+install_ext "gs_train" "third_party/2d-gaussian-splatting/submodules/diff-surfel-rasterization"
+
+# 4c. gs_scaffold extensions
+install_ext "gs_scaffold" "third_party/scaffold-gs/submodules/diff-gaussian-rasterization"
+install_ext "gs_scaffold" "third_party/scaffold-gs/submodules/simple-knn"
+
+# 4d. gs_sugar extensions
+install_ext "gs_sugar" "third_party/gaussian-splatting/submodules/diff-gaussian-rasterization"
+install_ext "gs_sugar" "third_party/gaussian-splatting/submodules/simple-knn"
+
+# 4e. gs_group extensions
+if [ -d "third_party/gaussian-grouping/submodules/diff-gaussian-rasterization" ]; then
+    install_ext "gs_group" "third_party/gaussian-grouping/submodules/diff-gaussian-rasterization"
+else
+    install_ext "gs_group" "third_party/gaussian-splatting/submodules/diff-gaussian-rasterization"
+fi
+install_ext "gs_group" "third_party/gaussian-splatting/submodules/simple-knn"
+
+# 4f. gs_milo extensions
+install_ext "gs_milo" "third_party/milo/submodules/diff-gaussian-rasterization"
+install_ext "gs_milo" "third_party/milo/submodules/diff-gaussian-rasterization_ms"
+install_ext "gs_milo" "third_party/milo/submodules/diff-gaussian-rasterization_gof"
+install_ext "gs_milo" "third_party/milo/submodules/simple-knn"
+install_ext "gs_milo" "third_party/milo/submodules/fused-ssim"
+
+# Reset active conda environment to primary training environment (gs_train)
 conda activate gs_train
-
-if [ -d "third_party/gaussian-splatting/submodules/diff-gaussian-rasterization" ]; then
-    echo "Installing diff-gaussian-rasterization extension in gs_train..."
-    (cd third_party/gaussian-splatting/submodules/diff-gaussian-rasterization && pip install --no-build-isolation -e .)
-fi
-
-if [ -d "third_party/gaussian-splatting/submodules/simple-knn" ]; then
-    echo "Installing simple-knn extension in gs_train..."
-    (cd third_party/gaussian-splatting/submodules/simple-knn && pip install --no-build-isolation -e .)
-fi
-
-if [ -d "third_party/2d-gaussian-splatting/submodules/diff-surfel-rasterization" ]; then
-    echo "Installing diff-surfel-rasterization extension in gs_train..."
-    (cd third_party/2d-gaussian-splatting/submodules/diff-surfel-rasterization && pip install --no-build-isolation -e .)
-fi
 
 # Verify patch & environment integrity
 echo -e "\nVerifying Patch and Environment Integrity..."
@@ -69,5 +101,5 @@ echo -e "\nVerifying Patch and Environment Integrity..."
 
 echo -e "\n=================================================="
 echo " 3DRC Environment Setup Completed Successfully!"
-echo " Environments (3drc, gs_train, gs_sugar, gs_group, gs_milo) are ready."
+echo " Environments (3drc, gs_train, gs_sugar, gs_group, gs_milo, gs_scaffold) are ready."
 echo "=================================================="

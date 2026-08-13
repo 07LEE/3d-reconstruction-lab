@@ -24,10 +24,11 @@ show_help() {
     echo "Usage: ./scripts/run_3drc.sh [COMMAND] [OPTIONS]"
     echo ""
     echo "Commands:"
-    echo "  sfm [method]     Run Step 1 Camera Pose Estimation (hloc, vi_sfm, vggt, fastmap, sfm)"
-    echo "  train [backend]  Run Step 2 Gaussian Training (3dgs, planargs, 2dgs)"
+    echo "  sfm [method]     Run Step 1 Camera Pose Estimation (hloc, vggt, fastmap, sfm)"
+    echo "  train [backend]  Run Step 2 Gaussian Training (3dgs, planargs, 2dgs, scaffoldgs)"
     echo "  planargs         Run Step 2b PlanarGS Training"
     echo "  2dgs             Run Step 2c 2D Gaussian Splatting Training"
+    echo "  scaffoldgs       Run Step 2d Scaffold-GS Training"
     echo "  view [type]      Run COLMAP GUI Visualization (hloc, fastmap)"
     echo "  sugar            Run Step 3 SuGaR Mesh Reconstruction"
     echo "  milo             Run Step 3b MILo Mesh Reconstruction"
@@ -39,17 +40,18 @@ show_help() {
     echo "  help             Show this help message"
     echo ""
     echo "Examples:"
-    echo "  ./scripts/run_3drc.sh sfm vi_sfm"
+    echo "  ./scripts/run_3drc.sh sfm hloc"
     echo "  ./scripts/run_3drc.sh train 3dgs"
     echo "  ./scripts/run_3drc.sh train 2dgs"
     echo "  ./scripts/run_3drc.sh train planargs"
+    echo "  ./scripts/run_3drc.sh train scaffoldgs"
     echo "  ./scripts/run_3drc.sh sugar"
     echo "  ./scripts/run_3drc.sh milo"
     echo "  ./scripts/run_3drc.sh tsdf"
     echo "  ./scripts/run_3drc.sh eval <mesh_path> [gt_pcd_path]"
     echo "  ./scripts/run_3drc.sh outputs"
     echo "  ./scripts/run_3drc.sh view hloc"
-    echo "  ./scripts/run_3drc.sh pipeline vi_sfm"
+    echo "  ./scripts/run_3drc.sh pipeline hloc"
 }
 
 COMMAND=${1:-"help"}
@@ -97,6 +99,9 @@ case "$COMMAND" in
         elif [ "$BACKEND" = "2dgs" ]; then
             echo "[3DRC CLI] Executing Step 2c: 2D Gaussian Splatting Training..."
             ./scripts/02c_train_2dgs.sh ${ARG_DATASET:+"$ARG_DATASET"}
+        elif [ "$BACKEND" = "scaffoldgs" ]; then
+            echo "[3DRC CLI] Executing Step 2d: Scaffold-GS Training..."
+            ./scripts/02d_train_scaffoldgs.sh ${ARG_DATASET:+"$ARG_DATASET"}
         else
             echo "[3DRC CLI] Executing Step 2: 3DGS Training..."
             ./scripts/02_train_3dgs.sh ${ARG_DATASET:+"$ARG_DATASET"}
@@ -111,6 +116,11 @@ case "$COMMAND" in
         ARG_DATASET="${2:-}"
         echo "[3DRC CLI] Executing Step 2b: PlanarGS Training..."
         ./scripts/02b_train_planargs.sh ${ARG_DATASET:+"$ARG_DATASET"}
+        ;;
+    scaffoldgs)
+        ARG_DATASET="${2:-}"
+        echo "[3DRC CLI] Executing Step 2d: Scaffold-GS Training..."
+        ./scripts/02d_train_scaffoldgs.sh ${ARG_DATASET:+"$ARG_DATASET"}
         ;;
     view)
         TYPE=${2:-"hloc"}

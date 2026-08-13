@@ -46,41 +46,52 @@ fi
 
 SPARSE_BASE_DIR="${INPUT_DATASET}/sparse"
 SPARSE_METHOD_DIR="${SPARSE_BASE_DIR}/${METHOD}"
-mkdir -p "$SPARSE_METHOD_DIR"
 
-if [ "$METHOD" = "sfm" ]; then
-    echo "Starting Traditional SIFT SfM Pipeline..."
-    python -m src.sfm.sfm_pipeline \
-        --image_dir "$IMAGE_DIR_TARGET" \
-        --output_dir "${INPUT_DATASET}"
-elif [ "$METHOD" = "fastmap" ]; then
-    echo "Starting Super-Fast FastMap GPU SfM Pipeline..."
-    python -m src.sfm.fastmap_pipeline \
-        --image_dir "$IMAGE_DIR_TARGET" \
-        --output_dir "${INPUT_DATASET}"
-elif [ "$METHOD" = "vggt" ]; then
-    echo "Starting VGGT-Omega feed-forward pose estimation..."
-    if [ ! -d "${INPUT_DATASET}/images" ] && [ -d "${INPUT_DATASET}/raw_images" ]; then
-        ln -s raw_images "${INPUT_DATASET}/images"
-    fi
-    python third_party/vggt/demo_colmap.py \
-        --scene_dir "$INPUT_DATASET"
-elif [ "$METHOD" = "vi_sfm" ]; then
-    echo "Starting Visual-Inertial (RGB + IMU) SfM Pipeline..."
-    python -m src.sfm.vi_sfm_pipeline \
-        --image_dir "$IMAGE_DIR_TARGET" \
-        --imu_path "$IMU_DATA_PATH" \
-        --output_dir "${INPUT_DATASET}" \
-        --format "$IMU_FORMAT"
-else
-    echo "Starting High-Precision hloc SfM Pipeline..."
-    python -m src.sfm.hloc_pipeline \
-        --image_dir "$IMAGE_DIR_TARGET" \
-        --output_dir "${INPUT_DATASET}/cache" \
-        --strategy "${SFM_STRATEGY:-sequential}" \
-        --overlap "${SFM_OVERLAP:-100}" \
-        --retrieval_k "${SFM_RETRIEVAL_K:-30}"
-fi
+case "$METHOD" in
+    sfm)
+        mkdir -p "$SPARSE_METHOD_DIR"
+        echo "Starting Traditional SIFT SfM Pipeline..."
+        python -m src.sfm.sfm_pipeline \
+            --image_dir "$IMAGE_DIR_TARGET" \
+            --output_dir "${INPUT_DATASET}"
+        ;;
+    fastmap)
+        mkdir -p "$SPARSE_METHOD_DIR"
+        echo "Starting Super-Fast FastMap GPU SfM Pipeline..."
+        python -m src.sfm.fastmap_pipeline \
+            --image_dir "$IMAGE_DIR_TARGET" \
+            --output_dir "${INPUT_DATASET}"
+        ;;
+    vggt)
+        mkdir -p "$SPARSE_METHOD_DIR"
+        echo "Starting VGGT-Omega feed-forward pose estimation..."
+        if [ ! -d "${INPUT_DATASET}/images" ] && [ -d "${INPUT_DATASET}/raw_images" ]; then
+            ln -s raw_images "${INPUT_DATASET}/images"
+        fi
+        python third_party/vggt/demo_colmap.py \
+            --scene_dir "$INPUT_DATASET"
+        ;;
+    hloc)
+        mkdir -p "$SPARSE_METHOD_DIR"
+        echo "Starting High-Precision hloc SfM Pipeline..."
+        OVERWRITE_FLAG=""
+        if [ "${OVERWRITE:-0}" = "1" ] || [ "${3:-}" = "--overwrite" ] || [ "${2:-}" = "--overwrite" ]; then
+            OVERWRITE_FLAG="--overwrite"
+            echo "[INFO] Cache overwrite enabled for fresh SfM reconstruction."
+        fi
+        python -m src.sfm.hloc_pipeline \
+            --image_dir "$IMAGE_DIR_TARGET" \
+            --output_dir "${INPUT_DATASET}/cache" \
+            --strategy "${SFM_STRATEGY:-sequential}" \
+            --overlap "${SFM_OVERLAP:-100}" \
+            --retrieval_k "${SFM_RETRIEVAL_K:-30}" \
+            ${OVERWRITE_FLAG}
+        ;;
+    *)
+        echo "[FATAL] Unknown SfM method: $METHOD" >&2
+        exit 1
+        ;;
+esac
 
 # Move/copy outputs to method specific directory
 if [ -d "${INPUT_DATASET}/cache/sfm" ]; then

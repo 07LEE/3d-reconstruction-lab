@@ -1,4 +1,4 @@
-name: gs_milo
+name: gs_scaffold
 channels:
   - defaults
   - nvidia
@@ -23,5 +23,3 @@ dependencies:
       - typeguard
       - wadler-lindig
       - colorama
-      - open3d
-      - nvdiffrast

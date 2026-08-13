@@ -2,7 +2,7 @@
 title: Architecture Decision Records (ADR)
 description: Index and operational rules for Architecture Decision Records in 3DRC.
 category: adr
-last_updated: 2026-08-09
+last_updated: 2026-08-10
 ---
 
 # Architecture Decision Records (ADR)
@@ -27,4 +27,6 @@ This directory documents key architectural decisions, rationale, and context for
 - 0008-2d-gaussian-splatting-integration.md: 2D Gaussian Splatting Integration for Unbiased Depth and TSDF Mesh Reconstruction
 - 0009-dynamic-provenance-and-subpackage-architecture.md: Dynamic Upstream Provenance Tracking and Subpackage Architecture
 - 0010-multi-video-merged-sfm-and-cache-integrity.md: Multi-Video Merged SfM via Hybrid Sequential-Retrieval Matching and Cache Integrity
+- 0011-scaffoldgs-integration.md: Scaffold-GS Integration for Anchor-Based Scene Reconstruction
+- 0012-pytorch-stable-cu128-standardization.md: PyTorch Stable cu128 Standardization and Nightly Deprecation
 
