@@ -26,18 +26,17 @@ INPUT_DATASET="${1:-$DATA_DIR}"
 
 if [ -f "${INPUT_DATASET}/sparse/0/cameras.bin" ] || [ -f "${INPUT_DATASET}/sparse/0/cameras.txt" ] || \
    [ -f "${INPUT_DATASET}/sparse/cameras.bin" ] || [ -f "${INPUT_DATASET}/sparse/cameras.txt" ]; then
-    echo "Using existing pre-computed dataset structure at: ${INPUT_DATASET}"
+    log_info "Using existing pre-computed dataset structure at: ${INPUT_DATASET}"
     TARGET_DATA_DIR="${INPUT_DATASET}"
 else
     # Guard: Ensure SfM reconstruction model exists before cleaning/updating
     SRC="${INPUT_DATASET}/cache/sfm"
     if [ ! -f "$SRC/cameras.bin" ] && [ ! -f "$SRC/cameras.txt" ] && [ ! -f "$SRC/models/0/cameras.bin" ]; then
-        echo "[FATAL] SfM model not found in ${INPUT_DATASET}/sparse/0 or $SRC"
-        exit 1
+        log_fatal "SfM model not found in ${INPUT_DATASET}/sparse/0 or $SRC"
     fi
 
     # Update SfM data link after verification succeeds
-    echo "Updating SfM data in ${INPUT_DATASET}/sparse/0..."
+    log_info "Updating SfM data in ${INPUT_DATASET}/sparse/0..."
     mkdir -p "${INPUT_DATASET}/sparse/0"
 
     if [ -d "$SRC/models/0" ]; then
@@ -52,12 +51,12 @@ fi
 # Ensure images directory/link exists for Scaffold-GS dataloader
 if [ -d "${TARGET_DATA_DIR}/raw_images" ]; then
     if [ -d "${TARGET_DATA_DIR}/images" ] && [ ! -L "${TARGET_DATA_DIR}/images" ]; then
-        echo "[INFO] Removing non-symlink images directory to enforce strict symlink..."
+        log_info "Removing non-symlink images directory to enforce strict symlink..."
         rm -rf "${TARGET_DATA_DIR}/images"
     fi
     if [ ! -L "${TARGET_DATA_DIR}/images" ]; then
-        echo "[INFO] Creating strict images symlink in ${TARGET_DATA_DIR}/images..."
-        ln -sf raw_images "${TARGET_DATA_DIR}/images" || { echo "[FATAL] Failed to create symlink ${TARGET_DATA_DIR}/images -> raw_images"; exit 1; }
+        log_info "Creating strict images symlink in ${TARGET_DATA_DIR}/images..."
+        ln -sf raw_images "${TARGET_DATA_DIR}/images" || log_fatal "Failed to create symlink ${TARGET_DATA_DIR}/images -> raw_images"
     fi
 fi
 
@@ -66,7 +65,7 @@ MODEL_OUTPUT="${OUTPUT_DIR}/${SCENE_NAME}/scaffoldgs"
 mkdir -p "$MODEL_OUTPUT"
 
 # 2. Training Execution
-echo "Starting Scaffold-GS Anchor-based Training (Scene: $SCENE_NAME)..."
+log_info "Starting Scaffold-GS Anchor-based Training (Scene: $SCENE_NAME)..."
 
 ACTIVE_SFM="unknown"
 if [ -L "${TARGET_DATA_DIR}/sparse/0" ]; then
@@ -81,9 +80,9 @@ fi
 CHECKPOINTS_LIST=""
 if [ -n "${GS_CHECKPOINT_ITERATIONS:-}" ]; then
     CHECKPOINTS_LIST="$GS_CHECKPOINT_ITERATIONS"
-elif [ -n "${GS_CHECKPOINT_INTERVAL:-}" ] && [ "$GS_CHECKPOINT_INTERVAL" -gt 0 ]; then
+elif [ -n "${GS_CHECKPOINT_INTERVAL:-}" ] && [ "${GS_CHECKPOINT_INTERVAL:-0}" -gt 0 ]; then
     MAX_ITER="${GS_ITERATIONS:-30000}"
-    INTERVAL="$GS_CHECKPOINT_INTERVAL"
+    INTERVAL="${GS_CHECKPOINT_INTERVAL:-10000}"
     CHECKPOINTS_LIST=$(seq "$INTERVAL" "$INTERVAL" "$MAX_ITER" | tr '\n' ' ')
 fi
 
@@ -111,4 +110,4 @@ cat <<EOF > "$MODEL_OUTPUT/pipeline_meta.json"
 }
 EOF
 
-echo "Scaffold-GS Training Completed! Results saved to $MODEL_OUTPUT"
+log_ok "Scaffold-GS Training Completed! Results saved to $MODEL_OUTPUT"

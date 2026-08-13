@@ -288,12 +288,18 @@ fi
 # Print clean formatted summary box if non-verbose and all checks passed
 if [ "$fail" -eq 0 ]; then
     if [ "$VERBOSE" = "0" ]; then
+        TERM_COLS=$(tput cols 2>/dev/null || echo 80)
+        WIDTH=$(( TERM_COLS > 100 ? 100 : (TERM_COLS < 60 ? 60 : TERM_COLS) ))
+        SEP_LINE=$(printf '=%.0s' $(seq 1 "$WIDTH"))
+
         echo ""
-        echo "┌── 3DRC Environment & Patch Verification ──────────────────────────┐"
-        printf "│  • Source Code Patches (%2d/%2d)                : [ OK ]            │\n" "$patch_passed" "$patch_count"
-        printf "│  • Conda Rasterizer Installs (%2d/%2d)          : [ OK ]            │\n" "$env_passed" "$env_count"
-        printf "│  • CUDA Extensions sm_120 CUBIN (%2d/%2d)        : [ OK ]            │\n" "$cubin_total" "$cubin_total"
-        echo "└───────────────────────────────────────────────────────────────────┘"
+        echo "$SEP_LINE"
+        echo "  Environment & Patch Verification Summary"
+        echo "$SEP_LINE"
+        printf "  • Source Code Patches (%2d/%2d)                : [ OK ]\n" "$patch_passed" "$patch_count"
+        printf "  • Conda Rasterizer Installs (%2d/%2d)          : [ OK ]\n" "$env_passed" "$env_count"
+        printf "  • CUDA Extensions sm_120 CUBIN (%2d/%2d)        : [ OK ]\n" "$cubin_total" "$cubin_total"
+        echo "$SEP_LINE"
         echo ""
     fi
 else

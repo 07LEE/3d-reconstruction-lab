@@ -41,6 +41,10 @@ for env_name in 3drc gs_train gs_sugar gs_group gs_milo gs_scaffold; do
             conda create -n "$env_name" python=3.10 -y
         fi
     fi
+    pip_bin="$CONDA_PATH/envs/$env_name/bin/pip"
+    if [ -x "$pip_bin" ]; then
+        "$pip_bin" install --quiet tensorboard 2>/dev/null || true
+    fi
 done
 
 # 4. Build CUDA Extensions & Submodules across Environments

@@ -2,6 +2,13 @@
 
 # 3DRC Pipeline Configuration File
 
+# Source Common Logger Library if available
+SCRIPT_DIR_CFG="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+PROJECT_ROOT_CFG="$(cd "$SCRIPT_DIR_CFG/.." && pwd)"
+if [ -f "$PROJECT_ROOT_CFG/scripts/utils/common_logger.sh" ]; then
+    source "$PROJECT_ROOT_CFG/scripts/utils/common_logger.sh"
+fi
+
 # Dynamic Scene Name Resolution
 # Priority: 1) First positional arg if directory, 2) $SCENE_NAME environment variable, 3) Default scene "20260429_140922" (with informational notice)
 if [ -n "${1:-}" ] && [ -d "$1" ]; then
@@ -10,8 +17,13 @@ elif [ -n "${SCENE_NAME:-}" ]; then
     SCENE_NAME="${SCENE_NAME}"
 else
     SCENE_NAME="20260429_140922"
-    if [ "${QUIET_CONFIG:-false}" != "true" ]; then
-        echo "[3DRC Config] No dataset path or SCENE_NAME provided. Defaulting to '${SCENE_NAME}'."
+    if [ "${QUIET_CONFIG:-false}" != "true" ] && [ "${_3DRC_SCENE_NOTICE_SHOWN:-0}" = "0" ]; then
+        export _3DRC_SCENE_NOTICE_SHOWN=1
+        if type log_info >/dev/null 2>&1; then
+            log_info "No dataset path or SCENE_NAME provided. Defaulting to '${SCENE_NAME}'."
+        else
+            echo "[INFO]  No dataset path or SCENE_NAME provided. Defaulting to '${SCENE_NAME}'."
+        fi
     fi
 fi
 
@@ -38,7 +50,7 @@ DOWNSAMPLE_RATE=4
 DATA_DEVICE="cpu"
 DENSIFY_GRAD_THRESHOLD=0.0002
 GS_ITERATIONS=30000
-GS_CHECKPOINT_INTERVAL=10000  # Automatically generates checkpoints every N iterations up to GS_ITERATIONS
+export GS_CHECKPOINT_INTERVAL=10000  # Automatically generates checkpoints every N iterations up to GS_ITERATIONS
 GS_EVAL_MODE="false"  # Options: false (full reconstruction), true (holdout evaluation)
 
 # SuGaR parameters
