@@ -87,7 +87,7 @@ if [ -n "$CHECKPOINTS_LIST" ]; then
 fi
 
 # Auto-resume from latest checkpoint if available
-LATEST_CHKPNT=$(ls -v "${MODEL_OUTPUT}"/chkpnt*.pth 2>/dev/null | tail -n 1 || true)
+LATEST_CHKPNT=$(ls -v "${MODEL_OUTPUT}"/checkpoints/chkpnt*.pth "${MODEL_OUTPUT}"/chkpnt*.pth 2>/dev/null | tail -n 1 || true)
 if [ -n "$LATEST_CHKPNT" ]; then
     log_info "Auto-resuming 2DGS training from latest checkpoint: $(basename "$LATEST_CHKPNT")"
     EXTRA_TRAIN_ARGS+=("--start_checkpoint" "$LATEST_CHKPNT")

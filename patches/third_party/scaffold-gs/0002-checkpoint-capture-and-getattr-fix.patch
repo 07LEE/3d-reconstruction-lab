@@ -104,7 +104,7 @@ index 1d57a5a..f89551c 100755
          if offset_denom is not None:
              self.offset_denom = offset_denom
 diff --git a/train.py b/train.py
-index 166cc4c..241948c 100755
+index 166cc4c..d23c8b3 100755
 --- a/train.py
 +++ b/train.py
 @@ -10,16 +10,14 @@
@@ -183,15 +183,19 @@ index 166cc4c..241948c 100755
                  scene.save(iteration)
              
              # densification
-@@ -183,7 +180,6 @@ def training(dataset, opt, pipe, dataset_name, testing_iterations, saving_iterat
+@@ -183,8 +180,9 @@ def training(dataset, opt, pipe, dataset_name, testing_iterations, saving_iterat
                  gaussians.optimizer.step()
                  gaussians.optimizer.zero_grad(set_to_none = True)
              if (iteration in checkpoint_iterations):
 -                logger.info("\n[ITER {}] Saving Checkpoint".format(iteration))
-                 torch.save((gaussians.capture(), iteration), scene.model_path + "/chkpnt" + str(iteration) + ".pth")
+-                torch.save((gaussians.capture(), iteration), scene.model_path + "/chkpnt" + str(iteration) + ".pth")
++                chkpnt_dir = os.path.join(scene.model_path, "checkpoints")
++                os.makedirs(chkpnt_dir, exist_ok=True)
++                torch.save((gaussians.capture(), iteration), os.path.join(chkpnt_dir, f"chkpnt{iteration}.pth"))
  
  def prepare_output_and_logger(args):    
-@@ -195,7 +191,6 @@ def prepare_output_and_logger(args):
+     if not args.model_path:
+@@ -195,7 +193,6 @@ def prepare_output_and_logger(args):
          args.model_path = os.path.join("./output/", unique_str[0:10])
          
      # Set up output folder
@@ -199,7 +203,18 @@ index 166cc4c..241948c 100755
      os.makedirs(args.model_path, exist_ok = True)
      with open(os.path.join(args.model_path, "cfg_args"), 'w') as cfg_log_f:
          cfg_log_f.write(str(Namespace(**vars(args))))
-@@ -434,18 +429,24 @@ def evaluate(model_paths, visible_count=None, wandb=None, tb_writer=None, datase
+@@ -203,7 +200,9 @@ def prepare_output_and_logger(args):
+     # Create Tensorboard writer
+     tb_writer = None
+     if TENSORBOARD_FOUND:
+-        tb_writer = SummaryWriter(args.model_path)
++        tb_dir = os.path.join(args.model_path, "events")
++        os.makedirs(tb_dir, exist_ok=True)
++        tb_writer = SummaryWriter(tb_dir)
+     else:
+         print("Tensorboard not available: not logging progress")
+     return tb_writer
+@@ -434,18 +433,24 @@ def evaluate(model_paths, visible_count=None, wandb=None, tb_writer=None, datase
      with open(scene_dir + "/per_view.json", 'w') as fp:
          json.dump(per_view_dict[scene_dir], fp, indent=True)
      
@@ -229,7 +244,7 @@ index 166cc4c..241948c 100755
 
      logger.addHandler(fileinfo)
      logger.addHandler(controlshow)
-@@ -482,21 +482,17 @@ if __name__ == "__main__":
+@@ -482,21 +487,17 @@ if __name__ == "__main__":
      os.makedirs(model_path, exist_ok=True)
 
      logger = get_logger(model_path)

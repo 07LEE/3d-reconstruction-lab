@@ -247,6 +247,8 @@ def inspect_workspace_outputs(project_root: str | Path = ".") -> Dict[str, List[
             for file_path in sorted(scene_dir.rglob("*")):
                 if not file_path.is_file() or file_path.name.startswith("."):
                     continue
+                if "backup" in file_path.parts:
+                    continue
                 if file_path.stem.isdigit() and file_path.suffix.lower() in [".png", ".jpg"]:
                     continue
                 if file_path.name in ["summary.md", "pipeline_meta.json"]:

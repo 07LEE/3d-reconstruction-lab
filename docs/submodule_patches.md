@@ -30,7 +30,7 @@ All submodules in `third_party/` (including `gaussian-splatting`) reference offi
 | `2d-gaussian-splatting` | `patches/third_party/2d-gaussian-splatting/0002-mesh-utils-bounds-and-empty-fix.patch` | Empty cluster bounds guard in mesh postprocessing |
 | `diff-surfel-rasterization` | `patches/third_party/2d-gaussian-splatting/submodules/diff-surfel-rasterization/0001-cstdint-and-zero-init.patch` | `<cstdint>` includes, zero-init structs, and backward SH gradient dimension match |
 | `scaffold-gs` | `patches/third_party/scaffold-gs/0001-rasterizer-antialiasing-compat.patch` | `antialiasing` kwarg guard and `visible_filter` fallback for dr_aa rasterizer |
-| `scaffold-gs` | `patches/third_party/scaffold-gs/0002-checkpoint-capture-and-getattr-fix.patch` | Fix `_anchor_feat` typo and `getattr` guard for deleted `offset_denom` after 15k `update_until` |
+| `scaffold-gs` | `patches/third_party/scaffold-gs/0002-checkpoint-capture-and-getattr-fix.patch` | PyTorch 2.6+ `weights_only=False` fix, `[INFO]` CleanStreamFormatter logger, 10/11-element checkpoint tuple compatibility, `checkpoints/` & `events/` subdirectory isolation, and `getattr` guard for deleted `offset_denom` |
 
 ## Utility Scripts
 
