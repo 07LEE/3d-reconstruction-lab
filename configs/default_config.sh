@@ -38,6 +38,7 @@ DOWNSAMPLE_RATE=4
 DATA_DEVICE="cpu"
 DENSIFY_GRAD_THRESHOLD=0.0002
 GS_ITERATIONS=30000
+GS_CHECKPOINT_INTERVAL=10000  # Automatically generates checkpoints every N iterations up to GS_ITERATIONS
 GS_EVAL_MODE="false"  # Options: false (full reconstruction), true (holdout evaluation)
 
 # SuGaR parameters

@@ -74,6 +74,19 @@ if [ "${GS_EVAL_MODE:-false}" = "true" ]; then
     EXTRA_TRAIN_ARGS+=("--eval")
 fi
 
+CHECKPOINTS_LIST=""
+if [ -n "${GS_CHECKPOINT_ITERATIONS:-}" ]; then
+    CHECKPOINTS_LIST="$GS_CHECKPOINT_ITERATIONS"
+elif [ -n "${GS_CHECKPOINT_INTERVAL:-}" ] && [ "$GS_CHECKPOINT_INTERVAL" -gt 0 ]; then
+    MAX_ITER="${GS_ITERATIONS:-30000}"
+    INTERVAL="$GS_CHECKPOINT_INTERVAL"
+    CHECKPOINTS_LIST=$(seq "$INTERVAL" "$INTERVAL" "$MAX_ITER" | tr '\n' ' ')
+fi
+
+if [ -n "$CHECKPOINTS_LIST" ]; then
+    EXTRA_TRAIN_ARGS+=("--checkpoint_iterations" $CHECKPOINTS_LIST)
+fi
+
 python third_party/gaussian-splatting/train.py \
     -s "$TARGET_DATA_DIR" \
     --model_path "$MODEL_OUTPUT" \
