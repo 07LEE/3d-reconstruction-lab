@@ -75,9 +75,14 @@ case "$METHOD" in
         mkdir -p "$SPARSE_METHOD_DIR"
         echo "Starting High-Precision hloc SfM Pipeline..."
         OVERWRITE_FLAG=""
-        if [ "${OVERWRITE:-0}" = "1" ] || [ "${3:-}" = "--overwrite" ] || [ "${2:-}" = "--overwrite" ]; then
+        if [ "${OVERWRITE:-0}" = "1" ]; then
             OVERWRITE_FLAG="--overwrite"
             echo "[INFO] Cache overwrite enabled for fresh SfM reconstruction."
+        fi
+        RECONSTRUCT_ONLY_FLAG=""
+        if [ "${RECONSTRUCT_ONLY:-0}" = "1" ]; then
+            RECONSTRUCT_ONLY_FLAG="--reconstruct-only"
+            echo "[INFO] Reconstruct-only mode enabled for sparse model re-generation."
         fi
         python -m src.sfm.hloc_pipeline \
             --image_dir "$IMAGE_DIR_TARGET" \
@@ -85,7 +90,8 @@ case "$METHOD" in
             --strategy "${SFM_STRATEGY:-sequential}" \
             --overlap "${SFM_OVERLAP:-100}" \
             --retrieval_k "${SFM_RETRIEVAL_K:-30}" \
-            ${OVERWRITE_FLAG}
+            ${OVERWRITE_FLAG} \
+            ${RECONSTRUCT_ONLY_FLAG}
         ;;
     *)
         echo "[FATAL] Unknown SfM method: $METHOD" >&2
