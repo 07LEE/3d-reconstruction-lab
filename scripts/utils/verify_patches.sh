@@ -169,6 +169,7 @@ fi
 # Multi-environment explicit rasterizer verification
 env_count=0
 env_passed=0
+env_skipped=0
 
 TRAIN_PYTHON="${CONDA_BASE_DIR}/envs/gs_train/bin/python"
 if [ -x "$TRAIN_PYTHON" ]; then
@@ -193,6 +194,9 @@ PY
         log_check "FAIL" "[gs_train] rasterizer verification failed: ${diag_out:-unknown error}"
         fail=1
     fi
+else
+    env_skipped=$((env_skipped + 1))
+    log_check "skip" "Explicit check: gs_train environment not installed"
 fi
 
 SCAFFOLD_PYTHON="${CONDA_BASE_DIR}/envs/gs_scaffold/bin/python"
@@ -214,6 +218,9 @@ PY
         log_check "FAIL" "[gs_scaffold] rasterizer verification failed: ${diag_out:-unknown error}"
         fail=1
     fi
+else
+    env_skipped=$((env_skipped + 1))
+    log_check "skip" "Explicit check: gs_scaffold environment not installed"
 fi
 
 MIPSPLATTING_PYTHON="${CONDA_BASE_DIR}/envs/gs_mipsplatting/bin/python"
@@ -235,6 +242,9 @@ PY
         log_check "FAIL" "[gs_mipsplatting] rasterizer verification failed: ${diag_out:-unknown error}"
         fail=1
     fi
+else
+    env_skipped=$((env_skipped + 1))
+    log_check "skip" "Explicit check: gs_mipsplatting environment not installed"
 fi
 
 # Blackwell sm_120 CUBIN SASS binary verification across C++ CUDA extensions
@@ -275,10 +285,13 @@ ENVS = {
 
 fail = 0
 total_checked = 0
+total_skipped = 0
 
 for env, (mods, repo_sub) in ENVS.items():
     env_dir = os.path.join(CONDA_BASE, "envs", env)
     if not os.path.exists(env_dir):
+        print(f"  [skip]  [{env}] environment not installed")
+        total_skipped += 1
         continue
     
     site_pkg = os.path.join(env_dir, "lib/python3.10/site-packages")
@@ -315,7 +328,7 @@ for env, (mods, repo_sub) in ENVS.items():
             print(f"  [MISS]  [{env}] {mod}: .so file not found")
             fail = 1
 
-print(f"SUMMARY:{total_checked}:{fail}")
+print(f"SUMMARY:{total_checked}:{fail}:{total_skipped}")
 if fail != 0:
     sys.exit(1)
 PY
@@ -327,9 +340,11 @@ else
 fi
 
 cubin_total=0
+cubin_skipped=0
 if echo "$cubin_output" | grep -q "SUMMARY:"; then
     summary_line=$(echo "$cubin_output" | grep "SUMMARY:" | tail -n 1)
     cubin_total=$(echo "$summary_line" | cut -d':' -f2)
+    cubin_skipped=$(echo "$summary_line" | cut -d':' -f4)
 fi
 
 if [ "$VERBOSE" = "1" ]; then
@@ -342,8 +357,16 @@ if [ "$fail" -eq 0 ]; then
     if [ "$VERBOSE" = "0" ]; then
         echo "[VERIFY] Environment & Patch Verification Summary"
         printf "  • Source Code Patches (%2d/%2d)                : [ OK ]\n" "$patch_passed" "$patch_count"
-        printf "  • Conda Rasterizer Installs (%2d/%2d)          : [ OK ]\n" "$env_passed" "$env_count"
-        printf "  • CUDA Extensions sm_120 CUBIN (%2d/%2d)        : [ OK ]\n" "$cubin_total" "$cubin_total"
+        if [ "$env_skipped" -gt 0 ]; then
+            printf "  • Conda Rasterizer Installs (%2d/%2d, %d skipped): [ OK ]\n" "$env_passed" "$env_count" "$env_skipped"
+        else
+            printf "  • Conda Rasterizer Installs (%2d/%2d)          : [ OK ]\n" "$env_passed" "$env_count"
+        fi
+        if [ "$cubin_skipped" -gt 0 ]; then
+            printf "  • CUDA Extensions sm_120 CUBIN (%2d checked, %d skipped): [ OK ]\n" "$cubin_total" "$cubin_skipped"
+        else
+            printf "  • CUDA Extensions sm_120 CUBIN (%2d/%2d)        : [ OK ]\n" "$cubin_total" "$cubin_total"
+        fi
     fi
 else
     echo ""

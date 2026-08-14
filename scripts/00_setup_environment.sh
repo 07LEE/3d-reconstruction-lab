@@ -84,6 +84,7 @@ third_party/mip-splatting/submodules/simple-knn"
 ENV_EXTS[gs_sugar]="third_party/gaussian-splatting/submodules/diff-gaussian-rasterization
 third_party/gaussian-splatting/submodules/simple-knn"
 
+# Note: gs_group rasterizer is resolved conditionally inside build_env()
 ENV_EXTS[gs_group]="third_party/gaussian-splatting/submodules/simple-knn"
 
 ENV_EXTS[gs_milo]="third_party/milo/submodules/diff-gaussian-rasterization
