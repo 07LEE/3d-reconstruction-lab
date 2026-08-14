@@ -18,7 +18,7 @@ if [ -f "$CONDA_PATH/etc/profile.d/conda.sh" ]; then
     set +u
     conda activate 3drc
     set -u
-    [ "${CONDA_DEFAULT_ENV:-}" = "3drc" ] || { echo "[FATAL] Conda environment '3drc' activation failed!"; exit 1; }
+    [ "${CONDA_DEFAULT_ENV:-}" = "3drc" ] || { echo "[FATAL] Conda environment '3drc' not found or activation failed. Run: ./scripts/00_setup_environment.sh --env 3drc"; exit 1; }
 fi
 
 ARG1="${1:-}"

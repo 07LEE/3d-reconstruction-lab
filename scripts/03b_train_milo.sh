@@ -18,7 +18,7 @@ if [ -f "$CONDA_PATH/etc/profile.d/conda.sh" ]; then
     set +u
     conda activate gs_milo
     set -u
-    [ "${CONDA_DEFAULT_ENV:-}" = "gs_milo" ] || { echo "[FATAL] Conda environment 'gs_milo' activation failed!"; exit 1; }
+    [ "${CONDA_DEFAULT_ENV:-}" = "gs_milo" ] || { echo "[FATAL] Conda environment 'gs_milo' not found or activation failed. Run: ./scripts/00_setup_environment.sh --env gs_milo"; exit 1; }
 fi
 
 # Source CUDA & host compiler build environment (GCC 12 / NVCC 12.8)

@@ -14,6 +14,7 @@ set +u
 source "$CONDA_PATH/etc/profile.d/conda.sh"
 conda activate gs_train
 set -u
+[ "${CONDA_DEFAULT_ENV:-}" = "gs_train" ] || { echo "[FATAL] Conda environment 'gs_train' not found or activation failed. Run: ./scripts/00_setup_environment.sh --env gs_train"; exit 1; }
 
 # Run patch & environment verification inside activated gs_train environment
 "$(dirname "$0")/utils/verify_patches.sh" || { echo "[FATAL] Patch verification failed!"; exit 1; }

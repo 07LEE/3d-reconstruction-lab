@@ -240,8 +240,14 @@ fi
 # Blackwell sm_120 CUBIN SASS binary verification across C++ CUDA extensions
 export REPO_ROOT
 export CONDA_BASE_DIR
-PYTHON_AUDIT_BIN="${CONDA_BASE_DIR}/envs/gs_milo/bin/python"
-if [ ! -x "$PYTHON_AUDIT_BIN" ]; then PYTHON_AUDIT_BIN="python3"; fi
+PYTHON_AUDIT_BIN=""
+for e in 3drc gs_train gs_sugar gs_group gs_milo gs_scaffold gs_mipsplatting; do
+    if [ -x "${CONDA_BASE_DIR}/envs/${e}/bin/python" ]; then
+        PYTHON_AUDIT_BIN="${CONDA_BASE_DIR}/envs/${e}/bin/python"
+        break
+    fi
+done
+if [ -z "$PYTHON_AUDIT_BIN" ]; then PYTHON_AUDIT_BIN="python3"; fi
 
 cubin_output=""
 if cubin_output=$("$PYTHON_AUDIT_BIN" - <<'PY' 2>&1
@@ -249,7 +255,15 @@ import os, sys, glob, subprocess, re
 
 CONDA_BASE = os.environ.get("CONDA_BASE_DIR", os.path.expanduser("~/miniconda3"))
 REPO_ROOT = os.environ.get("REPO_ROOT", os.path.abspath(os.path.join(os.path.dirname(__file__), "../..")))
-CUOBJDUMP = os.path.join(CONDA_BASE, "envs/gs_train/bin/cuobjdump")
+
+CUOBJDUMP = None
+for env_name in ["gs_train", "3drc", "gs_sugar", "gs_group", "gs_milo", "gs_scaffold", "gs_mipsplatting"]:
+    cand = os.path.join(CONDA_BASE, "envs", env_name, "bin/cuobjdump")
+    if os.path.exists(cand):
+        CUOBJDUMP = cand
+        break
+if not CUOBJDUMP:
+    CUOBJDUMP = "cuobjdump"
 
 ENVS = {
     "gs_milo": (["diff_gaussian_rasterization", "diff_gaussian_rasterization_ms", "diff_gaussian_rasterization_gof", "simple_knn", "fused_ssim"], "milo"),

@@ -18,7 +18,7 @@ if [ -f "$CONDA_PATH/etc/profile.d/conda.sh" ]; then
     set +u
     conda activate gs_sugar
     set -u
-    [ "${CONDA_DEFAULT_ENV:-}" = "gs_sugar" ] || { echo "[FATAL] Conda environment 'gs_sugar' activation failed!"; exit 1; }
+    [ "${CONDA_DEFAULT_ENV:-}" = "gs_sugar" ] || { echo "[FATAL] Conda environment 'gs_sugar' not found or activation failed. Run: ./scripts/00_setup_environment.sh --env gs_sugar"; exit 1; }
 fi
 
 # Get project root

@@ -13,8 +13,7 @@ CONDA_PATH=$(conda info --base 2>/dev/null || echo "$HOME/miniconda3")
 set +u
 source "$CONDA_PATH/etc/profile.d/conda.sh"
 if ! conda activate gs_scaffold 2>/dev/null; then
-    echo "[FATAL] Conda environment 'gs_scaffold' not found!"
-    echo "        Please build the environment first using scripts/00_setup_environment.sh"
+    echo "[FATAL] Conda environment 'gs_scaffold' not found. Run: ./scripts/00_setup_environment.sh --env gs_scaffold"
     exit 1
 fi
 set -u
