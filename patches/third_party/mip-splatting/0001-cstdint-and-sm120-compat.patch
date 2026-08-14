@@ -1,0 +1,35 @@
+diff --git a/train.py b/train.py
+index 1341e75..b8cc829 100644
+--- a/train.py
++++ b/train.py
+@@ -54,7 +54,7 @@ def training(dataset, opt, pipe, testing_iterations, saving_iterations, checkpoi
+     scene = Scene(dataset, gaussians)
+     gaussians.training_setup(opt)
+     if checkpoint:
+-        (model_params, first_iter) = torch.load(checkpoint)
++        (model_params, first_iter) = torch.load(checkpoint, weights_only=False)
+         gaussians.restore(model_params, opt)
+ 
+     bg_color = [1, 1, 1] if dataset.white_background else [0, 0, 0]
+@@ -178,7 +178,9 @@ def training(dataset, opt, pipe, testing_iterations, saving_iterations, checkpoi
+ 
+             if (iteration in checkpoint_iterations):
+                 print("\n[ITER {}] Saving Checkpoint".format(iteration))
+-                torch.save((gaussians.capture(), iteration), scene.model_path + "/chkpnt" + str(iteration) + ".pth")
++                chkpnt_dir = os.path.join(scene.model_path, "checkpoints")
++                os.makedirs(chkpnt_dir, exist_ok=True)
++                torch.save((gaussians.capture(), iteration), os.path.join(chkpnt_dir, "chkpnt" + str(iteration) + ".pth"))
+ 
+ def prepare_output_and_logger(args):    
+     if not args.model_path:
+@@ -197,7 +199,9 @@ def prepare_output_and_logger(args):
+     # Create Tensorboard writer
+     tb_writer = None
+     if TENSORBOARD_FOUND:
+-        tb_writer = SummaryWriter(args.model_path)
++        events_dir = os.path.join(args.model_path, "events")
++        os.makedirs(events_dir, exist_ok=True)
++        tb_writer = SummaryWriter(events_dir)
+     else:
+         print("Tensorboard not available: not logging progress")
+     return tb_writer

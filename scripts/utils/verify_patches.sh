@@ -216,6 +216,27 @@ PY
     fi
 fi
 
+MIPSPLATTING_PYTHON="${CONDA_BASE_DIR}/envs/gs_mipsplatting/bin/python"
+if [ -x "$MIPSPLATTING_PYTHON" ]; then
+    env_count=$((env_count + 1))
+    diag_out=""
+    if diag_out=$("$MIPSPLATTING_PYTHON" - <<'PY' 2>&1
+import sys
+try:
+    import diff_gaussian_rasterization as d
+except Exception as e:
+    print(f"[FAIL] [gs_mipsplatting] import failed: {type(e).__name__}: {e}")
+    sys.exit(1)
+PY
+    ); then
+        log_check "ok" "Explicit check: gs_mipsplatting has dedicated rasterizer installed"
+        env_passed=$((env_passed + 1))
+    else
+        log_check "FAIL" "[gs_mipsplatting] rasterizer verification failed: ${diag_out:-unknown error}"
+        fail=1
+    fi
+fi
+
 # Blackwell sm_120 CUBIN SASS binary verification across C++ CUDA extensions
 export REPO_ROOT
 export CONDA_BASE_DIR
@@ -234,7 +255,8 @@ ENVS = {
     "gs_milo": (["diff_gaussian_rasterization", "diff_gaussian_rasterization_ms", "diff_gaussian_rasterization_gof", "simple_knn", "fused_ssim"], "milo"),
     "gs_train": (["diff_gaussian_rasterization", "simple_knn", "diff_surfel_rasterization"], "gaussian-splatting"),
     "gs_sugar": (["diff_gaussian_rasterization", "simple_knn"], "sugar"),
-    "gs_scaffold": (["diff_gaussian_rasterization", "simple_knn"], "scaffold-gs")
+    "gs_scaffold": (["diff_gaussian_rasterization", "simple_knn"], "scaffold-gs"),
+    "gs_mipsplatting": (["diff_gaussian_rasterization", "simple_knn"], "mip-splatting")
 }
 
 fail = 0

@@ -49,10 +49,11 @@ def main() -> None:
 
     # train subcommand
     train_parser = subparsers.add_parser("train", help="Step 2: Gaussian Splatting Model Training")
-    train_parser.add_argument("--method", type=str, default="3dgs", choices=["3dgs", "planargs", "2dgs", "scaffoldgs"], help="Gaussian training backend")
+    train_parser.add_argument("--method", type=str, default="3dgs", choices=["3dgs", "planargs", "2dgs", "scaffoldgs", "mipsplatting"], help="Gaussian training backend")
 
-    # 2dgs shortcut
+    # Shortcuts
     subparsers.add_parser("2dgs", help="Step 2c: 2D Gaussian Splatting Surfel Training")
+    subparsers.add_parser("mipsplatting", help="Step 2e: Mip-Splatting Anti-Aliased Training")
 
     # view subcommand
     view_parser = subparsers.add_parser("view", help="Result Visualization")
@@ -85,6 +86,8 @@ def main() -> None:
         run_step("train", args.method)
     elif args.step == "2dgs":
         run_step("2dgs")
+    elif args.step == "mipsplatting":
+        run_step("mipsplatting")
     elif args.step == "view":
         run_step("view", getattr(args, "type", "hloc"))
     elif args.step in ["sugar", "milo", "tsdf", "grouping", "outputs"]:

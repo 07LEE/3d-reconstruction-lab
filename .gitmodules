@@ -38,3 +38,6 @@
 	path = third_party/scaffold-gs
 	url = https://github.com/city-super/scaffold-gs.git
 	ignore = dirty
+[submodule "third_party/mip-splatting"]
+	path = third_party/mip-splatting
+	url = https://github.com/autonomousvision/mip-splatting.git

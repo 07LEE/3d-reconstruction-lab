@@ -102,6 +102,9 @@ case "$COMMAND" in
         elif [ "$BACKEND" = "scaffoldgs" ]; then
             log_header "Step 2d: Scaffold-GS Training"
             ./scripts/02d_train_scaffoldgs.sh ${ARG_DATASET:+"$ARG_DATASET"}
+        elif [ "$BACKEND" = "mipsplatting" ]; then
+            log_header "Step 2e: Mip-Splatting Training"
+            ./scripts/02e_train_mipsplatting.sh ${ARG_DATASET:+"$ARG_DATASET"}
         else
             log_header "Step 2: 3DGS Training"
             ./scripts/02_train_3dgs.sh ${ARG_DATASET:+"$ARG_DATASET"}
@@ -111,6 +114,11 @@ case "$COMMAND" in
         ARG_DATASET="${2:-}"
         log_header "Step 2c: 2D Gaussian Splatting Training"
         ./scripts/02c_train_2dgs.sh ${ARG_DATASET:+"$ARG_DATASET"}
+        ;;
+    mipsplatting)
+        ARG_DATASET="${2:-}"
+        log_header "Step 2e: Mip-Splatting Training"
+        ./scripts/02e_train_mipsplatting.sh ${ARG_DATASET:+"$ARG_DATASET"}
         ;;
     planargs)
         ARG_DATASET="${2:-}"

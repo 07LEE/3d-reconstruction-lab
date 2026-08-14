@@ -31,6 +31,7 @@ All submodules in `third_party/` (including `gaussian-splatting`) reference offi
 | `diff-surfel-rasterization` | `patches/third_party/2d-gaussian-splatting/submodules/diff-surfel-rasterization/0001-cstdint-and-zero-init.patch` | `<cstdint>` includes, zero-init structs, and backward SH gradient dimension match |
 | `scaffold-gs` | `patches/third_party/scaffold-gs/0001-rasterizer-antialiasing-compat.patch` | `antialiasing` kwarg guard and `visible_filter` fallback for dr_aa rasterizer |
 | `scaffold-gs` | `patches/third_party/scaffold-gs/0002-checkpoint-capture-and-getattr-fix.patch` | PyTorch 2.6+ `weights_only=False` fix, `[INFO]` CleanStreamFormatter logger, 10/11-element checkpoint tuple compatibility, `checkpoints/` & `events/` subdirectory isolation, and `getattr` guard for deleted `offset_denom` |
+| `mip-splatting` | `patches/third_party/mip-splatting/0001-cstdint-and-sm120-compat.patch` | PyTorch 2.6+ `weights_only=False` fix, `checkpoints/` & `events/` subdirectory isolation, and C++ `<cstdint>` headers |
 
 ## Utility Scripts
 

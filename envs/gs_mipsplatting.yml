@@ -1,0 +1,26 @@
+name: gs_mipsplatting
+channels:
+  - defaults
+  - nvidia
+dependencies:
+  - python=3.10
+  - pip
+  - pip:
+      - --extra-index-url https://download.pytorch.org/whl/cu128
+      - torch==2.11.0+cu128
+      - torchvision==0.26.0+cu128
+      - torchaudio==2.11.0+cu128
+      - numpy
+      - plyfile
+      - tqdm
+      - opencv-python
+      - einops
+      - wandb
+      - lpips
+      - laspy
+      - scipy
+      - jaxtyping
+      - typeguard
+      - wadler-lindig
+      - colorama
+      - tensorboard
