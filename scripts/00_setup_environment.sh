@@ -33,7 +33,7 @@ fi
 
 echo -e "\n[Step 3/5] Ensuring Conda Environments (3drc, gs_train, gs_sugar, gs_group, gs_milo, gs_scaffold, gs_mipsplatting)..."
 for env_name in 3drc gs_train gs_sugar gs_group gs_milo gs_scaffold gs_mipsplatting; do
-    if conda env list | grep -E "^${env_name}\s" >/dev/null 2>&1; then
+    if conda env list | awk '{print $1}' | grep -qx "$env_name"; then
         echo "  • Conda env '$env_name': [OK]"
     else
         echo "  • Creating Conda env '$env_name'..."
@@ -51,13 +51,17 @@ export CC=/usr/bin/gcc-12
 export CXX=/usr/bin/g++-12
 source scripts/utils/setup_build_env.sh || { echo "[FATAL] Build environment setup failed."; exit 1; }
 
-# Helper to build and install extension into target conda env using pip
+# Helper function for absolute isolated pip install
 install_ext() {
     local target_env="$1"
     local ext_path="$2"
+    local pip_bin="$CONDA_PATH/envs/$target_env/bin/pip"
+
+    [ -d "$ext_path" ] || { echo "[FATAL] Missing extension path: $ext_path"; exit 1; }
+    [ -x "$pip_bin" ] || { echo "[FATAL] No pip binary found in environment: $target_env"; exit 1; }
+
     echo "Building $ext_path -> $target_env..."
-    conda activate "$target_env"
-    pip install --no-build-isolation -e "$ext_path"
+    "$pip_bin" install --no-cache-dir --no-build-isolation -e "$ext_path"
 }
 
 # 4a. 3drc submodules (hloc)
@@ -98,8 +102,8 @@ install_ext "gs_milo" "third_party/milo/submodules/fused-ssim"
 # Reset active conda environment to primary training environment (gs_train)
 conda activate gs_train
 
-# Verify patch & environment integrity
-echo -e "\nVerifying Patch and Environment Integrity..."
+# 5. Verify patch & environment integrity
+echo -e "\n[Step 5/5] Verifying Patch and Environment Integrity..."
 ./scripts/utils/verify_patches.sh
 
 echo -e "\n=================================================="
