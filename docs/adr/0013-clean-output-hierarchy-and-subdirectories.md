@@ -3,7 +3,7 @@
 Status: Accepted (2026-08-14)
 
 Context:
-During training and evaluation of 3D Gaussian Splatting, 2DGS, PlanarGS, and Scaffold-GS models, multiple intermediate artifacts (`chkpnt10000.pth`, `chkpnt20000.pth`, `events.out.tfevents.*`) were historically created directly in the root output folder of each scene (`outputs/<scene_name>/<model>/`). This created root directory clutter and summary report pollution in `outputs/<scene_name>/summary.md`.
+During training and evaluation of 3D Gaussian Splatting, 2DGS, PlanarGS, and Scaffold-GS models, multiple intermediate artifacts (`chkpnt10000.pth`, `chkpnt20000.pth`, `events.out.tfevents.*`) and automated source code backup folders (`scaffoldgs/backup/`) were historically created directly in the output folder of each scene (`outputs/<scene_name>/<model>/`). This created root directory clutter and dumped hundreds of template PNG/documentation files into `outputs/<scene_name>/summary.md`.
 
 Decision:
 

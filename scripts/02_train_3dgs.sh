@@ -83,14 +83,27 @@ elif [ -n "${GS_CHECKPOINT_INTERVAL:-}" ] && [ "${GS_CHECKPOINT_INTERVAL:-0}" -g
 fi
 
 if [ -n "$CHECKPOINTS_LIST" ]; then
-    EXTRA_TRAIN_ARGS+=("--checkpoint_iterations" $CHECKPOINTS_LIST)
+    mapfile -t CK < <(echo "$CHECKPOINTS_LIST" | tr ' ' '\n' | grep -v '^$')
+    if [ "${#CK[@]}" -gt 0 ]; then
+        EXTRA_TRAIN_ARGS+=("--checkpoint_iterations" "${CK[@]}")
+    fi
 fi
 
-# Auto-resume from latest checkpoint if available
+# Auto-resume from latest checkpoint if available (with staleness invalidation guard)
 LATEST_CHKPNT=$(ls -v "${MODEL_OUTPUT}"/checkpoints/chkpnt*.pth "${MODEL_OUTPUT}"/chkpnt*.pth 2>/dev/null | tail -n 1 || true)
+SPARSE_PTS="${TARGET_DATA_DIR}/sparse/0/points3D.bin"
+if [ ! -f "$SPARSE_PTS" ]; then
+    SPARSE_PTS="${TARGET_DATA_DIR}/sparse/0/points3D.txt"
+fi
+
 if [ -n "$LATEST_CHKPNT" ]; then
-    log_info "Auto-resuming 3DGS training from latest checkpoint: $(basename "$LATEST_CHKPNT")"
-    EXTRA_TRAIN_ARGS+=("--start_checkpoint" "$LATEST_CHKPNT")
+    if [ -f "$SPARSE_PTS" ] && [ "$SPARSE_PTS" -nt "$LATEST_CHKPNT" ]; then
+        log_warn "Sparse point cloud ($SPARSE_PTS) is newer than latest checkpoint ($(basename "$LATEST_CHKPNT")). Invalidating outdated checkpoint and starting fresh training."
+        LATEST_CHKPNT=""
+    else
+        log_info "Auto-resuming 3DGS training from latest checkpoint: $(basename "$LATEST_CHKPNT")"
+        EXTRA_TRAIN_ARGS+=("--start_checkpoint" "$LATEST_CHKPNT")
+    fi
 fi
 
 python third_party/gaussian-splatting/train.py \

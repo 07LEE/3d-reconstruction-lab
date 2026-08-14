@@ -144,7 +144,7 @@ else
   fail=1
 fi
 
-# 11. Scaffold-GS rasterizer & visible_filter compatibility patch check
+# Scaffold-GS rasterizer & visible_filter compatibility patch check
 SCAFFOLD_INIT="${REPO_ROOT}/third_party/scaffold-gs/gaussian_renderer/__init__.py"
 patch_count=$((patch_count + 1))
 if [ -f "${SCAFFOLD_INIT}" ] && grep -q "_create_raster_settings" "${SCAFFOLD_INIT}"; then
@@ -155,7 +155,7 @@ else
   fail=1
 fi
 
-# 12. Scaffold-GS checkpoint capture & getattr safeguard patch check
+# Scaffold-GS checkpoint capture & getattr safeguard patch check
 SCAFFOLD_MODEL="${REPO_ROOT}/third_party/scaffold-gs/scene/gaussian_model.py"
 patch_count=$((patch_count + 1))
 if [ -f "${SCAFFOLD_MODEL}" ] && grep -q "getattr(self, 'offset_denom', None)" "${SCAFFOLD_MODEL}"; then
@@ -166,28 +166,31 @@ else
   fail=1
 fi
 
-# 12. Multi-environment explicit rasterizer verification
+# Multi-environment explicit rasterizer verification
 env_count=0
 env_passed=0
 
 TRAIN_PYTHON="${CONDA_BASE_DIR}/envs/gs_train/bin/python"
 if [ -x "$TRAIN_PYTHON" ]; then
     env_count=$((env_count + 1))
-    if "$TRAIN_PYTHON" - <<'PY' > /dev/null 2>&1
+    diag_out=$("$TRAIN_PYTHON" - <<'PY' 2>&1
 import sys
 try:
     import diff_gaussian_rasterization as d
     from diff_gaussian_rasterization import GaussianRasterizationSettings as S
-except Exception:
+except Exception as e:
+    print(f"[FAIL] [gs_train] import failed: {type(e).__name__}: {e}")
     sys.exit(1)
 if "antialiasing" not in getattr(S, "_fields", ()):
+    print(f"[WRONG] [gs_train] non-dr_aa rasterizer installed: getattr(d, '__file__', 'unknown')={getattr(d, '__file__', 'unknown')}")
     sys.exit(1)
 PY
-    then
+    )
+    if [ $? -eq 0 ]; then
         log_check "ok" "Explicit check: gs_train has dr_aa rasterizer installed"
         env_passed=$((env_passed + 1))
     else
-        log_check "FAIL" "[gs_train] rasterizer verification failed"
+        log_check "FAIL" "[gs_train] rasterizer verification failed: ${diag_out:-unknown error}"
         fail=1
     fi
 fi
@@ -195,23 +198,25 @@ fi
 SCAFFOLD_PYTHON="${CONDA_BASE_DIR}/envs/gs_scaffold/bin/python"
 if [ -x "$SCAFFOLD_PYTHON" ]; then
     env_count=$((env_count + 1))
-    if "$SCAFFOLD_PYTHON" - <<'PY' > /dev/null 2>&1
+    diag_out=$("$SCAFFOLD_PYTHON" - <<'PY' 2>&1
 import sys
 try:
     import diff_gaussian_rasterization as d
-except Exception:
+except Exception as e:
+    print(f"[FAIL] [gs_scaffold] import failed: {type(e).__name__}: {e}")
     sys.exit(1)
 PY
-    then
+    )
+    if [ $? -eq 0 ]; then
         log_check "ok" "Explicit check: gs_scaffold has dedicated rasterizer installed"
         env_passed=$((env_passed + 1))
     else
-        log_check "FAIL" "[gs_scaffold] rasterizer verification failed"
+        log_check "FAIL" "[gs_scaffold] rasterizer verification failed: ${diag_out:-unknown error}"
         fail=1
     fi
 fi
 
-# 13. Blackwell sm_120 CUBIN SASS binary verification across C++ CUDA extensions
+# Blackwell sm_120 CUBIN SASS binary verification across C++ CUDA extensions
 export REPO_ROOT
 export CONDA_BASE_DIR
 PYTHON_AUDIT_BIN="${CONDA_BASE_DIR}/envs/gs_milo/bin/python"
@@ -285,7 +290,7 @@ else
     fail=1
 fi
 
-cubin_total=12
+cubin_total=0
 if echo "$cubin_output" | grep -q "SUMMARY:"; then
     summary_line=$(echo "$cubin_output" | grep "SUMMARY:" | tail -n 1)
     cubin_total=$(echo "$summary_line" | cut -d':' -f2)

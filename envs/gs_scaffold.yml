@@ -23,3 +23,4 @@ dependencies:
       - typeguard
       - wadler-lindig
       - colorama
+      - tensorboard

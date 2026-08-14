@@ -10,19 +10,30 @@ if [ -f "$PROJECT_ROOT_CFG/scripts/utils/common_logger.sh" ]; then
 fi
 
 # Dynamic Scene Name Resolution
-# Priority: 1) First positional arg if directory, 2) $SCENE_NAME environment variable, 3) Default scene "20260429_140922" (with informational notice)
+# Priority: 1) First positional arg if directory, 2) $SCENE_NAME environment variable, 3) Most recent dataset directory in data/
 if [ -n "${1:-}" ] && [ -d "$1" ]; then
     SCENE_NAME=$(basename "$1")
 elif [ -n "${SCENE_NAME:-}" ]; then
     SCENE_NAME="${SCENE_NAME}"
 else
-    SCENE_NAME="20260429_140922"
-    if [ "${QUIET_CONFIG:-false}" != "true" ] && [ "${_3DRC_SCENE_NOTICE_SHOWN:-0}" = "0" ]; then
-        export _3DRC_SCENE_NOTICE_SHOWN=1
-        if type log_info >/dev/null 2>&1; then
-            log_info "No dataset path or SCENE_NAME provided. Defaulting to '${SCENE_NAME}'."
+    # Dynamically pick the most recently modified dataset directory inside data/
+    LATEST_DATASET_DIR=$(ls -td "$PROJECT_ROOT_CFG"/data/*/ 2>/dev/null | grep -v '/\.' | head -n 1 || true)
+    if [ -n "$LATEST_DATASET_DIR" ]; then
+        SCENE_NAME=$(basename "$LATEST_DATASET_DIR")
+        if [ "${QUIET_CONFIG:-false}" != "true" ] && [ "${_3DRC_SCENE_NOTICE_SHOWN:-0}" = "0" ]; then
+            export _3DRC_SCENE_NOTICE_SHOWN=1
+            if type log_info >/dev/null 2>&1; then
+                log_info "No dataset path provided. Dynamically defaulting to latest dataset: '${SCENE_NAME}'."
+            else
+                echo "[INFO]  No dataset path provided. Dynamically defaulting to latest dataset: '${SCENE_NAME}'."
+            fi
+        fi
+    else
+        if type log_fatal >/dev/null 2>&1; then
+            log_fatal "No dataset directory found in data/ and no SCENE_NAME provided."
         else
-            echo "[INFO]  No dataset path or SCENE_NAME provided. Defaulting to '${SCENE_NAME}'."
+            echo "[ERROR] No dataset directory found in data/ and no SCENE_NAME provided." >&2
+            exit 1
         fi
     fi
 fi

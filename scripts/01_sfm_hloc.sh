@@ -102,25 +102,36 @@ esac
 # Move/copy outputs to method specific directory
 if [ -d "${INPUT_DATASET}/cache/sfm" ]; then
     cp -r "${INPUT_DATASET}/cache/sfm"/* "$SPARSE_METHOD_DIR/" 2>/dev/null || true
-    # If COLMAP created submodels in models/, promote the largest submodel (by images.bin size) to root of $SPARSE_METHOD_DIR
+    # If COLMAP created submodels in models/, promote the largest submodel by registered image count (num_reg_images)
     if [ -d "${INPUT_DATASET}/cache/sfm/models" ]; then
-        LARGEST_MODEL=""
-        MAX_SIZE=0
-        for mdir in "${INPUT_DATASET}/cache/sfm/models"/*; do
-            if [ -d "$mdir" ]; then
-                IMG_BIN="$mdir/images.bin"
-                if [ -f "$IMG_BIN" ]; then
-                    SIZE=$(stat -c%s "$IMG_BIN" 2>/dev/null || echo 0)
-                    if [ "$SIZE" -gt "$MAX_SIZE" ]; then
-                        MAX_SIZE=$SIZE
-                        LARGEST_MODEL="$mdir"
-                    fi
-                fi
+        PROMOTION_INFO=$(python3 -c '
+import pycolmap, sys, glob, os
+models_dir = sys.argv[1]
+best_model = ""
+max_imgs = -1
+for m in sorted(glob.glob(os.path.join(models_dir, "*"))):
+    if os.path.isdir(m):
+        try:
+            rec = pycolmap.Reconstruction(m)
+            num_imgs = rec.num_reg_images()
+            if num_imgs > max_imgs:
+                max_imgs = num_imgs
+                best_model = m
+        except Exception:
+            pass
+if best_model:
+    print(f"{best_model}|{max_imgs}")
+' "${INPUT_DATASET}/cache/sfm/models" 2>/dev/null || true)
+
+        if [ -n "$PROMOTION_INFO" ]; then
+            BEST_MODEL=$(echo "$PROMOTION_INFO" | cut -d'|' -f1)
+            REG_COUNT=$(echo "$PROMOTION_INFO" | cut -d'|' -f2)
+            if [ -n "$BEST_MODEL" ] && [ -d "$BEST_MODEL" ]; then
+                log_info "Promoting submodel $(basename "$BEST_MODEL") ($REG_COUNT registered images) to root of ${SPARSE_METHOD_DIR}..."
+                # Clear residual sparse files before promoting largest model
+                rm -f "${SPARSE_METHOD_DIR}/cameras.bin" "${SPARSE_METHOD_DIR}/images.bin" "${SPARSE_METHOD_DIR}/points3D.bin" "${SPARSE_METHOD_DIR}/points3D.ply" 2>/dev/null || true
+                cp -f "$BEST_MODEL"/* "$SPARSE_METHOD_DIR/" || log_fatal "Failed to promote model from $BEST_MODEL to $SPARSE_METHOD_DIR"
             fi
-        done
-        if [ -n "$LARGEST_MODEL" ]; then
-            echo "[INFO] Promoting largest reconstruction submodel ($(basename "$LARGEST_MODEL")) to root of ${SPARSE_METHOD_DIR}..."
-            cp -f "$LARGEST_MODEL"/* "$SPARSE_METHOD_DIR/" 2>/dev/null || true
         fi
     fi
 fi

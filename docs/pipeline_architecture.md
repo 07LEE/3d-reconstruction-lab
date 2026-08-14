@@ -135,7 +135,7 @@ By default, training scripts save intermediate model checkpoints at `10000`, `20
 
 ```bash
 # Custom checkpoint interval (e.g. save every 5,000 iterations)
-GS_CHECKPOINT_INTERVAL=5000 ./scripts/02d_train_scaffoldgs.sh data/<scene_name>
+GS_CHECKPOINT_INTERVAL=5000 ./scripts/02_train_3dgs.sh data/<scene_name>
 ```
 
 ## Step 3: 3D Mesh Reconstruction (SuGaR, MILo & TSDF)
