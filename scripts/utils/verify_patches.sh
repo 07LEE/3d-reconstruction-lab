@@ -173,7 +173,8 @@ env_passed=0
 TRAIN_PYTHON="${CONDA_BASE_DIR}/envs/gs_train/bin/python"
 if [ -x "$TRAIN_PYTHON" ]; then
     env_count=$((env_count + 1))
-    diag_out=$("$TRAIN_PYTHON" - <<'PY' 2>&1
+    diag_out=""
+    if diag_out=$("$TRAIN_PYTHON" - <<'PY' 2>&1
 import sys
 try:
     import diff_gaussian_rasterization as d
@@ -182,11 +183,10 @@ except Exception as e:
     print(f"[FAIL] [gs_train] import failed: {type(e).__name__}: {e}")
     sys.exit(1)
 if "antialiasing" not in getattr(S, "_fields", ()):
-    print(f"[WRONG] [gs_train] non-dr_aa rasterizer installed: getattr(d, '__file__', 'unknown')={getattr(d, '__file__', 'unknown')}")
+    print(f"[WRONG] [gs_train] non-dr_aa rasterizer installed (path: {getattr(d, '__file__', 'unknown')})")
     sys.exit(1)
 PY
-    )
-    if [ $? -eq 0 ]; then
+    ); then
         log_check "ok" "Explicit check: gs_train has dr_aa rasterizer installed"
         env_passed=$((env_passed + 1))
     else
@@ -198,7 +198,8 @@ fi
 SCAFFOLD_PYTHON="${CONDA_BASE_DIR}/envs/gs_scaffold/bin/python"
 if [ -x "$SCAFFOLD_PYTHON" ]; then
     env_count=$((env_count + 1))
-    diag_out=$("$SCAFFOLD_PYTHON" - <<'PY' 2>&1
+    diag_out=""
+    if diag_out=$("$SCAFFOLD_PYTHON" - <<'PY' 2>&1
 import sys
 try:
     import diff_gaussian_rasterization as d
@@ -206,8 +207,7 @@ except Exception as e:
     print(f"[FAIL] [gs_scaffold] import failed: {type(e).__name__}: {e}")
     sys.exit(1)
 PY
-    )
-    if [ $? -eq 0 ]; then
+    ); then
         log_check "ok" "Explicit check: gs_scaffold has dedicated rasterizer installed"
         env_passed=$((env_passed + 1))
     else
