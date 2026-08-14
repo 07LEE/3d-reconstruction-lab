@@ -37,3 +37,4 @@
 [submodule "third_party/scaffold-gs"]
 	path = third_party/scaffold-gs
 	url = https://github.com/city-super/scaffold-gs.git
+	ignore = dirty

@@ -26,18 +26,17 @@ INPUT_DATASET="${1:-$DATA_DIR}"
 
 if [ -f "${INPUT_DATASET}/sparse/0/cameras.bin" ] || [ -f "${INPUT_DATASET}/sparse/0/cameras.txt" ] || \
    [ -f "${INPUT_DATASET}/sparse/cameras.bin" ] || [ -f "${INPUT_DATASET}/sparse/cameras.txt" ]; then
-    echo "Using existing pre-computed dataset structure at: ${INPUT_DATASET}"
+    log_info "Using existing pre-computed dataset structure at: ${INPUT_DATASET}"
     TARGET_DATA_DIR="${INPUT_DATASET}"
 else
     # Guard: Ensure SfM reconstruction model exists before cleaning/updating
     SRC="${INPUT_DATASET}/cache/sfm"
     if [ ! -f "$SRC/cameras.bin" ] && [ ! -f "$SRC/cameras.txt" ] && [ ! -f "$SRC/models/0/cameras.bin" ]; then
-        echo "[FATAL] SfM model not found in ${INPUT_DATASET}/sparse/0 or $SRC"
-        exit 1
+        log_fatal "SfM model not found in ${INPUT_DATASET}/sparse/0 or $SRC"
     fi
 
     # Update SfM data link after verification succeeds
-    echo "Updating SfM data in ${INPUT_DATASET}/sparse/0..."
+    log_info "Updating SfM data in ${INPUT_DATASET}/sparse/0..."
     mkdir -p "${INPUT_DATASET}/sparse/0"
 
     if [ -d "$SRC/models/0" ]; then
@@ -50,9 +49,15 @@ else
 fi
 
 # Ensure images directory/link exists for Scaffold-GS dataloader
-if [ ! -d "${TARGET_DATA_DIR}/images" ] && [ -d "${TARGET_DATA_DIR}/raw_images" ]; then
-    echo "Creating images symlink in ${TARGET_DATA_DIR}/images..."
-    ln -s raw_images "${TARGET_DATA_DIR}/images" 2>/dev/null || cp -r "${TARGET_DATA_DIR}/raw_images" "${TARGET_DATA_DIR}/images"
+if [ -d "${TARGET_DATA_DIR}/raw_images" ]; then
+    if [ -d "${TARGET_DATA_DIR}/images" ] && [ ! -L "${TARGET_DATA_DIR}/images" ]; then
+        log_info "Removing non-symlink images directory to enforce strict symlink..."
+        rm -rf "${TARGET_DATA_DIR}/images"
+    fi
+    if [ ! -L "${TARGET_DATA_DIR}/images" ]; then
+        log_info "Creating strict images symlink in ${TARGET_DATA_DIR}/images..."
+        ln -sf raw_images "${TARGET_DATA_DIR}/images" || log_fatal "Failed to create symlink ${TARGET_DATA_DIR}/images -> raw_images"
+    fi
 fi
 
 SCENE_NAME=$(basename "$TARGET_DATA_DIR")
@@ -60,7 +65,7 @@ MODEL_OUTPUT="${OUTPUT_DIR}/${SCENE_NAME}/scaffoldgs"
 mkdir -p "$MODEL_OUTPUT"
 
 # 2. Training Execution
-echo "Starting Scaffold-GS Anchor-based Training (Scene: $SCENE_NAME)..."
+log_info "Starting Scaffold-GS Anchor-based Training (Scene: $SCENE_NAME)..."
 
 ACTIVE_SFM="unknown"
 if [ -L "${TARGET_DATA_DIR}/sparse/0" ]; then
@@ -72,9 +77,43 @@ if [ "${GS_EVAL_MODE:-false}" = "true" ]; then
     EXTRA_TRAIN_ARGS+=("--eval")
 fi
 
+CHECKPOINTS_LIST=""
+if [ -n "${GS_CHECKPOINT_ITERATIONS:-}" ]; then
+    CHECKPOINTS_LIST="$GS_CHECKPOINT_ITERATIONS"
+elif [ -n "${GS_CHECKPOINT_INTERVAL:-}" ] && [ "${GS_CHECKPOINT_INTERVAL:-0}" -gt 0 ]; then
+    MAX_ITER="${GS_ITERATIONS:-30000}"
+    INTERVAL="${GS_CHECKPOINT_INTERVAL:-10000}"
+    CHECKPOINTS_LIST=$(seq "$INTERVAL" "$INTERVAL" "$MAX_ITER" | tr '\n' ' ')
+fi
+
+if [ -n "$CHECKPOINTS_LIST" ]; then
+    mapfile -t CK < <(echo "$CHECKPOINTS_LIST" | tr ' ' '\n' | grep -v '^$')
+    if [ "${#CK[@]}" -gt 0 ]; then
+        EXTRA_TRAIN_ARGS+=("--checkpoint_iterations" "${CK[@]}")
+    fi
+fi
+
+# Auto-resume from latest checkpoint if available (with staleness invalidation guard)
+LATEST_CHKPNT=$(ls -v "${MODEL_OUTPUT}"/checkpoints/chkpnt*.pth "${MODEL_OUTPUT}"/chkpnt*.pth 2>/dev/null | tail -n 1 || true)
+SPARSE_PTS="${TARGET_DATA_DIR}/sparse/0/points3D.bin"
+if [ ! -f "$SPARSE_PTS" ]; then
+    SPARSE_PTS="${TARGET_DATA_DIR}/sparse/0/points3D.txt"
+fi
+
+if [ -n "$LATEST_CHKPNT" ]; then
+    if [ -f "$SPARSE_PTS" ] && [ "$SPARSE_PTS" -nt "$LATEST_CHKPNT" ]; then
+        log_warn "Sparse point cloud ($SPARSE_PTS) is newer than latest checkpoint ($(basename "$LATEST_CHKPNT")). Invalidating outdated checkpoint and starting fresh training."
+        LATEST_CHKPNT=""
+    else
+        log_info "Auto-resuming Scaffold-GS training from latest checkpoint: $(basename "$LATEST_CHKPNT")"
+        EXTRA_TRAIN_ARGS+=("--start_checkpoint" "$LATEST_CHKPNT")
+    fi
+fi
+
 python third_party/scaffold-gs/train.py \
     -s "$TARGET_DATA_DIR" \
     --model_path "$MODEL_OUTPUT" \
+    --data_device "${DATA_DEVICE:-cpu}" \
     -r "$DOWNSAMPLE_RATE" \
     --iterations "${GS_ITERATIONS:-30000}" \
     "${EXTRA_TRAIN_ARGS[@]}"
@@ -92,4 +131,4 @@ cat <<EOF > "$MODEL_OUTPUT/pipeline_meta.json"
 }
 EOF
 
-echo "Scaffold-GS Training Completed! Results saved to $MODEL_OUTPUT"
+log_ok "Scaffold-GS Training Completed! Results saved to $MODEL_OUTPUT"

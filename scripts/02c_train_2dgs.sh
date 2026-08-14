@@ -45,9 +45,15 @@ else
 fi
 
 # Ensure images directory/link exists for 2DGS dataloader
-if [ ! -d "${TARGET_DATA_DIR}/images" ] && [ -d "${TARGET_DATA_DIR}/raw_images" ]; then
-    echo "Creating images symlink in ${TARGET_DATA_DIR}/images..."
-    ln -s raw_images "${TARGET_DATA_DIR}/images" 2>/dev/null || cp -r "${TARGET_DATA_DIR}/raw_images" "${TARGET_DATA_DIR}/images"
+if [ -d "${TARGET_DATA_DIR}/raw_images" ]; then
+    if [ -d "${TARGET_DATA_DIR}/images" ] && [ ! -L "${TARGET_DATA_DIR}/images" ]; then
+        echo "[INFO] Removing non-symlink images directory to enforce strict symlink..."
+        rm -rf "${TARGET_DATA_DIR}/images"
+    fi
+    if [ ! -L "${TARGET_DATA_DIR}/images" ]; then
+        echo "[INFO] Creating strict images symlink in ${TARGET_DATA_DIR}/images..."
+        ln -sf raw_images "${TARGET_DATA_DIR}/images" || { echo "[FATAL] Failed to create symlink ${TARGET_DATA_DIR}/images -> raw_images"; exit 1; }
+    fi
 fi
 
 SCENE_NAME=$(basename "$TARGET_DATA_DIR")
@@ -65,6 +71,39 @@ fi
 EXTRA_TRAIN_ARGS=()
 if [ "${GS_EVAL_MODE:-false}" = "true" ]; then
     EXTRA_TRAIN_ARGS+=("--eval")
+fi
+
+CHECKPOINTS_LIST=""
+if [ -n "${GS_CHECKPOINT_ITERATIONS:-}" ]; then
+    CHECKPOINTS_LIST="$GS_CHECKPOINT_ITERATIONS"
+elif [ -n "${GS_CHECKPOINT_INTERVAL:-}" ] && [ "${GS_CHECKPOINT_INTERVAL:-0}" -gt 0 ]; then
+    MAX_ITER="${GS_ITERATIONS:-30000}"
+    INTERVAL="${GS_CHECKPOINT_INTERVAL:-10000}"
+    CHECKPOINTS_LIST=$(seq "$INTERVAL" "$INTERVAL" "$MAX_ITER" | tr '\n' ' ')
+fi
+
+if [ -n "$CHECKPOINTS_LIST" ]; then
+    mapfile -t CK < <(echo "$CHECKPOINTS_LIST" | tr ' ' '\n' | grep -v '^$')
+    if [ "${#CK[@]}" -gt 0 ]; then
+        EXTRA_TRAIN_ARGS+=("--checkpoint_iterations" "${CK[@]}")
+    fi
+fi
+
+# Auto-resume from latest checkpoint if available (with staleness invalidation guard)
+LATEST_CHKPNT=$(ls -v "${MODEL_OUTPUT}"/checkpoints/chkpnt*.pth "${MODEL_OUTPUT}"/chkpnt*.pth 2>/dev/null | tail -n 1 || true)
+SPARSE_PTS="${TARGET_DATA_DIR}/sparse/0/points3D.bin"
+if [ ! -f "$SPARSE_PTS" ]; then
+    SPARSE_PTS="${TARGET_DATA_DIR}/sparse/0/points3D.txt"
+fi
+
+if [ -n "$LATEST_CHKPNT" ]; then
+    if [ -f "$SPARSE_PTS" ] && [ "$SPARSE_PTS" -nt "$LATEST_CHKPNT" ]; then
+        log_warn "Sparse point cloud ($SPARSE_PTS) is newer than latest checkpoint ($(basename "$LATEST_CHKPNT")). Invalidating outdated checkpoint and starting fresh training."
+        LATEST_CHKPNT=""
+    else
+        log_info "Auto-resuming 2DGS training from latest checkpoint: $(basename "$LATEST_CHKPNT")"
+        EXTRA_TRAIN_ARGS+=("--start_checkpoint" "$LATEST_CHKPNT")
+    fi
 fi
 
 python third_party/2d-gaussian-splatting/train.py \

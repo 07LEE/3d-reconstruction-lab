@@ -2,7 +2,7 @@
 title: Pipeline Architecture Guide
 description: Technical architecture, stage workflows, and execution guide for the 3DRC reconstruction pipeline.
 category: guide
-last_updated: 2026-08-10
+last_updated: 2026-08-14
 ---
 
 # 3DRC Pipeline Architecture Guide
@@ -128,6 +128,15 @@ Optimizes 3D/2D Gaussian Splatting scene representations using differentiable ra
 - Output Checkpoint (PlanarGS): `outputs/<scene_name>/3dgs/planargs/`
 - Output Checkpoint (2DGS): `outputs/<scene_name>/2dgs/`
 - Output Checkpoint (Scaffold-GS): `outputs/<scene_name>/scaffoldgs/`
+
+### Dynamic Training Checkpoint Configuration
+
+By default, training scripts save intermediate model checkpoints at `10000`, `20000`, and `30000` iterations via `GS_CHECKPOINT_INTERVAL=10000` defined in `configs/default_config.sh`. To adjust the saving frequency:
+
+```bash
+# Custom checkpoint interval (e.g. save every 5,000 iterations)
+GS_CHECKPOINT_INTERVAL=5000 ./scripts/02_train_3dgs.sh data/<scene_name>
+```
 
 ## Step 3: 3D Mesh Reconstruction (SuGaR, MILo & TSDF)
 

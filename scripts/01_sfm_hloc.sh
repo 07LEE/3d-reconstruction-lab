@@ -75,9 +75,14 @@ case "$METHOD" in
         mkdir -p "$SPARSE_METHOD_DIR"
         echo "Starting High-Precision hloc SfM Pipeline..."
         OVERWRITE_FLAG=""
-        if [ "${OVERWRITE:-0}" = "1" ] || [ "${3:-}" = "--overwrite" ] || [ "${2:-}" = "--overwrite" ]; then
+        if [ "${OVERWRITE:-0}" = "1" ]; then
             OVERWRITE_FLAG="--overwrite"
             echo "[INFO] Cache overwrite enabled for fresh SfM reconstruction."
+        fi
+        RECONSTRUCT_ONLY_FLAG=""
+        if [ "${RECONSTRUCT_ONLY:-0}" = "1" ]; then
+            RECONSTRUCT_ONLY_FLAG="--reconstruct-only"
+            echo "[INFO] Reconstruct-only mode enabled for sparse model re-generation."
         fi
         python -m src.sfm.hloc_pipeline \
             --image_dir "$IMAGE_DIR_TARGET" \
@@ -85,7 +90,8 @@ case "$METHOD" in
             --strategy "${SFM_STRATEGY:-sequential}" \
             --overlap "${SFM_OVERLAP:-100}" \
             --retrieval_k "${SFM_RETRIEVAL_K:-30}" \
-            ${OVERWRITE_FLAG}
+            ${OVERWRITE_FLAG} \
+            ${RECONSTRUCT_ONLY_FLAG}
         ;;
     *)
         echo "[FATAL] Unknown SfM method: $METHOD" >&2
@@ -96,6 +102,38 @@ esac
 # Move/copy outputs to method specific directory
 if [ -d "${INPUT_DATASET}/cache/sfm" ]; then
     cp -r "${INPUT_DATASET}/cache/sfm"/* "$SPARSE_METHOD_DIR/" 2>/dev/null || true
+    # If COLMAP created submodels in models/, promote the largest submodel by registered image count (num_reg_images)
+    if [ -d "${INPUT_DATASET}/cache/sfm/models" ]; then
+        PROMOTION_INFO=$(python3 -c '
+import pycolmap, sys, glob, os
+models_dir = sys.argv[1]
+best_model = ""
+max_imgs = -1
+for m in sorted(glob.glob(os.path.join(models_dir, "*"))):
+    if os.path.isdir(m):
+        try:
+            rec = pycolmap.Reconstruction(m)
+            num_imgs = rec.num_reg_images()
+            if num_imgs > max_imgs:
+                max_imgs = num_imgs
+                best_model = m
+        except Exception:
+            pass
+if best_model:
+    print(f"{best_model}|{max_imgs}")
+' "${INPUT_DATASET}/cache/sfm/models" 2>/dev/null || true)
+
+        if [ -n "$PROMOTION_INFO" ]; then
+            BEST_MODEL=$(echo "$PROMOTION_INFO" | cut -d'|' -f1)
+            REG_COUNT=$(echo "$PROMOTION_INFO" | cut -d'|' -f2)
+            if [ -n "$BEST_MODEL" ] && [ -d "$BEST_MODEL" ]; then
+                log_info "Promoting submodel $(basename "$BEST_MODEL") ($REG_COUNT registered images) to root of ${SPARSE_METHOD_DIR}..."
+                # Clear residual sparse files before promoting largest model
+                rm -f "${SPARSE_METHOD_DIR}/cameras.bin" "${SPARSE_METHOD_DIR}/images.bin" "${SPARSE_METHOD_DIR}/points3D.bin" "${SPARSE_METHOD_DIR}/points3D.ply" 2>/dev/null || true
+                cp -f "$BEST_MODEL"/* "$SPARSE_METHOD_DIR/" || log_fatal "Failed to promote model from $BEST_MODEL to $SPARSE_METHOD_DIR"
+            fi
+        fi
+    fi
 fi
 if [ -d "${INPUT_DATASET}/0" ]; then
     mv "${INPUT_DATASET}/0"/* "$SPARSE_METHOD_DIR/" 2>/dev/null || true

@@ -75,7 +75,7 @@ case "$COMMAND" in
                 [ -n "$ARG2" ] && ARG_DATASET="$ARG2"
             fi
         fi
-        echo "[3DRC CLI] Executing Step 1: Camera Pose Estimation (Method: ${METHOD})..."
+        log_header "Step 1: Camera Pose Estimation (Method: ${METHOD})"
         ./scripts/01_sfm_hloc.sh "$METHOD" ${ARG_DATASET:+"$ARG_DATASET"}
         ;;
     train)
@@ -94,32 +94,32 @@ case "$COMMAND" in
             fi
         fi
         if [ "$BACKEND" = "planargs" ]; then
-            echo "[3DRC CLI] Executing Step 2b: PlanarGS Training..."
+            log_header "Step 2b: PlanarGS Training"
             ./scripts/02b_train_planargs.sh ${ARG_DATASET:+"$ARG_DATASET"}
         elif [ "$BACKEND" = "2dgs" ]; then
-            echo "[3DRC CLI] Executing Step 2c: 2D Gaussian Splatting Training..."
+            log_header "Step 2c: 2D Gaussian Splatting Training"
             ./scripts/02c_train_2dgs.sh ${ARG_DATASET:+"$ARG_DATASET"}
         elif [ "$BACKEND" = "scaffoldgs" ]; then
-            echo "[3DRC CLI] Executing Step 2d: Scaffold-GS Training..."
+            log_header "Step 2d: Scaffold-GS Training"
             ./scripts/02d_train_scaffoldgs.sh ${ARG_DATASET:+"$ARG_DATASET"}
         else
-            echo "[3DRC CLI] Executing Step 2: 3DGS Training..."
+            log_header "Step 2: 3DGS Training"
             ./scripts/02_train_3dgs.sh ${ARG_DATASET:+"$ARG_DATASET"}
         fi
         ;;
     2dgs)
         ARG_DATASET="${2:-}"
-        echo "[3DRC CLI] Executing Step 2c: 2D Gaussian Splatting Training..."
+        log_header "Step 2c: 2D Gaussian Splatting Training"
         ./scripts/02c_train_2dgs.sh ${ARG_DATASET:+"$ARG_DATASET"}
         ;;
     planargs)
         ARG_DATASET="${2:-}"
-        echo "[3DRC CLI] Executing Step 2b: PlanarGS Training..."
+        log_header "Step 2b: PlanarGS Training"
         ./scripts/02b_train_planargs.sh ${ARG_DATASET:+"$ARG_DATASET"}
         ;;
     scaffoldgs)
         ARG_DATASET="${2:-}"
-        echo "[3DRC CLI] Executing Step 2d: Scaffold-GS Training..."
+        log_header "Step 2d: Scaffold-GS Training"
         ./scripts/02d_train_scaffoldgs.sh ${ARG_DATASET:+"$ARG_DATASET"}
         ;;
     view)

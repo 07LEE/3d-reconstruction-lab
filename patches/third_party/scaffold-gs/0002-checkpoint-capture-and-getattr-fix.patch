@@ -1,0 +1,288 @@
+diff --git a/scene/__init__.py b/scene/__init__.py
+index 352019b..86ded84 100755
+--- a/scene/__init__.py
++++ b/scene/__init__.py
+@@ -78,9 +78,9 @@ class Scene:
+         # print(f'self.cameras_extent: {self.cameras_extent}')
+ 
+         for resolution_scale in resolution_scales:
+-            print("Loading Training Cameras")
++            print("[INFO]  Loading Training Cameras...")
+             self.train_cameras[resolution_scale] = cameraList_from_camInfos(scene_info.train_cameras, resolution_scale, args)
+-            print("Loading Test Cameras")
++            print("[INFO]  Loading Test Cameras...")
+             self.test_cameras[resolution_scale] = cameraList_from_camInfos(scene_info.test_cameras, resolution_scale, args)
+ 
+         if self.loaded_iter:
+@@ -100,7 +100,7 @@ class Scene:
+         self.gaussians.save_mlp_checkpoints(point_cloud_path)
+ 
+     def getTrainCameras(self, scale=1.0):
+-        return self.train_cameras[scale]
++        return self.train_cameras.get(scale, [])
+ 
+     def getTestCameras(self, scale=1.0):
+-        return self.test_cameras[scale]
+\ No newline at end of file
++        return self.test_cameras.get(scale, [])
+\ No newline at end of file
+diff --git a/scene/dataset_readers.py b/scene/dataset_readers.py
+index 927d37a..e1e7939 100755
+--- a/scene/dataset_readers.py
++++ b/scene/dataset_readers.py
+@@ -78,8 +78,7 @@ def readColmapCameras(cam_extrinsics, cam_intrinsics, images_folder):
+     cam_infos = []
+     for idx, key in enumerate(cam_extrinsics):
+         sys.stdout.write('\r')
+-        # the exact output you're looking for:
+-        sys.stdout.write("Reading camera {}/{}".format(idx+1, len(cam_extrinsics)))
++        sys.stdout.write("[INFO]  Reading camera {}/{}".format(idx+1, len(cam_extrinsics)))
+         sys.stdout.flush()
+
+         extr = cam_extrinsics[key]
+@@ -194,7 +193,7 @@ def readColmapSceneInfo(path, images, eval, lod, llffhold=8):
+             xyz, rgb, _ = read_points3D_text(txt_path)
+         storePly(ply_path, xyz, rgb)
+     # try:
+-    print(f'start fetching data from ply file')
++    print("[INFO]  Fetching initial point cloud from PLY file...")
+     pcd = fetchPly(ply_path)
+     # except:
+     #     pcd = None
+diff --git a/scene/gaussian_model.py b/scene/gaussian_model.py
+index 1d57a5a..f89551c 100755
+--- a/scene/gaussian_model.py
++++ b/scene/gaussian_model.py
+@@ -148,6 +148,7 @@ class GaussianModel:
+
+     def capture(self):
+         return (
++            self.active_sh_degree,
+             self._anchor,
+             self._offset,
+             self._anchor_feat,
+@@ -160,17 +161,30 @@ class GaussianModel:
+         )
+     
+     def restore(self, model_args, training_args):
+-        (self.active_sh_degree, 
+-        self._anchor, 
+-        self._offset,
+-        self._local,
+-        self._scaling, 
+-        self._rotation, 
+-        self._opacity,
+-        self.max_radii2D, 
+-        denom,
+-        opt_dict, 
+-        self.spatial_lr_scale) = model_args
++        if len(model_args) == 10:
++            (self._anchor, 
++            self._offset,
++            self._anchor_feat,
++            self._scaling, 
++            self._rotation, 
++            self._opacity,
++            self.max_radii2D, 
++            offset_denom,
++            opt_dict, 
++            self.spatial_lr_scale) = model_args
++            self.active_sh_degree = getattr(training_args, 'sh_degree', 3)
++        else:
++            (self.active_sh_degree, 
++            self._anchor, 
++            self._offset,
++            self._anchor_feat,
++            self._scaling, 
++            self._rotation, 
++            self._opacity,
++            self.max_radii2D, 
++            offset_denom,
++            opt_dict, 
++            self.spatial_lr_scale) = model_args
+         self.training_setup(training_args)
+         if offset_denom is not None:
+             self.offset_denom = offset_denom
+diff --git a/train.py b/train.py
+index 166cc4c..d23c8b3 100755
+--- a/train.py
++++ b/train.py
+@@ -10,16 +10,14 @@
+ #
+ 
+ import os
++import sys
++import logging
+ import numpy as np
+ 
+-import subprocess
+-cmd = 'nvidia-smi -q -d Memory |grep -A4 GPU|grep Used'
+-result = subprocess.run(cmd, shell=True, stdout=subprocess.PIPE).stdout.decode().split('\n')
+-os.environ['CUDA_VISIBLE_DEVICES']=str(np.argmin([int(x.split()[2]) for x in result[:-1]]))
+-
+-os.system('echo $CUDA_VISIBLE_DEVICES')
+-
+ 
++import warnings
++warnings.filterwarnings("ignore")
++import io, contextlib
+ import torch
+ import torchvision
+ import json
+@@ -31,7 +29,8 @@ from pathlib import Path
+ from PIL import Image
+ import torchvision.transforms.functional as tf
+ # from lpipsPyTorch import lpips
+-import lpips
++with contextlib.redirect_stdout(io.StringIO()):
++    import lpips
+ from random import randint
+ from utils.loss_utils import l1_loss, ssim
+ from gaussian_renderer import prefilter_voxel, render, network_gui
+@@ -45,15 +44,14 @@ from argparse import ArgumentParser, Namespace
+ from arguments import ModelParams, PipelineParams, OptimizationParams
+ 
+ # torch.set_num_threads(32)
+-lpips_fn = lpips.LPIPS(net='vgg').to('cuda')
++with contextlib.redirect_stdout(io.StringIO()):
++    lpips_fn = lpips.LPIPS(net='vgg').to('cuda')
+ 
+ try:
+     from torch.utils.tensorboard import SummaryWriter
+     TENSORBOARD_FOUND = True
+-    print("found tf board")
+ except ImportError:
+     TENSORBOARD_FOUND = False
+-    print("not found tf board")
+ 
+ def saveRuntimeCode(dst: str) -> None:
+     additionalIgnorePatterns = ['.git', '.gitignore']
+@@ -87,7 +85,7 @@ def training(dataset, opt, pipe, dataset_name, testing_iterations, saving_iterat
+     scene = Scene(dataset, gaussians, ply_path=ply_path, shuffle=False)
+     gaussians.training_setup(opt)
+     if checkpoint:
+-        (model_params, first_iter) = torch.load(checkpoint)
++        (model_params, first_iter) = torch.load(checkpoint, weights_only=False)
+         gaussians.restore(model_params, opt)
+ 
+     iter_start = torch.cuda.Event(enable_timing = True)
+@@ -95,7 +93,7 @@ def training(dataset, opt, pipe, dataset_name, testing_iterations, saving_iterat
+ 
+     viewpoint_stack = None
+     ema_loss_for_log = 0.0
+-    progress_bar = tqdm(range(first_iter, opt.iterations), desc="Training progress")
++    progress_bar = tqdm(range(first_iter, opt.iterations), total=opt.iterations, initial=first_iter, desc="Training progress", dynamic_ncols=True)
+     first_iter += 1
+     for iteration in range(first_iter, opt.iterations + 1):        
+         # network gui not available in scaffold-gs yet
+@@ -161,7 +159,6 @@ def training(dataset, opt, pipe, dataset_name, testing_iterations, saving_iterat
+             # Log and save
+             training_report(tb_writer, dataset_name, iteration, Ll1, loss, l1_loss, iter_start.elapsed_time(iter_end), testing_iterations, scene, render, (pipe, background), wandb, logger)
+             if (iteration in saving_iterations):
+-                logger.info("\n[ITER {}] Saving Gaussians".format(iteration))
+                 scene.save(iteration)
+             
+             # densification
+@@ -183,8 +180,9 @@ def training(dataset, opt, pipe, dataset_name, testing_iterations, saving_iterat
+                 gaussians.optimizer.step()
+                 gaussians.optimizer.zero_grad(set_to_none = True)
+             if (iteration in checkpoint_iterations):
+-                logger.info("\n[ITER {}] Saving Checkpoint".format(iteration))
+-                torch.save((gaussians.capture(), iteration), scene.model_path + "/chkpnt" + str(iteration) + ".pth")
++                chkpnt_dir = os.path.join(scene.model_path, "checkpoints")
++                os.makedirs(chkpnt_dir, exist_ok=True)
++                torch.save((gaussians.capture(), iteration), os.path.join(chkpnt_dir, f"chkpnt{iteration}.pth"))
+ 
+ def prepare_output_and_logger(args):    
+     if not args.model_path:
+@@ -195,7 +193,6 @@ def prepare_output_and_logger(args):
+         args.model_path = os.path.join("./output/", unique_str[0:10])
+         
+     # Set up output folder
+-    print("Output folder: {}".format(args.model_path))
+     os.makedirs(args.model_path, exist_ok = True)
+     with open(os.path.join(args.model_path, "cfg_args"), 'w') as cfg_log_f:
+         cfg_log_f.write(str(Namespace(**vars(args))))
+@@ -203,7 +200,9 @@ def prepare_output_and_logger(args):
+     # Create Tensorboard writer
+     tb_writer = None
+     if TENSORBOARD_FOUND:
+-        tb_writer = SummaryWriter(args.model_path)
++        tb_dir = os.path.join(args.model_path, "events")
++        os.makedirs(tb_dir, exist_ok=True)
++        tb_writer = SummaryWriter(tb_dir)
+     else:
+         print("Tensorboard not available: not logging progress")
+     return tb_writer
+@@ -434,18 +433,24 @@ def evaluate(model_paths, visible_count=None, wandb=None, tb_writer=None, datase
+     with open(scene_dir + "/per_view.json", 'w') as fp:
+         json.dump(per_view_dict[scene_dir], fp, indent=True)
+     
+-def get_logger(path):
+-    import logging
++class CleanStreamFormatter(logging.Formatter):
++    def format(self, record):
++        raw_msg = record.getMessage()
++        msg = raw_msg.lstrip("\n ")
++        if msg.startswith("[") or msg.startswith("  "):
++            return msg
++        return f"[INFO]  {msg}"
+ 
++def get_logger(path):
+     logger = logging.getLogger()
+     logger.setLevel(logging.INFO) 
+     fileinfo = logging.FileHandler(os.path.join(path, "outputs.log"))
+     fileinfo.setLevel(logging.INFO) 
++    fileinfo.setFormatter(logging.Formatter("%(asctime)s - %(levelname)s: %(message)s"))
++
+     controlshow = logging.StreamHandler()
+     controlshow.setLevel(logging.INFO)
+-    formatter = logging.Formatter("%(asctime)s - %(levelname)s: %(message)s")
+-    fileinfo.setFormatter(formatter)
+-    controlshow.setFormatter(formatter)
++    controlshow.setFormatter(CleanStreamFormatter())
+
+     logger.addHandler(fileinfo)
+     logger.addHandler(controlshow)
+@@ -482,21 +487,17 @@ if __name__ == "__main__":
+     os.makedirs(model_path, exist_ok=True)
+
+     logger = get_logger(model_path)
+-
+-
+-    logger.info(f'args: {args}')
++    logger.info("[PARAMS] Scaffold-GS Training Parameters")
++    for k, v in sorted(vars(args).items()):
++        logger.info(f"  {k:<28}: {v}")
+
+     if args.gpu != '-1':
+         os.environ['CUDA_VISIBLE_DEVICES'] = str(args.gpu)
+-        os.system("echo $CUDA_VISIBLE_DEVICES")
+-        logger.info(f'using GPU {args.gpu}')
+-
+-    
+
+     try:
+         saveRuntimeCode(os.path.join(args.model_path, 'backup'))
+     except:
+-        logger.info(f'save code failed~')
++        pass
+         
+     dataset = args.source_path.split('/')[-1]
+     exp_name = args.model_path.split('/')[-2]
+diff --git a/utils/general_utils.py b/utils/general_utils.py
+index 195ad31..9a28390 100755
+--- a/utils/general_utils.py
++++ b/utils/general_utils.py
+@@ -117,10 +117,7 @@ def safe_state(silent):
+
+         def write(self, x):
+             if not self.silent:
+-                if x.endswith("\n"):
+-                    old_f.write(x.replace("\n", " [{}]\n".format(str(datetime.now().strftime("%d/%m %H:%M:%S")))))
+-                else:
+-                    old_f.write(x)
++                old_f.write(x)
+
+         def flush(self):
+             old_f.flush()
