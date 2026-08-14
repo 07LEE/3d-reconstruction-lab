@@ -30,3 +30,4 @@ This directory documents key architectural decisions, rationale, and context for
 - 0011-scaffoldgs-integration.md: Scaffold-GS Integration for Anchor-Based Scene Reconstruction
 - 0012-pytorch-stable-cu128-standardization.md: PyTorch Stable cu128 Standardization and Nightly Deprecation
 - 0013-clean-output-hierarchy-and-subdirectories.md: Clean Output Hierarchy and Subdirectory Isolation Policy
+- 0014-mipsplatting-integration-and-environment-isolation.md: Mip-Splatting Integration for 3D Smoothing Filter and Multi-Scale Rendering
