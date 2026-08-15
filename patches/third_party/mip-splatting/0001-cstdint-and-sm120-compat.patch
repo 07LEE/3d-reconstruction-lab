@@ -1,3 +1,36 @@
+diff --git a/scene/dataset_readers.py b/scene/dataset_readers.py
+index a5f1f9e..5a73e1c 100644
+--- a/scene/dataset_readers.py
++++ b/scene/dataset_readers.py
+@@ -92,6 +92,15 @@ def readColmapCameras(cam_extrinsics, cam_intrinsics, images_folder):
+             focal_length_y = intr.params[1]
+             FovY = focal2fov(focal_length_y, height)
+             FovX = focal2fov(focal_length_x, width)
++        elif intr.model=="SIMPLE_RADIAL" or intr.model=="RADIAL":
++            focal_length_x = intr.params[0]
++            FovY = focal2fov(focal_length_x, height)
++            FovX = focal2fov(focal_length_x, width)
++        elif intr.model=="OPENCV":
++            focal_length_x = intr.params[0]
++            focal_length_y = intr.params[1]
++            FovY = focal2fov(focal_length_y, height)
++            FovX = focal2fov(focal_length_x, width)
+         else:
+             assert False, "Colmap camera model not handled: only undistorted datasets (PINHOLE or SIMPLE_PINHOLE cameras) supported!"
+ 
+diff --git a/submodules/simple-knn/simple_knn.cu b/submodules/simple-knn/simple_knn.cu
+index e72e4c9..f26f212 100644
+--- a/submodules/simple-knn/simple_knn.cu
++++ b/submodules/simple-knn/simple_knn.cu
+@@ -11,6 +11,8 @@
+ 
+ #define BOX_SIZE 1024
+ 
++#include <cstdint>
++#include <cfloat>
+ #include "cuda_runtime.h"
+ #include "device_launch_parameters.h"
+ #include "simple_knn.h"
 diff --git a/train.py b/train.py
 index 1341e75..b8cc829 100644
 --- a/train.py

@@ -24,3 +24,5 @@ dependencies:
       - wadler-lindig
       - colorama
       - tensorboard
+      - open3d
+
