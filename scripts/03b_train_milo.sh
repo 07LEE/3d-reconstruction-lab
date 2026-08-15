@@ -84,6 +84,7 @@ echo "Starting MILo Differentiable Mesh Training & Extraction (Scene: $SCENE_NAM
 python train.py \
     -s "$PROJECT_ROOT/$DENSE_DATASET" \
     -m "$MILO_MODEL_DIR" \
+    --iterations "${GS_ITERATIONS:-30000}" \
     --imp_metric "${MILO_IMP_METRIC:-indoor}" \
     --rasterizer "${MILO_RASTERIZER:-radegs}" \
     --data_device "${DATA_DEVICE:-cpu}"
@@ -101,8 +102,12 @@ cd "$PROJECT_ROOT"
 if [ -f "$MILO_MODEL_DIR/mesh_learnable_sdf.ply" ]; then
     python3 src/mesh/clean_milo_mesh.py \
         --input "$MILO_MODEL_DIR/mesh_learnable_sdf.ply" \
-        --output "$MILO_MODEL_DIR/mesh_cleaned_largest.ply" || true
+        --output "$MILO_MODEL_DIR/mesh_cleaned_largest.ply"
+else
+    echo "[FATAL] MILo mesh extraction failed: mesh_learnable_sdf.ply not found in $MILO_MODEL_DIR" >&2
+    exit 1
 fi
+
 
 # Dynamically record execution provenance metadata
 cat <<EOF > "$MILO_MODEL_DIR/pipeline_meta.json"

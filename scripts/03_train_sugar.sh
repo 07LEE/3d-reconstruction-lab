@@ -31,8 +31,18 @@ cd third_party/sugar || exit 1
 INPUT_DATASET="${1:-$DATA_DIR}"
 SCENE_NAME=$(basename "$INPUT_DATASET")
 
-# Dynamic source Gaussian checkpoint (default: 3dgs/inria_30k, or custom path/subdir)
-GS_SUBDIR="${2:-3dgs/inria_30k}"
+if [ -n "${2:-}" ]; then
+    GS_SUBDIR="$2"
+else
+    # Auto-detect existing 3DGS model output directory or fallback
+    LATEST_3DGS=$(ls -d "$PROJECT_ROOT/${OUTPUT_DIR}/${SCENE_NAME}/3dgs/"* 2>/dev/null | tail -n 1 || true)
+    if [ -n "$LATEST_3DGS" ]; then
+        GS_SUBDIR="3dgs/$(basename "$LATEST_3DGS")"
+    else
+        GS_SUBDIR="3dgs/inria_30k"
+    fi
+fi
+
 if [ -d "$GS_SUBDIR" ]; then
     GS_CHECKPOINT="$GS_SUBDIR"
     MODEL_LABEL=$(basename "$GS_CHECKPOINT")
@@ -56,11 +66,14 @@ if [ -L "$PROJECT_ROOT/${INPUT_DATASET}/sparse/0" ]; then
     ACTIVE_SFM=$(readlink "$PROJECT_ROOT/${INPUT_DATASET}/sparse/0" | xargs basename)
 fi
 
+ITERATION_TO_LOAD="${3:-${GS_ITERATIONS:-30000}}"
+
 # Execute SuGaR Pipeline
-echo "Starting SuGaR Mesh Extraction (Scene: $SCENE_NAME, Source Checkpoint: $GS_CHECKPOINT, Active SfM: $ACTIVE_SFM)..."
+echo "Starting SuGaR Mesh Extraction (Scene: $SCENE_NAME, Source Checkpoint: $GS_CHECKPOINT, Iteration: $ITERATION_TO_LOAD, Active SfM: $ACTIVE_SFM)..."
 python train_full_pipeline.py \
     -s "$PROJECT_ROOT/$INPUT_DATASET" \
     --gs_output_dir "$GS_CHECKPOINT" \
+    -i "$ITERATION_TO_LOAD" \
     -r "$SUGAR_REGULARIZATION" \
     --high_poly "$SUGAR_HIGH_POLY" \
     --export_obj True \
@@ -68,9 +81,13 @@ python train_full_pipeline.py \
 
 # Sync output files to scene specific mesh directory
 echo "Syncing extracted SuGaR results to $SUGAR_MESH_DIR..."
-if [ -d "output" ]; then
-    cp -r output/* "$SUGAR_MESH_DIR/" 2>/dev/null || true
+if [ -d "output" ] && compgen -G "output/*" > /dev/null; then
+    cp -r output/* "$SUGAR_MESH_DIR/"
+else
+    echo "[FATAL] SuGaR pipeline failed: No exported meshes found in output/" >&2
+    exit 1
 fi
+
 
 # Dynamically record execution provenance metadata
 cat <<EOF > "$SUGAR_MESH_DIR/pipeline_meta.json"

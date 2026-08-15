@@ -12,11 +12,9 @@ fi
 CONDA_PATH=$(conda info --base 2>/dev/null || echo "$HOME/miniconda3")
 set +u
 source "$CONDA_PATH/etc/profile.d/conda.sh"
-if ! conda activate gs_mipsplatting 2>/dev/null; then
-    echo "[FATAL] Conda environment 'gs_mipsplatting' not found. Run: ./scripts/00_setup_environment.sh --env gs_mipsplatting"
-    exit 1
-fi
+conda activate gs_mipsplatting
 set -u
+[ "${CONDA_DEFAULT_ENV:-}" = "gs_mipsplatting" ] || { echo "[FATAL] Conda environment 'gs_mipsplatting' not found or activation failed. Run: ./scripts/00_setup_environment.sh --env gs_mipsplatting"; exit 1; }
 
 # Run patch & environment verification inside activated environment
 "$(dirname "$0")/utils/verify_patches.sh" || { echo "[FATAL] Patch verification failed!"; exit 1; }
@@ -91,6 +89,13 @@ if [ -n "$CHECKPOINTS_LIST" ]; then
         EXTRA_TRAIN_ARGS+=("--checkpoint_iterations" "${CK[@]}")
     fi
 fi
+
+# Deduplicate & upper-bound filter --save_iterations against GS_ITERATIONS
+MAX_ITER="${GS_ITERATIONS:-30000}"
+mapfile -t SAVE_ITERS < <(printf '%s\n' "$MAX_ITER" | sort -un)
+EXTRA_TRAIN_ARGS+=("--save_iterations" "${SAVE_ITERS[@]}")
+
+
 
 # Auto-resume from latest checkpoint if available (with staleness invalidation guard)
 LATEST_CHKPNT=$(ls -v "${MODEL_OUTPUT}"/checkpoints/chkpnt*.pth "${MODEL_OUTPUT}"/chkpnt*.pth 2>/dev/null | tail -n 1 || true)

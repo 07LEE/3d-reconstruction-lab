@@ -150,7 +150,7 @@ case "$COMMAND" in
             fi
         fi
         echo "[3DRC CLI] Executing Step 3: SuGaR Mesh Reconstruction..."
-        ./scripts/03_train_sugar.sh ${ARG_DATASET:+"$ARG_DATASET"} ${ARG_SOURCE_MODEL:+"$ARG_SOURCE_MODEL"}
+        ./scripts/03_train_sugar.sh ${ARG_DATASET:+"$ARG_DATASET"} ${ARG_SOURCE_MODEL:+"$ARG_SOURCE_MODEL"} "${GS_ITERATIONS:-30000}"
         ;;
     milo)
         ARG_DATASET="${2:-}"

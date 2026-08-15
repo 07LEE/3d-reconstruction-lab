@@ -57,12 +57,12 @@ export CAMERA_MODE="SINGLE"  # Options: SINGLE, PER_FOLDER, PER_IMAGE, AUTO
 export CAMERA_MODEL="SIMPLE_RADIAL"  # Options: SIMPLE_RADIAL, PINHOLE, OPENCV
 
 # 3DGS training parameters
-DOWNSAMPLE_RATE=4
-DATA_DEVICE="cpu"
-DENSIFY_GRAD_THRESHOLD=0.0002
-GS_ITERATIONS=30000
-export GS_CHECKPOINT_INTERVAL=10000  # Automatically generates checkpoints every N iterations up to GS_ITERATIONS
-GS_EVAL_MODE="false"  # Options: false (full reconstruction), true (holdout evaluation)
+DOWNSAMPLE_RATE="${DOWNSAMPLE_RATE:-4}"
+DATA_DEVICE="${DATA_DEVICE:-cpu}"
+DENSIFY_GRAD_THRESHOLD="${DENSIFY_GRAD_THRESHOLD:-0.0002}"
+GS_ITERATIONS="${GS_ITERATIONS:-30000}"
+export GS_CHECKPOINT_INTERVAL="${GS_CHECKPOINT_INTERVAL:-10000}"  # Automatically generates checkpoints every N iterations up to GS_ITERATIONS
+GS_EVAL_MODE="${GS_EVAL_MODE:-false}"  # Options: false (full reconstruction), true (holdout evaluation)
 
 # SuGaR parameters
 SUGAR_REGULARIZATION="dn_consistency"
@@ -70,8 +70,8 @@ SUGAR_HIGH_POLY="True"
 SUGAR_REFINEMENT="short"
 
 # TSDF Mesh Extraction parameters
-TSDF_VOXEL_SIZE=0.005
-TSDF_DEPTH_TRUNC=6.0
+TSDF_VOXEL_SIZE="${TSDF_VOXEL_SIZE:-0.01}"
+TSDF_DEPTH_TRUNC="${TSDF_DEPTH_TRUNC:-3.0}"
 
 # MILo parameters
 MILO_IMP_METRIC="indoor"  # Options: indoor, outdoor

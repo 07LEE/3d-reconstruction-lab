@@ -16,9 +16,9 @@ CONDA_PATH=$(conda info --base 2>/dev/null || echo "$HOME/miniconda3")
 if [ -f "$CONDA_PATH/etc/profile.d/conda.sh" ]; then
     source "$CONDA_PATH/etc/profile.d/conda.sh"
     set +u
-    conda activate gs_train
+    conda activate gs_sugar
     set -u
-    [ "${CONDA_DEFAULT_ENV:-}" = "gs_train" ] || { echo "[FATAL] Conda environment 'gs_train' not found or activation failed. Run: ./scripts/00_setup_environment.sh --env gs_train"; exit 1; }
+    [ "${CONDA_DEFAULT_ENV:-}" = "gs_sugar" ] || { echo "[FATAL] Conda environment 'gs_sugar' not found or activation failed. Run: ./scripts/00_setup_environment.sh --env gs_sugar"; exit 1; }
 fi
 
 # Run patch & environment verification inside activated gs_train environment
@@ -34,25 +34,11 @@ if [ -f "${INPUT_DATASET}/sparse/0/cameras.bin" ] || [ -f "${INPUT_DATASET}/spar
    [ -f "${INPUT_DATASET}/sparse/cameras.bin" ] || [ -f "${INPUT_DATASET}/sparse/cameras.txt" ]; then
     echo "Using existing pre-computed dataset structure at: ${INPUT_DATASET}"
     TARGET_DATA_DIR="${INPUT_DATASET}"
-else
-    # Guard: Ensure SfM reconstruction model exists before cleaning/updating
-    SRC="${INPUT_DATASET}/cache/sfm"
-    if [ ! -f "$SRC/cameras.bin" ] && [ ! -f "$SRC/cameras.txt" ] && [ ! -f "$SRC/models/0/cameras.bin" ]; then
-        echo "[FATAL] SfM model not found in ${INPUT_DATASET}/sparse/0 or $SRC"
-        exit 1
-    fi
+fi
 
-    # Update SfM data link after verification succeeds
-    echo "Updating SfM data in ${INPUT_DATASET}/sparse/0..."
-    mkdir -p "${INPUT_DATASET}/sparse/0"
-
-    if [ -d "$SRC/models/0" ]; then
-        cp -r "$SRC/models/0/"* "${INPUT_DATASET}/sparse/0/"
-    else
-        cp -r "$SRC/"* "${INPUT_DATASET}/sparse/0/" 2>/dev/null || true
-    fi
-
-    TARGET_DATA_DIR="${INPUT_DATASET}"
+# Ensure PlanarGS dataset_readers finds images.bin and cameras.bin directly under sparse/
+if [ -f "${INPUT_DATASET}/sparse/0/images.bin" ]; then
+    cp "${INPUT_DATASET}/sparse/0/"*.bin "${INPUT_DATASET}/sparse/" 2>/dev/null || true
 fi
 
 # Ensure images directory/link exists for PlanarGS dataloader
@@ -101,6 +87,12 @@ if [ -n "$CHECKPOINTS_LIST" ]; then
     fi
 fi
 
+# Deduplicate & upper-bound filter --save_iterations against GS_ITERATIONS
+mapfile -t SAVE_ITERS < <(printf '%s\n' "$MAX_ITER" | sort -un)
+EXTRA_TRAIN_ARGS+=("--save_iterations" "${SAVE_ITERS[@]}")
+
+
+
 # Auto-resume from latest checkpoint if available (with staleness invalidation guard)
 LATEST_CHKPNT=$(ls -v "${MODEL_OUTPUT}"/checkpoints/chkpnt*.pth "${MODEL_OUTPUT}"/chkpnt*.pth 2>/dev/null | tail -n 1 || true)
 SPARSE_PTS="${TARGET_DATA_DIR}/sparse/0/points3D.bin"
@@ -118,7 +110,12 @@ if [ -n "$LATEST_CHKPNT" ]; then
     fi
 fi
 
-python train.py \
+PYTHON_BIN="$CONDA_PATH/envs/gs_sugar/bin/python"
+if [ ! -x "$PYTHON_BIN" ]; then
+    PYTHON_BIN="python"
+fi
+
+"$PYTHON_BIN" train.py \
     -s "$PROJECT_ROOT/$TARGET_DATA_DIR" \
     -m "$MODEL_OUTPUT" \
     -r "$DOWNSAMPLE_RATE" \

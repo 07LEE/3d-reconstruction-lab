@@ -92,6 +92,13 @@ if [ -n "$CHECKPOINTS_LIST" ]; then
     fi
 fi
 
+# Deduplicate & upper-bound filter --save_iterations against GS_ITERATIONS
+MAX_ITER="${GS_ITERATIONS:-30000}"
+mapfile -t SAVE_ITERS < <(printf '%s\n' "$MAX_ITER" | sort -un)
+EXTRA_TRAIN_ARGS+=("--save_iterations" "${SAVE_ITERS[@]}")
+
+
+
 # Auto-resume from latest checkpoint if available (with staleness invalidation guard)
 LATEST_CHKPNT=$(ls -v "${MODEL_OUTPUT}"/checkpoints/chkpnt*.pth "${MODEL_OUTPUT}"/chkpnt*.pth 2>/dev/null | tail -n 1 || true)
 SPARSE_PTS="${TARGET_DATA_DIR}/sparse/0/points3D.bin"

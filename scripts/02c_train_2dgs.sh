@@ -90,6 +90,13 @@ if [ -n "$CHECKPOINTS_LIST" ]; then
     fi
 fi
 
+# Deduplicate & upper-bound filter --save_iterations against GS_ITERATIONS
+MAX_ITER="${GS_ITERATIONS:-30000}"
+mapfile -t SAVE_ITERS < <(printf '%s\n' "$MAX_ITER" | sort -un)
+EXTRA_TRAIN_ARGS+=("--save_iterations" "${SAVE_ITERS[@]}")
+
+
+
 # Auto-resume from latest checkpoint if available (with staleness invalidation guard)
 LATEST_CHKPNT=$(ls -v "${MODEL_OUTPUT}"/checkpoints/chkpnt*.pth "${MODEL_OUTPUT}"/chkpnt*.pth 2>/dev/null | tail -n 1 || true)
 SPARSE_PTS="${TARGET_DATA_DIR}/sparse/0/points3D.bin"
@@ -112,8 +119,8 @@ python third_party/2d-gaussian-splatting/train.py \
     -m "$MODEL_OUTPUT" \
     -r "$DOWNSAMPLE_RATE" \
     --data_device "$DATA_DEVICE" \
-    "${EXTRA_TRAIN_ARGS[@]}" \
-    --iterations "${GS_ITERATIONS:-30000}"
+    --iterations "${GS_ITERATIONS:-30000}" \
+    "${EXTRA_TRAIN_ARGS[@]}"
 
 # Dynamically record execution provenance metadata
 cat <<EOF > "$MODEL_OUTPUT/pipeline_meta.json"
