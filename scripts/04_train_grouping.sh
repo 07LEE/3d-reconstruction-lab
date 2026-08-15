@@ -27,11 +27,19 @@ PROJECT_ROOT=$(pwd)
 TARGET_DATASET="${1:-$GROUPING_DATASET}"
 SCENE_NAME=$(basename "$TARGET_DATASET")
 
+# Resolve absolute dataset path
+if [ -d "$TARGET_DATASET" ]; then
+    DATASET_ABS_PATH="$(cd "$TARGET_DATASET" && pwd)"
+else
+    DATASET_ABS_PATH="$(pwd)/data/$TARGET_DATASET"
+fi
+
 # Move to gaussian-grouping directory
 cd third_party/gaussian-grouping || exit 1
 
 # Execute Training
 echo "Starting Gaussian Grouping Training for dataset: ${SCENE_NAME}..."
-bash script/train.sh "$SCENE_NAME" "$GROUPING_DOWNSAMPLE"
+ITER_PARAM="${GS_ITERATIONS:-30000}"
+python train.py -s "$DATASET_ABS_PATH" -r "$GROUPING_DOWNSAMPLE" -m "output/${SCENE_NAME}" --config_file config/gaussian_dataset/train.json --iterations "$ITER_PARAM"
 
 echo "Gaussian Grouping Training Completed!"
