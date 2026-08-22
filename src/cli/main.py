@@ -43,6 +43,9 @@ def main() -> None:
 
     subparsers = parser.add_subparsers(dest="step", help="Pipeline steps to execute")
 
+    # data subcommand
+    subparsers.add_parser("data", help="Step 0b: YUV In-Memory Data Load")
+
     # sfm subcommand
     sfm_parser = subparsers.add_parser("sfm", help="Step 1: Camera Pose Estimation")
     sfm_parser.add_argument("--method", type=str, default="hloc", choices=["hloc", "vggt", "fastmap", "sfm"], help="SfM estimation method")
@@ -80,7 +83,9 @@ def main() -> None:
         parser.print_help()
         sys.exit(0)
 
-    if args.step == "sfm":
+    if args.step == "data":
+        run_step("data")
+    elif args.step == "sfm":
         run_step("sfm", args.method)
     elif args.step == "train":
         run_step("train", args.method)

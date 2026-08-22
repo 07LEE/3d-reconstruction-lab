@@ -1,0 +1,2 @@
+# 3DRC Pipeline External Git Dependencies
+yuv-sensor @ git+https://github.com/07LEE/yuv-sensor-data-processor.git

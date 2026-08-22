@@ -24,6 +24,7 @@ show_help() {
     echo "Usage: ./scripts/run_3drc.sh [COMMAND] [OPTIONS]"
     echo ""
     echo "Commands:"
+    echo "  data [dataset]   Run Step 0b YUV In-Memory Data Load (raw YUV session -> in-memory tensors)"
     echo "  sfm [method]     Run Step 1 Camera Pose Estimation (hloc, vggt, fastmap, sfm)"
     echo "  train [backend]  Run Step 2 Gaussian Training (3dgs, planargs, 2dgs, scaffoldgs)"
     echo "  planargs         Run Step 2b PlanarGS Training"
@@ -40,6 +41,7 @@ show_help() {
     echo "  help             Show this help message"
     echo ""
     echo "Examples:"
+    echo "  ./scripts/run_3drc.sh data data/session_419864820"
     echo "  ./scripts/run_3drc.sh sfm hloc"
     echo "  ./scripts/run_3drc.sh train 3dgs"
     echo "  ./scripts/run_3drc.sh train 2dgs"
@@ -57,6 +59,11 @@ show_help() {
 COMMAND=${1:-"help"}
 
 case "$COMMAND" in
+    data)
+        ARG_DATASET="${2:-}"
+        log_header "Step 0b: YUV In-Memory Data Load"
+        ./scripts/00b_data_yuv.sh ${ARG_DATASET:+"$ARG_DATASET"}
+        ;;
     outputs)
         "$PYTHON_BIN" src/utils/inspect_outputs.py
         ;;
