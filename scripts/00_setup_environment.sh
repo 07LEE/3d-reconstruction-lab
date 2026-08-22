@@ -156,7 +156,12 @@ install_ext() {
 
 build_env() {
     local env_name="$1"
-    
+
+    if [ "$env_name" = "3drc" ] && [ -f "requirements.txt" ]; then
+        echo "Installing external Python dependencies (requirements.txt) -> 3drc..."
+        "$CONDA_PATH/envs/3drc/bin/pip" install --no-cache-dir -r requirements.txt
+    fi
+
     if [ "$env_name" = "gs_group" ]; then
         if [ -d "third_party/gaussian-grouping/submodules/diff-gaussian-rasterization" ]; then
             install_ext "gs_group" "third_party/gaussian-grouping/submodules/diff-gaussian-rasterization"
