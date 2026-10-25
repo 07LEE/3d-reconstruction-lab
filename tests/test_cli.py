@@ -29,6 +29,7 @@ def run_cli(monkeypatch, *argv):
     (["nvs", "--model", "2dgs"], ["nvs", "2dgs"]),
     (["results", "--publish", "docs/results.md"], ["results", "--publish", "docs/results.md"]),
     (["pipeline", "--dataset", "data/room"], ["pipeline", "hloc", "data/room"]),
+    (["pipeline", "--train", "2dgs", "--mesh", "tsdf"], ["pipeline", "hloc", "--train", "2dgs", "--mesh", "tsdf"]),
 ])
 def test_cli_maps_to_run_3drc_arguments(monkeypatch, captured, argv, expected):
     run_cli(monkeypatch, *argv)
