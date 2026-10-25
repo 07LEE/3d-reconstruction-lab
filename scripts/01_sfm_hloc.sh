@@ -47,6 +47,7 @@ fi
 SPARSE_BASE_DIR="${INPUT_DATASET}/sparse"
 SPARSE_METHOD_DIR="${SPARSE_BASE_DIR}/${METHOD}"
 
+bench_start
 case "$METHOD" in
     sfm)
         mkdir -p "$SPARSE_METHOD_DIR"
@@ -203,5 +204,8 @@ cd "$SPARSE_BASE_DIR"
 rm -rf 0
 ln -s "$METHOD" 0
 cd - > /dev/null
+
+bench_record "sfm_${METHOD}" "$(basename "$INPUT_DATASET")" "$SPARSE_METHOD_DIR" \
+    "method=${METHOD}" "strategy=${SFM_STRATEGY}"
 
 echo "SfM Reconstruction (${METHOD}) Completed! Saved to ${SPARSE_METHOD_DIR} (Active symlink: ${SPARSE_BASE_DIR}/0 -> ${METHOD})"

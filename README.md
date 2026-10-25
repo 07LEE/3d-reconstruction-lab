@@ -43,8 +43,25 @@ A personal lab environment for hands-on experimentation and benchmarking of 3D r
 ./scripts/run_3drc.sh eval outputs/<scene_name>/mesh/milo/mesh_cleaned_largest.ply
 ./scripts/run_3drc.sh eval outputs/<scene_name>/mesh/2dgs/tsdf_mesh.ply data/<scene_name>/lidar.pcd
 
+# 5b. Evaluate NVS metrics on held-out views (model trained with GS_EVAL_MODE="true")
+./scripts/run_3drc.sh nvs data/<scene_name> 3dgs/inria_30k
+
 # 6. Inspect Generated Artifacts
 ./scripts/run_3drc.sh outputs
+
+# 7. Aggregate results into one comparison report
+./scripts/run_3drc.sh results
+./scripts/run_3drc.sh results --publish docs/results.md
+```
+
+## Results Recording
+
+Each stage records its runtime and environment fingerprint to `outputs/benchmark_timings.json`. `./scripts/run_3drc.sh results` joins SfM statistics, NVS metrics, mesh metrics, model sizes, and timings into `outputs/results_summary.md` and `outputs/results_runs.csv`; `--publish docs/results.md` keeps a tracked copy. NVS metrics are reported only for models trained with `GS_EVAL_MODE="true"`. See [ADR 0015](docs/adr/0015-results-recording-and-aggregation.md).
+
+The collector and timing helpers have unit tests that run without a GPU:
+
+```bash
+pytest tests
 ```
 
 ## Environment Architecture

@@ -205,5 +205,34 @@ python src/mesh/eval_mesh.py --mesh outputs/<scene_name>/mesh/milo/mesh_cleaned_
 python src/mesh/eval_mesh.py --mesh outputs/<scene_name>/mesh/2dgs/tsdf_mesh.ply --gt data/<scene_name>/lidar.pcd
 
 # 3. Evaluation with Sim(3) transform JSON
-python src/mesh/eval_mesh.py --mesh outputs/<scene_name>/mesh/sugar/sugarfine_mesh.obj --gt data/<scene_name>/lidar.pcd --transform outputs/<scene_name>/eval/sim3_transform.json
+python src/mesh/eval_mesh.py --mesh outputs/<scene_name>/mesh/sugar/sugarfine_mesh.obj --gt data/<scene_name>/lidar.pcd --transform outputs/<scene_name>/mesh/sugar/eval/sugarfine_mesh/sim3_transform.json
+```
+
+Results are written to `<mesh_dir>/eval/<mesh_stem>/` (`eval_results.json`, `sim3_transform.json`) unless `--out` is given.
+
+## Step 5b: Novel View Synthesis Evaluation (`scripts/05_eval_nvs.sh`)
+
+Renders held-out test views with the backend's own `render.py --skip_train` and computes PSNR / SSIM / LPIPS with its `metrics.py`. Metrics are written to `<model_dir>/results.json` and `per_view.json`.
+
+- The model must be trained with `GS_EVAL_MODE="true"` (every 8th view held out). Models without `eval=True` in `cfg_args` are rejected.
+- The backend is inferred from the output path (`3dgs/inria_30k`, `3dgs/planargs`, `2dgs`, `scaffoldgs`, `mipsplatting`); override with `NVS_BACKEND`.
+
+```bash
+GS_EVAL_MODE=true ./scripts/run_3drc.sh train 2dgs data/<scene_name>   # or set GS_EVAL_MODE in configs/default_config.sh
+./scripts/run_3drc.sh nvs data/<scene_name> 2dgs
+```
+
+## Results Aggregation (`src/utils/collect_results.py`)
+
+Stage scripts append runtime entries to `outputs/benchmark_timings.json` (stage, output directory, parameters, `resumed_from`, GPU / driver / torch / git commit fingerprint). The collector joins them with:
+
+| Source | Metrics |
+| --- | --- |
+| `data/<scene>/sparse/<method>/` | Registered / total images, sparse point count |
+| `outputs/<scene>/<model>/results.json`, `cfg_args`, `point_cloud/` | PSNR, SSIM, LPIPS, holdout flag, primitive count, model size |
+| `outputs/<scene>/mesh/<engine>/eval/<mesh>/eval_results.json` | Vertices, faces, watertightness, sliver ratio, Chamfer L1, HD95, GT coverage |
+
+```bash
+./scripts/run_3drc.sh results                          # outputs/results_summary.md + outputs/results_runs.csv
+./scripts/run_3drc.sh results --publish docs/results.md  # also write a tracked copy
 ```

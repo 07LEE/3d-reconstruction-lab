@@ -220,11 +220,12 @@ def main() -> None:
     parser.add_argument("--n-samples", type=int, default=2000000, help="Number of uniform surface sample points (default: 2M)")
     parser.add_argument("--coverage-radius", type=float, default=0.5, help="GT coverage mask radius in meters (default: 0.5m)")
     parser.add_argument("--check-self-intersect", action="store_true", help="Enable computationally expensive self-intersection check")
-    parser.add_argument("--out", type=str, default="outputs/eval", help="Output directory for eval results")
+    parser.add_argument("--out", type=str, default=None, help="Output directory for eval results (default: <mesh_dir>/eval/<mesh_stem>)")
 
     args = parser.parse_args()
 
-    out_dir = Path(args.out)
+    mesh_file = Path(args.mesh).resolve()
+    out_dir = Path(args.out) if args.out else mesh_file.parent / "eval" / mesh_file.stem
     out_dir.mkdir(parents=True, exist_ok=True)
 
     print("==================================================")

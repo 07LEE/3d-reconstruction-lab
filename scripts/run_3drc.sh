@@ -36,6 +36,8 @@ show_help() {
     echo "  tsdf             Run Step 3c TSDF Mesh Extraction"
     echo "  grouping         Run Step 4 Gaussian Grouping Object Segmentation"
     echo "  eval [mesh] [gt] Run Step 5 Mesh Evaluation against LiDAR GT PointCloud"
+    echo "  nvs [dataset] [model] Run Step 5b NVS Evaluation (PSNR/SSIM/LPIPS on held-out views)"
+    echo "  results [--publish PATH] Aggregate SfM/NVS/mesh/timing results into one report"
     echo "  outputs          Inspect and summarize all generated output artifacts"
     echo "  pipeline [method] Run End-to-End Pipeline (SfM -> Train -> Mesh)"
     echo "  help             Show this help message"
@@ -51,6 +53,8 @@ show_help() {
     echo "  ./scripts/run_3drc.sh milo"
     echo "  ./scripts/run_3drc.sh tsdf"
     echo "  ./scripts/run_3drc.sh eval <mesh_path> [gt_pcd_path]"
+    echo "  ./scripts/run_3drc.sh nvs data/<scene> 3dgs/inria_30k"
+    echo "  ./scripts/run_3drc.sh results --publish docs/results.md"
     echo "  ./scripts/run_3drc.sh outputs"
     echo "  ./scripts/run_3drc.sh view hloc"
     echo "  ./scripts/run_3drc.sh pipeline hloc"
@@ -200,6 +204,28 @@ case "$COMMAND" in
         fi
         echo "[3DRC CLI] Executing Step 5: Mesh Quantitative Evaluation..."
         "$PYTHON_BIN" src/mesh/eval_mesh.py "${EVAL_ARGS[@]}"
+        ;;
+    nvs)
+        ARG1="${2:-}"
+        ARG2="${3:-}"
+        ARG_DATASET=""
+        ARG_MODEL=""
+        if [ -n "$ARG1" ]; then
+            # Model directories are also directories, so detect datasets by their layout
+            if [[ "$ARG1" == data/* ]] || [ -d "$ARG1/sparse" ] || [ -d "$ARG1/raw_images" ]; then
+                ARG_DATASET="$ARG1"
+                [ -n "$ARG2" ] && ARG_MODEL="$ARG2"
+            else
+                ARG_MODEL="$ARG1"
+                [ -n "$ARG2" ] && ARG_DATASET="$ARG2"
+            fi
+        fi
+        log_header "Step 5b: NVS Evaluation"
+        ./scripts/05_eval_nvs.sh "${ARG_DATASET:-$DATA_DIR}" ${ARG_MODEL:+"$ARG_MODEL"}
+        ;;
+    results)
+        shift
+        "$PYTHON_BIN" src/utils/collect_results.py "$@"
         ;;
     pipeline)
         ARG1="${2:-}"

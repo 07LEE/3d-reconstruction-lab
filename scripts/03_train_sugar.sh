@@ -70,6 +70,7 @@ ITERATION_TO_LOAD="${3:-${GS_ITERATIONS:-30000}}"
 
 # Execute SuGaR Pipeline
 echo "Starting SuGaR Mesh Extraction (Scene: $SCENE_NAME, Source Checkpoint: $GS_CHECKPOINT, Iteration: $ITERATION_TO_LOAD, Active SfM: $ACTIVE_SFM)..."
+bench_start
 python train_full_pipeline.py \
     -s "$PROJECT_ROOT/$INPUT_DATASET" \
     --gs_output_dir "$GS_CHECKPOINT" \
@@ -88,6 +89,8 @@ else
     exit 1
 fi
 
+bench_record "sugar_mesh" "$SCENE_NAME" "$SUGAR_MESH_DIR" \
+    "source_model=$GS_SUBDIR" "regularization=$SUGAR_REGULARIZATION" "active_sfm=$ACTIVE_SFM"
 
 # Dynamically record execution provenance metadata
 cat <<EOF > "$SUGAR_MESH_DIR/pipeline_meta.json"
