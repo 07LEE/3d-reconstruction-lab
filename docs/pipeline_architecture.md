@@ -58,6 +58,10 @@ This document provides technical details, configuration parameters, and executio
 
 Datasets must follow the standard COLMAP / Inria directory structure (`images/`, `sparse/0/` with `cameras.bin`, `images.bin`, `points3D.bin`).
 
+### Scene Selection
+
+Each step resolves the scene in this order: the dataset path argument (`data/<scene_name>`), the `SCENE_NAME` environment variable, then the most recently modified directory in `data/`. The last fallback prints a warning because any write into `data/<scene>/` (e.g. the SfM cache) changes which scene it picks. Set `REQUIRE_SCENE=true` to make a missing scene an error instead.
+
 ### Download & Preprocessing Commands
 
 ```bash

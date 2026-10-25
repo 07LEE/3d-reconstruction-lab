@@ -16,17 +16,21 @@ if [ -n "${1:-}" ] && [ -d "$1" ]; then
 elif [ -n "${SCENE_NAME:-}" ]; then
     SCENE_NAME="${SCENE_NAME}"
 else
-    # Dynamically pick the most recently modified dataset directory inside data/
+    # Dynamically pick the most recently modified dataset directory inside data/.
+    # Any write into data/<scene>/ (e.g. SfM cache) changes this choice, so warn loudly
+    # and allow REQUIRE_SCENE=true to refuse the fallback entirely.
     LATEST_DATASET_DIR=$(ls -td "$PROJECT_ROOT_CFG"/data/*/ 2>/dev/null | grep -v '/\.' | head -n 1 || true)
     if [ -n "$LATEST_DATASET_DIR" ]; then
         SCENE_NAME=$(basename "$LATEST_DATASET_DIR")
+        if [ "${REQUIRE_SCENE:-false}" = "true" ]; then
+            echo "[FATAL] REQUIRE_SCENE=true: pass a dataset path (data/<scene>) or set SCENE_NAME." >&2
+            exit 1
+        fi
         if [ "${QUIET_CONFIG:-false}" != "true" ] && [ "${_3DRC_SCENE_NOTICE_SHOWN:-0}" = "0" ]; then
             export _3DRC_SCENE_NOTICE_SHOWN=1
-            if type log_info >/dev/null 2>&1; then
-                log_info "No dataset path provided. Dynamically defaulting to latest dataset: '${SCENE_NAME}'."
-            else
-                echo "[INFO]  No dataset path provided. Dynamically defaulting to latest dataset: '${SCENE_NAME}'."
-            fi
+            NUM_DATASETS=$(ls -d "$PROJECT_ROOT_CFG"/data/*/ 2>/dev/null | grep -vc '/\.' || true)
+            echo "[WARN]  No dataset path provided. Using most recently modified dataset: '${SCENE_NAME}' (${NUM_DATASETS} in data/)." >&2
+            echo "[WARN]  Pass data/<scene> or set SCENE_NAME=<scene> to pin the scene (REQUIRE_SCENE=true disables this fallback)." >&2
         fi
     else
         if type log_fatal >/dev/null 2>&1; then
