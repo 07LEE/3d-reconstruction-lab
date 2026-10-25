@@ -4,9 +4,18 @@ set -euo pipefail
 # [Step 01] hloc SuperPoint+SuperGlue SfM Pipeline
 # High-precision camera pose estimation for large-scale high-resolution datasets
 
+# Arguments are (method, dataset) or (dataset, method); pass the dataset to the config
+CONFIG_SCENE_ARG=""
+for arg in "$@"; do
+    if [ -d "$arg" ] || [[ "$arg" == data/* ]]; then
+        CONFIG_SCENE_ARG="$arg"
+        break
+    fi
+done
+
 CONFIG_PATH="configs/default_config.sh"
 if [ -f "$CONFIG_PATH" ]; then
-    source "$CONFIG_PATH"
+    source "$CONFIG_PATH" ${CONFIG_SCENE_ARG:+"$CONFIG_SCENE_ARG"}
 else
     echo "[FATAL] Configuration file not found at $CONFIG_PATH!"
     exit 1

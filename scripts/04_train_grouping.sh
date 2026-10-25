@@ -34,12 +34,44 @@ else
     DATASET_ABS_PATH="$(pwd)/data/$TARGET_DATASET"
 fi
 
+# Store results with the other stages under outputs/<scene>/ instead of inside the submodule
+MODEL_OUTPUT="$PROJECT_ROOT/${OUTPUT_DIR}/${SCENE_NAME}/grouping"
+mkdir -p "$MODEL_OUTPUT"
+
+LEGACY_OUTPUT="$PROJECT_ROOT/third_party/gaussian-grouping/output/${SCENE_NAME}"
+if [ -d "$LEGACY_OUTPUT" ]; then
+    log_warn "Found previous Gaussian Grouping results at ${LEGACY_OUTPUT}; new results are written to ${MODEL_OUTPUT}."
+fi
+
+ACTIVE_SFM="unknown"
+if [ -L "${DATASET_ABS_PATH}/sparse/0" ]; then
+    ACTIVE_SFM=$(readlink "${DATASET_ABS_PATH}/sparse/0" | xargs basename)
+fi
+
 # Move to gaussian-grouping directory
 cd third_party/gaussian-grouping || exit 1
 
 # Execute Training
-echo "Starting Gaussian Grouping Training for dataset: ${SCENE_NAME}..."
+log_info "Starting Gaussian Grouping Training (Scene: ${SCENE_NAME}, Active SfM: ${ACTIVE_SFM})..."
 ITER_PARAM="${GS_ITERATIONS:-30000}"
-python train.py -s "$DATASET_ABS_PATH" -r "$GROUPING_DOWNSAMPLE" -m "output/${SCENE_NAME}" --config_file config/gaussian_dataset/train.json --iterations "$ITER_PARAM"
+bench_start
+python train.py -s "$DATASET_ABS_PATH" -r "$GROUPING_DOWNSAMPLE" -m "$MODEL_OUTPUT" --config_file config/gaussian_dataset/train.json --iterations "$ITER_PARAM"
 
-echo "Gaussian Grouping Training Completed!"
+cd "$PROJECT_ROOT"
+bench_record "grouping_train" "$SCENE_NAME" "$MODEL_OUTPUT" \
+    "iterations=$ITER_PARAM" "downsample_rate=$GROUPING_DOWNSAMPLE" "active_sfm=$ACTIVE_SFM"
+
+# Dynamically record execution provenance metadata
+cat <<EOF > "$MODEL_OUTPUT/pipeline_meta.json"
+{
+  "stage": "Stage 4 (Segmentation)",
+  "engine": "Gaussian Grouping (SAM Identity Encoding)",
+  "source_dataset": "$DATASET_ABS_PATH",
+  "active_sfm": "$ACTIVE_SFM",
+  "downsample_rate": $GROUPING_DOWNSAMPLE,
+  "iterations": $ITER_PARAM,
+  "timestamp": "$(date '+%Y-%m-%d %H:%M:%S')"
+}
+EOF
+
+log_ok "Gaussian Grouping Training Completed! Results saved to $MODEL_OUTPUT"

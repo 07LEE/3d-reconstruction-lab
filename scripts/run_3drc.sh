@@ -5,9 +5,26 @@
 
 set -euo pipefail
 
+# Pass the dataset argument (if any) to the config so scene resolution matches the step
+CONFIG_SCENE_ARG=""
+for arg in "${@:2}"; do
+    if [[ "$arg" == data/* ]] || [ -d "$arg/sparse" ] || [ -d "$arg/raw_images" ] || [ -d "$arg/images" ]; then
+        CONFIG_SCENE_ARG="$arg"
+        break
+    fi
+done
+
 CONFIG_PATH="configs/default_config.sh"
 if [ -f "$CONFIG_PATH" ]; then
-    source "$CONFIG_PATH"
+    case "${1:-help}" in
+        help|outputs|results|eval|view)
+            # These commands do not use the scene, so skip the fallback notice and REQUIRE_SCENE
+            QUIET_CONFIG=true REQUIRE_SCENE=false source "$CONFIG_PATH" ${CONFIG_SCENE_ARG:+"$CONFIG_SCENE_ARG"}
+            ;;
+        *)
+            source "$CONFIG_PATH" ${CONFIG_SCENE_ARG:+"$CONFIG_SCENE_ARG"}
+            ;;
+    esac
 else
     echo "[FATAL] Configuration file not found at $CONFIG_PATH!"
     exit 1
@@ -39,7 +56,7 @@ show_help() {
     echo "  nvs [dataset] [model] Run Step 5b NVS Evaluation (PSNR/SSIM/LPIPS on held-out views)"
     echo "  results [--publish PATH] Aggregate SfM/NVS/mesh/timing results into one report"
     echo "  outputs          Inspect and summarize all generated output artifacts"
-    echo "  pipeline [method] Run End-to-End Pipeline (SfM -> Train -> Mesh)"
+    echo "  pipeline [dataset] [method] [--train BACKEND] [--mesh ENGINE] Run End-to-End Pipeline (SfM -> Train -> [NVS] -> Mesh -> Results)"
     echo "  help             Show this help message"
     echo ""
     echo "Examples:"
@@ -58,6 +75,7 @@ show_help() {
     echo "  ./scripts/run_3drc.sh outputs"
     echo "  ./scripts/run_3drc.sh view hloc"
     echo "  ./scripts/run_3drc.sh pipeline hloc"
+    echo "  ./scripts/run_3drc.sh pipeline data/<scene> hloc --train 2dgs --mesh tsdf"
 }
 
 COMMAND=${1:-"help"}
@@ -116,9 +134,11 @@ case "$COMMAND" in
         elif [ "$BACKEND" = "mipsplatting" ]; then
             log_header "Step 2e: Mip-Splatting Training"
             ./scripts/02e_train_mipsplatting.sh ${ARG_DATASET:+"$ARG_DATASET"}
-        else
+        elif [ "$BACKEND" = "3dgs" ]; then
             log_header "Step 2: 3DGS Training"
             ./scripts/02_train_3dgs.sh ${ARG_DATASET:+"$ARG_DATASET"}
+        else
+            log_fatal "Unknown training backend: '${BACKEND}' (expected: 3dgs, planargs, 2dgs, scaffoldgs, mipsplatting)"
         fi
         ;;
     2dgs)
@@ -228,25 +248,64 @@ case "$COMMAND" in
         "$PYTHON_BIN" src/utils/collect_results.py "$@"
         ;;
     pipeline)
-        ARG1="${2:-}"
-        ARG2="${3:-}"
+        # Arguments: [dataset] [sfm_method] [--train BACKEND] [--mesh ENGINE] (positionals in any order)
+        shift
         ARG_DATASET=""
         ARG_METHOD=""
-        if [ -n "$ARG1" ]; then
-            if [ -d "$ARG1" ] || [[ "$ARG1" == data/* ]]; then
-                ARG_DATASET="$ARG1"
-                [ -n "$ARG2" ] && ARG_METHOD="$ARG2"
-            else
-                ARG_METHOD="$ARG1"
-                [ -n "$ARG2" ] && ARG_DATASET="$ARG2"
-            fi
-        fi
+        TRAIN_OPT="${PIPELINE_TRAIN:-3dgs}"
+        MESH_OPT="${PIPELINE_MESH:-sugar}"
+        while [ $# -gt 0 ]; do
+            case "$1" in
+                --train) TRAIN_OPT="${2:?--train requires a backend}"; shift 2 ;;
+                --mesh)  MESH_OPT="${2:?--mesh requires an engine}"; shift 2 ;;
+                *)
+                    if [ -d "$1" ] || [[ "$1" == data/* ]]; then
+                        ARG_DATASET="$1"
+                    else
+                        ARG_METHOD="$1"
+                    fi
+                    shift
+                    ;;
+            esac
+        done
+
+        case "$TRAIN_OPT" in
+            3dgs)         TRAIN_SCRIPT="02_train_3dgs.sh";         MODEL_SUBDIR="3dgs/inria_30k" ;;
+            planargs)     TRAIN_SCRIPT="02b_train_planargs.sh";    MODEL_SUBDIR="3dgs/planargs" ;;
+            2dgs)         TRAIN_SCRIPT="02c_train_2dgs.sh";        MODEL_SUBDIR="2dgs" ;;
+            scaffoldgs)   TRAIN_SCRIPT="02d_train_scaffoldgs.sh";  MODEL_SUBDIR="scaffoldgs" ;;
+            mipsplatting) TRAIN_SCRIPT="02e_train_mipsplatting.sh"; MODEL_SUBDIR="mipsplatting" ;;
+            *) log_fatal "Unknown training backend: '${TRAIN_OPT}' (expected: 3dgs, planargs, 2dgs, scaffoldgs, mipsplatting)" ;;
+        esac
+
+        # Reject incompatible combinations before spending time on SfM and training
+        case "$MESH_OPT" in
+            sugar)
+                [ "$TRAIN_OPT" = "3dgs" ] || [ "$TRAIN_OPT" = "planargs" ] || \
+                    log_fatal "SuGaR requires a 3DGS-format model (--train 3dgs or planargs), got '${TRAIN_OPT}'"
+                ;;
+            tsdf)
+                [ "$TRAIN_OPT" = "2dgs" ] || log_fatal "TSDF extraction requires a 2DGS model (--train 2dgs), got '${TRAIN_OPT}'"
+                ;;
+            milo|none) ;;
+            *) log_fatal "Unknown mesh engine: '${MESH_OPT}' (expected: sugar, tsdf, milo, none)" ;;
+        esac
+
         SFM_OPT="${ARG_METHOD:-$SFM_METHOD}"
         TARGET_DATASET="${ARG_DATASET:-$DATA_DIR}"
-        echo "[3DRC CLI] Starting End-to-End Automated Pipeline (SfM: ${SFM_OPT}, Dataset: ${TARGET_DATASET})..."
+        echo "[3DRC CLI] Starting End-to-End Automated Pipeline (SfM: ${SFM_OPT}, Train: ${TRAIN_OPT}, Mesh: ${MESH_OPT}, Dataset: ${TARGET_DATASET})..."
         ./scripts/01_sfm_hloc.sh "$SFM_OPT" "$TARGET_DATASET"
-        ./scripts/02_train_3dgs.sh "$TARGET_DATASET"
-        ./scripts/03_train_sugar.sh "$TARGET_DATASET"
+        ./scripts/"$TRAIN_SCRIPT" "$TARGET_DATASET"
+        if [ "${GS_EVAL_MODE:-false}" = "true" ]; then
+            ./scripts/05_eval_nvs.sh "$TARGET_DATASET" "$MODEL_SUBDIR"
+        fi
+        case "$MESH_OPT" in
+            sugar) ./scripts/03_train_sugar.sh "$TARGET_DATASET" "$MODEL_SUBDIR" ;;
+            tsdf)  ./scripts/03c_mesh_tsdf.sh "$TARGET_DATASET" "$MODEL_SUBDIR" ;;
+            milo)  ./scripts/03b_train_milo.sh "$TARGET_DATASET" ;;
+            none)  ;;
+        esac
+        "$PYTHON_BIN" src/utils/collect_results.py
         echo "[3DRC CLI] End-to-End Automated Pipeline Execution Finished!"
         ;;
     help|*)

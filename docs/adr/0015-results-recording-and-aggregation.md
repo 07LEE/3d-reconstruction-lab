@@ -1,6 +1,6 @@
 # 0015. Results Recording and Aggregation for Cross-Engine Comparison
 
-Status: Accepted (2026-10-25)
+Status: Accepted (2026-10-25), Amended by 0016 (2026-10-25)
 
 Context:
 The lab runs four SfM engines, five Gaussian training backends, and three mesh extractors, but no comparison results were retained. `outputs/` is untracked, `record_stage_timing` existed without callers, NVS metrics (PSNR / SSIM / LPIPS) had no pipeline step, and `eval_mesh.py` wrote every mesh evaluation to the shared `outputs/eval/` directory, so each run overwrote the previous one.

@@ -26,7 +26,7 @@ This document provides technical details, configuration parameters, and executio
             │  (Sparse Reconstruction & Intrinsic/Extrinsic Cameras)
             ▼
 ┌─────────────────────────┐
-│   Step 2: 3DGS Training │  (Inria 3DGS, PlanarGS, 2DGS Surfels)
+│   Step 2: 3DGS Training │  (Inria 3DGS, PlanarGS, 2DGS Surfels, Scaffold-GS, Mip-Splatting)
 └───────────┬─────────────┘
             │  (Trained 3D/2D Gaussian Point Cloud Checkpoint)
             ▼
@@ -41,7 +41,7 @@ This document provides technical details, configuration parameters, and executio
             │
             ▼
 ┌─────────────────────────┐
-│   Step 5: 3D Mesh Eval  │  (3-Axis Topology Hygiene, Chamfer/Hausdorff LiDAR Metric)
+│   Step 5: Evaluation    │  (Mesh: Topology Hygiene, Chamfer/Hausdorff LiDAR / 5b NVS: PSNR, SSIM, LPIPS)
 └─────────────────────────┘
 ```
 
@@ -57,6 +57,10 @@ This document provides technical details, configuration parameters, and executio
 - Synthetic NeRF / Blender: chair, drums, ficus, hotdog, lego, materials, mic, ship
 
 Datasets must follow the standard COLMAP / Inria directory structure (`images/`, `sparse/0/` with `cameras.bin`, `images.bin`, `points3D.bin`).
+
+### Scene Selection
+
+Each step resolves the scene in this order: the dataset path argument (`data/<scene_name>`), the `SCENE_NAME` environment variable, then the most recently modified directory in `data/`. The last fallback prints a warning because any write into `data/<scene>/` (e.g. the SfM cache) changes which scene it picks. Set `REQUIRE_SCENE=true` to make a missing scene an error instead.
 
 ### Download & Preprocessing Commands
 
@@ -172,10 +176,12 @@ Extracts polygon meshes for rendering, collision checking, and geometry analysis
 
 Learns 3D Identity Embeddings lifted from SAM 2D masks for object-level segmentation.
 
+- Output: `outputs/<scene_name>/grouping/` (previously `third_party/gaussian-grouping/output/<scene_name>/`, which is no longer written).
+
 ### Step 4 Execution Commands
 
 ```bash
-./scripts/04_train_grouping.sh
+./scripts/04_train_grouping.sh data/<scene_name>
 ```
 
 ## Step 5: Mesh Topology and Geometric Evaluation (`src/mesh/eval_mesh.py`)
