@@ -133,9 +133,11 @@ case "$COMMAND" in
         elif [ "$BACKEND" = "mipsplatting" ]; then
             log_header "Step 2e: Mip-Splatting Training"
             ./scripts/02e_train_mipsplatting.sh ${ARG_DATASET:+"$ARG_DATASET"}
-        else
+        elif [ "$BACKEND" = "3dgs" ]; then
             log_header "Step 2: 3DGS Training"
             ./scripts/02_train_3dgs.sh ${ARG_DATASET:+"$ARG_DATASET"}
+        else
+            log_fatal "Unknown training backend: '${BACKEND}' (expected: 3dgs, planargs, 2dgs, scaffoldgs, mipsplatting)"
         fi
         ;;
     2dgs)
