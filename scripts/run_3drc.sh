@@ -5,9 +5,26 @@
 
 set -euo pipefail
 
+# Pass the dataset argument (if any) to the config so scene resolution matches the step
+CONFIG_SCENE_ARG=""
+for arg in "${@:2}"; do
+    if [[ "$arg" == data/* ]] || [ -d "$arg/sparse" ] || [ -d "$arg/raw_images" ] || [ -d "$arg/images" ]; then
+        CONFIG_SCENE_ARG="$arg"
+        break
+    fi
+done
+
 CONFIG_PATH="configs/default_config.sh"
 if [ -f "$CONFIG_PATH" ]; then
-    source "$CONFIG_PATH"
+    case "${1:-help}" in
+        help|outputs|results|eval|view)
+            # These commands do not use the scene, so skip the fallback notice and REQUIRE_SCENE
+            QUIET_CONFIG=true REQUIRE_SCENE=false source "$CONFIG_PATH" ${CONFIG_SCENE_ARG:+"$CONFIG_SCENE_ARG"}
+            ;;
+        *)
+            source "$CONFIG_PATH" ${CONFIG_SCENE_ARG:+"$CONFIG_SCENE_ARG"}
+            ;;
+    esac
 else
     echo "[FATAL] Configuration file not found at $CONFIG_PATH!"
     exit 1
