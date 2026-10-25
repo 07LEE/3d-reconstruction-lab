@@ -26,7 +26,7 @@ This document provides technical details, configuration parameters, and executio
             │  (Sparse Reconstruction & Intrinsic/Extrinsic Cameras)
             ▼
 ┌─────────────────────────┐
-│   Step 2: 3DGS Training │  (Inria 3DGS, PlanarGS, 2DGS Surfels)
+│   Step 2: 3DGS Training │  (Inria 3DGS, PlanarGS, 2DGS Surfels, Scaffold-GS, Mip-Splatting)
 └───────────┬─────────────┘
             │  (Trained 3D/2D Gaussian Point Cloud Checkpoint)
             ▼
@@ -41,7 +41,7 @@ This document provides technical details, configuration parameters, and executio
             │
             ▼
 ┌─────────────────────────┐
-│   Step 5: 3D Mesh Eval  │  (3-Axis Topology Hygiene, Chamfer/Hausdorff LiDAR Metric)
+│   Step 5: Evaluation    │  (Mesh: Topology Hygiene, Chamfer/Hausdorff LiDAR / 5b NVS: PSNR, SSIM, LPIPS)
 └─────────────────────────┘
 ```
 

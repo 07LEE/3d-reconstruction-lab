@@ -28,11 +28,12 @@ A personal lab environment for hands-on experimentation and benchmarking of 3D r
 # 2. Run Step 1 Camera Pose Estimation (COLMAP, hloc, VGGT, FastMap)
 ./scripts/run_3drc.sh sfm
 
-# 3. Run Step 2 Gaussian Training (Inria 3DGS / PlanarGS / 2DGS / Scaffold-GS)
+# 3. Run Step 2 Gaussian Training (Inria 3DGS / PlanarGS / 2DGS / Scaffold-GS / Mip-Splatting)
 ./scripts/run_3drc.sh train 3dgs
 ./scripts/run_3drc.sh train planargs
 ./scripts/run_3drc.sh train 2dgs
 ./scripts/run_3drc.sh train scaffoldgs
+./scripts/run_3drc.sh train mipsplatting
 
 # 4. Run Step 3 Mesh Reconstruction (SuGaR / MILo / TSDF)
 ./scripts/run_3drc.sh sugar
@@ -70,6 +71,8 @@ pytest tests
 - `gs_train`: Inria 3DGS, PlanarGS, and 2DGS training (`dr_aa` & `diff-surfel-rasterization`), plus Open3D TSDF mesh extraction.
 - `gs_sugar`: SuGaR surface-aligned mesh extraction environment.
 - `gs_milo`: MILo differentiable mesh-in-the-loop training and extraction environment.
+- `gs_scaffold`: Scaffold-GS anchor-based training environment (isolated rasterizer build).
+- `gs_mipsplatting`: Mip-Splatting 3D smoothing filter training environment (isolated rasterizer build).
 - `gs_group`: Gaussian Grouping 3D SAM instance segmentation environment.
 
 ## Pipeline Model Mapping
@@ -81,9 +84,10 @@ pytest tests
 | [VGGT-Omega](https://github.com/facebookresearch/vggt) | Step 1 (SfM) | Feed-forward pose estimation | Visual Geometry Transformer pose initialization |
 | [FastMap](https://github.com/pals-ttic/fastmap) | Step 1 (SfM) | GPU-accelerated pose estimation | Fast keypoint matching and mapping |
 | [3DGS (Inria)](https://github.com/graphdeco-inria/gaussian-splatting) | Step 2 (Training) | 3D Gaussian scene optimization | Differentiable 3D Gaussian rasterization |
-| [PlanarGS](https://github.com/SJTU-ViSYS-team/PlanarGS) | Step 2 (Training) | Planar-regularized 3DGS | Planar priors on detected indoor surfaces |
+| [PlanarGS](https://github.com/SJTU-ViSYS-team/PlanarGS) | Step 2b (Training) | Planar-regularized 3DGS | Planar priors on detected indoor surfaces |
 | [2DGS](https://github.com/hbb1/2d-gaussian-splatting) | Step 2c (Training) | Planar surfel representation | Exact ray-splat intersection with 2D oriented disks |
 | [Scaffold-GS](https://github.com/city-super/scaffold-gs) | Step 2d (Training) | Anchor-based 3DGS representation | Learnable anchors for view-dependent attribute prediction |
+| [Mip-Splatting](https://github.com/autonomousvision/mip-splatting) | Step 2e (Training) | Alias-free 3DGS rendering | 3D smoothing filter and 2D Mip filter |
 | [SuGaR](https://github.com/Anttwo/SuGaR) | Step 3 (Mesh Extraction) | UV-textured OBJ polygon mesh | Surface-Aligned Gaussian Regularization |
 | [MILo](https://github.com/Anttwo/MILo) | Step 3b (Mesh Extraction) | Compact collision mesh | Differentiable Mesh-in-the-loop MT SDF |
 | [TSDF (Open3D)](https://github.com/isl-org/Open3D) | Step 3c (Mesh Extraction) | Volumetric polygon mesh | Volumetric Open3D TSDF Integration from depth/normals |
