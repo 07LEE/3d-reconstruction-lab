@@ -56,6 +56,7 @@ echo "Starting TSDF Mesh Extraction (Scene: $SCENE_NAME, Source Model: $MODEL_DI
 VOXEL_SIZE="${TSDF_VOXEL_SIZE:-0.005}"
 DEPTH_TRUNC="${TSDF_DEPTH_TRUNC:-6.0}"
 
+bench_start
 python third_party/2d-gaussian-splatting/render.py \
     -m "$MODEL_DIR" \
     --data_device "$DATA_DEVICE" \
@@ -74,6 +75,9 @@ if [ -n "$EXPORTED_MESH" ] && [ -f "$EXPORTED_MESH" ]; then
     cp "$EXPORTED_MESH" "${MESH_OUTPUT_DIR}/tsdf_mesh.ply"
     echo "TSDF Mesh Extraction Completed!"
     echo "Canonical Mesh saved to: ${MESH_OUTPUT_DIR}/tsdf_mesh.ply"
+
+    bench_record "tsdf_mesh" "$SCENE_NAME" "$MESH_OUTPUT_DIR" \
+        "source_model=$SOURCE_MODEL_NAME" "voxel_size=$VOXEL_SIZE" "depth_trunc=$DEPTH_TRUNC" "active_sfm=$ACTIVE_SFM"
 
     # Dynamically record execution provenance metadata
     cat <<EOF > "$MESH_OUTPUT_DIR/pipeline_meta.json"

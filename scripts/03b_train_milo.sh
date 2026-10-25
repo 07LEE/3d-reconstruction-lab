@@ -81,6 +81,7 @@ cd third_party/milo/milo || exit 1
 
 # Execute MILo Training & Mesh Extraction
 echo "Starting MILo Differentiable Mesh Training & Extraction (Scene: $SCENE_NAME, Dataset: $DENSE_DATASET, Active SfM: $ACTIVE_SFM)..."
+bench_start
 python train.py \
     -s "$PROJECT_ROOT/$DENSE_DATASET" \
     -m "$MILO_MODEL_DIR" \
@@ -108,6 +109,8 @@ else
     exit 1
 fi
 
+bench_record "milo_mesh" "$SCENE_NAME" "$MILO_MODEL_DIR" \
+    "imp_metric=${MILO_IMP_METRIC:-indoor}" "rasterizer=${MILO_RASTERIZER:-radegs}" "active_sfm=$ACTIVE_SFM"
 
 # Dynamically record execution provenance metadata
 cat <<EOF > "$MILO_MODEL_DIR/pipeline_meta.json"
