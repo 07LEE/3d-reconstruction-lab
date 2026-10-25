@@ -8,12 +8,12 @@ import sys
 from pathlib import Path
 from typing import Optional
 
-def run_step(command: str, arg: Optional[str] = None) -> None:
+def run_step(command: str, *args: Optional[str]) -> None:
     """Executes a 3DRC unified pipeline step by invoking scripts/run_3drc.sh.
 
     Args:
         command: Subcommand identifier passed to run_3drc.sh.
-        arg: Optional secondary argument string.
+        args: Optional trailing arguments; None entries are skipped.
 
     Returns:
         None
@@ -24,8 +24,7 @@ def run_step(command: str, arg: Optional[str] = None) -> None:
         sys.exit(1)
 
     cmd = ["bash", str(script_path), command]
-    if arg:
-        cmd.append(arg)
+    cmd.extend(a for a in args if a)
 
     print(f"[3DRC CLI] Running: {' '.join(cmd)}")
     try:
@@ -70,6 +69,15 @@ def main() -> None:
     # grouping subcommand
     subparsers.add_parser("grouping", help="Step 4: Gaussian Grouping Segmentation")
 
+    # nvs subcommand
+    nvs_parser = subparsers.add_parser("nvs", help="Step 5b: NVS Evaluation (PSNR/SSIM/LPIPS on held-out views)")
+    nvs_parser.add_argument("--dataset", type=str, default=None, help="Dataset directory (default: config scene)")
+    nvs_parser.add_argument("--model", type=str, default="3dgs/inria_30k", help="Model path or subdirectory under outputs/<scene>/")
+
+    # results subcommand
+    results_parser = subparsers.add_parser("results", help="Aggregate SfM/NVS/mesh/timing results into one report")
+    results_parser.add_argument("--publish", type=str, default=None, help="Also write the Markdown report to this path (e.g. docs/results.md)")
+
     # outputs subcommand
     subparsers.add_parser("outputs", help="Inspect generated scene artifacts")
 
@@ -97,6 +105,13 @@ def main() -> None:
         run_step("view", getattr(args, "type", "hloc"))
     elif args.step in ["sugar", "milo", "tsdf", "grouping", "outputs"]:
         run_step(args.step)
+    elif args.step == "nvs":
+        if args.dataset:
+            run_step("nvs", args.dataset, args.model)
+        else:
+            run_step("nvs", args.model)
+    elif args.step == "results":
+        run_step("results", *(["--publish", args.publish] if args.publish else []))
     elif args.step == "pipeline":
         run_step("pipeline", args.method)
 

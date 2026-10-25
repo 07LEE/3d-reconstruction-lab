@@ -62,7 +62,7 @@ DATA_DEVICE="${DATA_DEVICE:-cpu}"
 DENSIFY_GRAD_THRESHOLD="${DENSIFY_GRAD_THRESHOLD:-0.0002}"
 GS_ITERATIONS="${GS_ITERATIONS:-30000}"
 export GS_CHECKPOINT_INTERVAL="${GS_CHECKPOINT_INTERVAL:-10000}"  # Automatically generates checkpoints every N iterations up to GS_ITERATIONS
-GS_EVAL_MODE="${GS_EVAL_MODE:-false}"  # Options: false (full reconstruction), true (holdout evaluation)
+GS_EVAL_MODE="${GS_EVAL_MODE:-false}"  # Options: false (full reconstruction), true (holdout evaluation; required for Step 5b NVS metrics)
 
 # SuGaR parameters
 SUGAR_REGULARIZATION="dn_consistency"
