@@ -176,10 +176,12 @@ Extracts polygon meshes for rendering, collision checking, and geometry analysis
 
 Learns 3D Identity Embeddings lifted from SAM 2D masks for object-level segmentation.
 
+- Output: `outputs/<scene_name>/grouping/` (previously `third_party/gaussian-grouping/output/<scene_name>/`, which is no longer written).
+
 ### Step 4 Execution Commands
 
 ```bash
-./scripts/04_train_grouping.sh
+./scripts/04_train_grouping.sh data/<scene_name>
 ```
 
 ## Step 5: Mesh Topology and Geometric Evaluation (`src/mesh/eval_mesh.py`)
