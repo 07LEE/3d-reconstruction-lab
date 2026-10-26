@@ -56,7 +56,7 @@ show_help() {
     echo "  nvs [dataset] [model] Run Step 5b NVS Evaluation (PSNR/SSIM/LPIPS on held-out views)"
     echo "  results [--publish PATH] Aggregate SfM/NVS/mesh/timing results into one report"
     echo "  outputs          Inspect and summarize all generated output artifacts"
-    echo "  pipeline [dataset] [method] [--train BACKEND] [--mesh ENGINE] Run End-to-End Pipeline (SfM -> Train -> [NVS] -> Mesh -> Results)"
+    echo "  pipeline [dataset] [method] [--train BACKEND] [--mesh ENGINE] [--gt FILE] Run End-to-End Pipeline (SfM -> Train -> [NVS] -> Mesh -> Mesh Eval -> Results)"
     echo "  help             Show this help message"
     echo ""
     echo "Examples:"
@@ -251,16 +251,18 @@ case "$COMMAND" in
         "$PYTHON_BIN" src/utils/collect_results.py "$@"
         ;;
     pipeline)
-        # Arguments: [dataset] [sfm_method] [--train BACKEND] [--mesh ENGINE] (positionals in any order)
+        # Arguments: [dataset] [sfm_method] [--train BACKEND] [--mesh ENGINE] [--gt FILE] (positionals in any order)
         shift
         ARG_DATASET=""
         ARG_METHOD=""
         TRAIN_OPT="${PIPELINE_TRAIN:-3dgs}"
         MESH_OPT="${PIPELINE_MESH:-sugar}"
+        GT_OPT="${PIPELINE_GT:-}"
         while [ $# -gt 0 ]; do
             case "$1" in
                 --train) TRAIN_OPT="${2:?--train requires a backend}"; shift 2 ;;
                 --mesh)  MESH_OPT="${2:?--mesh requires an engine}"; shift 2 ;;
+                --gt)    GT_OPT="${2:?--gt requires a point cloud path}"; shift 2 ;;
                 *)
                     if [ -d "$1" ] || [[ "$1" == data/* ]]; then
                         ARG_DATASET="$1"
@@ -296,6 +298,21 @@ case "$COMMAND" in
 
         SFM_OPT="${ARG_METHOD:-$SFM_METHOD}"
         TARGET_DATASET="${ARG_DATASET:-$DATA_DIR}"
+        TARGET_SCENE="$(basename "$TARGET_DATASET")"
+
+        # Mesh evaluation GT: --gt / PIPELINE_GT, else data/<scene>/lidar.pcd or lidar.ply if present
+        GT_FILE=""
+        if [ -n "$GT_OPT" ]; then
+            [ -f "$GT_OPT" ] || log_fatal "GT point cloud not found: '${GT_OPT}'"
+            GT_FILE="$GT_OPT"
+        else
+            for candidate in "$TARGET_DATASET/lidar.pcd" "$TARGET_DATASET/lidar.ply"; do
+                if [ -f "$candidate" ]; then
+                    GT_FILE="$candidate"
+                    break
+                fi
+            done
+        fi
         echo "[3DRC CLI] Starting End-to-End Automated Pipeline (SfM: ${SFM_OPT}, Train: ${TRAIN_OPT}, Mesh: ${MESH_OPT}, Dataset: ${TARGET_DATASET})..."
         ./scripts/01_sfm_hloc.sh "$SFM_OPT" "$TARGET_DATASET"
         ./scripts/"$TRAIN_SCRIPT" "$TARGET_DATASET"
@@ -308,6 +325,27 @@ case "$COMMAND" in
             milo)  ./scripts/03b_train_milo.sh "$TARGET_DATASET" ;;
             none)  ;;
         esac
+
+        # Step 5: evaluate the meshes this run produced (topology only when no GT is available)
+        MESH_FILES=()
+        case "$MESH_OPT" in
+            sugar) MESH_FILES=("${OUTPUT_DIR}/${TARGET_SCENE}/mesh/sugar_${MODEL_SUBDIR//\//_}/refined_mesh/${TARGET_SCENE}/"*.obj) ;;
+            tsdf)  MESH_FILES=("${OUTPUT_DIR}/${TARGET_SCENE}/mesh/$(basename "$MODEL_SUBDIR")/tsdf_mesh.ply") ;;
+            milo)  MESH_FILES=("${OUTPUT_DIR}/${TARGET_SCENE}/mesh/milo/mesh_cleaned_largest.ply") ;;
+        esac
+        if [ "$MESH_OPT" != "none" ]; then
+            if [ -z "$GT_FILE" ]; then
+                log_warn "No GT point cloud (--gt, or ${TARGET_DATASET}/lidar.pcd); mesh evaluation covers topology only."
+            fi
+            EVALUATED=0
+            for mesh_file in "${MESH_FILES[@]}"; do
+                [ -f "$mesh_file" ] || continue
+                "$PYTHON_BIN" -m src.mesh.eval_mesh --mesh "$mesh_file" ${GT_FILE:+--gt "$GT_FILE"}
+                EVALUATED=$((EVALUATED + 1))
+            done
+            [ "$EVALUATED" -gt 0 ] || log_fatal "Mesh evaluation found no ${MESH_OPT} mesh (expected: ${MESH_FILES[*]})"
+        fi
+
         "$PYTHON_BIN" src/utils/collect_results.py
         echo "[3DRC CLI] End-to-End Automated Pipeline Execution Finished!"
         ;;
