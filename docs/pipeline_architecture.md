@@ -218,6 +218,8 @@ python -m src.mesh.eval_mesh --mesh outputs/<scene_name>/mesh/2dgs/tsdf_mesh.ply
 python -m src.mesh.eval_mesh --mesh outputs/<scene_name>/mesh/sugar/sugarfine_mesh.obj --gt data/<scene_name>/lidar.pcd --transform outputs/<scene_name>/eval/alignment/sim3_hloc_lidar.json
 ```
 
+`./scripts/run_3drc.sh pipeline` runs this step after mesh extraction on the mesh it produced (SuGaR `refined_mesh/<scene>/*.obj`, TSDF `tsdf_mesh.ply`, MILo `mesh_cleaned_largest.ply`). It uses `--gt <file>` (or `PIPELINE_GT`), else `data/<scene_name>/lidar.pcd` or `lidar.ply`; without GT it records topology only. A missing `--gt` file stops the pipeline before SfM.
+
 `--align-ref` selects the alignment source: `auto` (default, scene SfM sparse points; falls back to the mesh with a warning when none is found), `mesh` (the previous per-mesh behavior), or a path to a sparse model / point cloud in the mesh frame. Results are written to `<mesh_dir>/eval/<mesh_stem>/eval_results.json` unless `--out` is given; the scene transform is written to `outputs/<scene_name>/eval/alignment/sim3_<sfm>_<gt_stem>.json`.
 
 ## Step 5b: Novel View Synthesis Evaluation (`scripts/05_eval_nvs.sh`)

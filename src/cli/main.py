@@ -105,6 +105,7 @@ def main() -> None:
     pipeline_parser.add_argument("--method", type=str, default="hloc", help="SfM estimation method for end-to-end pipeline")
     pipeline_parser.add_argument("--train", type=str, default=None, choices=["3dgs", "planargs", "2dgs", "scaffoldgs", "mipsplatting"], help="Gaussian training backend (default: 3dgs)")
     pipeline_parser.add_argument("--mesh", type=str, default=None, choices=["sugar", "tsdf", "milo", "none"], help="Mesh engine (default: sugar)")
+    pipeline_parser.add_argument("--gt", type=str, default=None, help="GT point cloud for mesh evaluation (default: <dataset>/lidar.pcd if present)")
 
     args = parser.parse_args()
 
@@ -118,7 +119,8 @@ def main() -> None:
     elif args.step == "pipeline":
         run_step("pipeline", args.method, dataset,
                  *(["--train", args.train] if args.train else []),
-                 *(["--mesh", args.mesh] if args.mesh else []))
+                 *(["--mesh", args.mesh] if args.mesh else []),
+                 *(["--gt", args.gt] if args.gt else []))
     elif args.step in ("sugar", "tsdf"):
         run_step(args.step, dataset, args.source_model)
     elif args.step == "view":
