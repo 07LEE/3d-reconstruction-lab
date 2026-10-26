@@ -52,7 +52,7 @@ show_help() {
     echo "  milo             Run Step 3b MILo Mesh Reconstruction"
     echo "  tsdf             Run Step 3c TSDF Mesh Extraction"
     echo "  grouping         Run Step 4 Gaussian Grouping Object Segmentation"
-    echo "  eval [mesh] [gt] Run Step 5 Mesh Evaluation against LiDAR GT PointCloud"
+    echo "  eval [mesh] [gt] [opts] Run Step 5 Mesh Evaluation against LiDAR GT PointCloud (scene-level Sim(3) alignment)"
     echo "  nvs [dataset] [model] Run Step 5b NVS Evaluation (PSNR/SSIM/LPIPS on held-out views)"
     echo "  results [--publish PATH] Aggregate SfM/NVS/mesh/timing results into one report"
     echo "  outputs          Inspect and summarize all generated output artifacts"
@@ -69,7 +69,7 @@ show_help() {
     echo "  ./scripts/run_3drc.sh sugar"
     echo "  ./scripts/run_3drc.sh milo"
     echo "  ./scripts/run_3drc.sh tsdf"
-    echo "  ./scripts/run_3drc.sh eval <mesh_path> [gt_pcd_path]"
+    echo "  ./scripts/run_3drc.sh eval <mesh_path> [gt_pcd_path] [--compute-transform]"
     echo "  ./scripts/run_3drc.sh nvs data/<scene> 3dgs/inria_30k"
     echo "  ./scripts/run_3drc.sh results --publish docs/results.md"
     echo "  ./scripts/run_3drc.sh outputs"
@@ -212,18 +212,21 @@ case "$COMMAND" in
         ;;
     eval)
         MESH_PATH="${2:-}"
-        GT_PATH="${3:-}"
         if [ -z "$MESH_PATH" ]; then
             echo "[Error] Mesh path required for eval."
-            echo "Usage: ./scripts/run_3drc.sh eval <mesh_path> [gt_pcd_path]"
+            echo "Usage: ./scripts/run_3drc.sh eval <mesh_path> [gt_pcd_path] [eval_mesh.py options]"
             exit 1
         fi
+        shift 2
         EVAL_ARGS=("--mesh" "$MESH_PATH")
-        if [ -n "$GT_PATH" ]; then
-            EVAL_ARGS+=("--gt" "$GT_PATH")
+        if [ -n "${1:-}" ] && [[ "$1" != --* ]]; then
+            EVAL_ARGS+=("--gt" "$1")
+            shift
         fi
+        # Remaining arguments go to eval_mesh.py (e.g. --compute-transform, --align-ref mesh)
+        EVAL_ARGS+=("$@")
         echo "[3DRC CLI] Executing Step 5: Mesh Quantitative Evaluation..."
-        "$PYTHON_BIN" src/mesh/eval_mesh.py "${EVAL_ARGS[@]}"
+        "$PYTHON_BIN" -m src.mesh.eval_mesh "${EVAL_ARGS[@]}"
         ;;
     nvs)
         ARG1="${2:-}"
