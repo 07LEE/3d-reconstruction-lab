@@ -54,9 +54,11 @@ A personal lab environment for hands-on experimentation and benchmarking of 3D r
 ./scripts/run_3drc.sh results
 ./scripts/run_3drc.sh results --publish docs/results.md
 
-# 8. Run end-to-end: SfM -> training -> (NVS if GS_EVAL_MODE=true) -> mesh -> results report
+# 8. Run end-to-end: SfM -> training -> (NVS if GS_EVAL_MODE=true) -> mesh -> mesh evaluation -> results report
 # SuGaR needs --train 3dgs|planargs, TSDF needs --train 2dgs, MILo works with any backend
+# Mesh evaluation uses data/<scene_name>/lidar.pcd (or lidar.ply) as GT when present; --gt overrides it
 ./scripts/run_3drc.sh pipeline data/<scene_name> hloc --train 2dgs --mesh tsdf
+./scripts/run_3drc.sh pipeline data/<scene_name> hloc --mesh milo --gt data/<scene_name>/scan.pcd
 ```
 
 ## Results Recording
