@@ -2,7 +2,7 @@
 title: Pipeline Architecture Guide
 description: Technical architecture, stage workflows, and execution guide for the 3DRC reconstruction pipeline.
 category: guide
-last_updated: 2026-08-14
+last_updated: 2026-10-26
 ---
 
 # 3DRC Pipeline Architecture Guide
@@ -41,7 +41,7 @@ This document provides technical details, configuration parameters, and executio
             │
             ▼
 ┌─────────────────────────┐
-│   Step 5: Evaluation    │  (Mesh: Topology Hygiene, Chamfer/Hausdorff LiDAR / 5b NVS: PSNR, SSIM, LPIPS)
+│   Step 5: Evaluation    │  (Mesh: Topology Hygiene, Chamfer/F-score/HD95 vs LiDAR / 5b NVS: PSNR, SSIM, LPIPS)
 └─────────────────────────┘
 ```
 
@@ -191,30 +191,34 @@ Learns 3D Identity Embeddings lifted from SAM 2D masks for object-level segmenta
 Evaluates mesh surface topology and computes geometric distance against reference LiDAR point clouds.
 
 1. Topology Audit: Watertightness (is_watertight), 2-manifold consistency, self-intersecting triangle count, and Euler characteristic (chi = V - E + F).
-2. Geometric Distance: Symmetric Chamfer Distance (CD, 2M sampled points) and Hausdorff Distance (HD).
-3. Sim(3) 7-DoF Alignment: Umeyama RANSAC scale and rigid alignment against reference coordinate systems.
+2. Geometric Distance: Chamfer L1 (mean of accuracy and completeness, 2M sampled points), F-score with precision / recall at a distance threshold (default 0.05 m, curve at 0.01 / 0.02 / 0.05 / 0.1 m), 95th percentile Hausdorff Distance (HD95), and GT coverage. Accuracy and completeness clip each distance at `--coverage-radius` (default 0.5 m), so GT regions the mesh misses count at the clip distance instead of being dropped.
+3. Sim(3) 7-DoF Alignment: Estimated once per scene from the SfM sparse points the meshes were trained on (`data/<scene>/sparse/<active_sfm>/points3D.bin`), not from each mesh, so every mesh of a scene is scored in the same frame. The 24 PCA axis hypotheses are each refined with scale-aware ICP and the best fit is kept; the transform is cached in `outputs/<scene>/eval/alignment/` and reused until the sparse model or GT changes. See [ADR 0017](adr/0017-scene-level-sim3-alignment-and-mesh-metrics-v2.md).
 
 ### Limitations & Evaluation Notes
 
 > [!NOTE]
 >
 > - Chamfer Distance Bias in Room-Scale Scenes: In typical indoor environments, walls, floors, and ceilings constitute the vast majority of surface area. As a result, global Chamfer Distance predominantly reflects wall flatness and may penalize models that preserve fine object geometry.
+> - Alignment Check: `eval_results.json` records the alignment `fitness` (fraction of SfM points within `--align-threshold` of the GT after alignment) and an `ambiguous` flag set when a different rotation fits nearly as well (symmetric rooms). Low fitness or an ambiguous flag means the transform should be checked visually before the numbers are trusted.
 > - Recommended Complementary Metrics: For holistic benchmarking, combine geometric distance with Novel View Synthesis (NVS) rendering metrics (PSNR, SSIM, LPIPS) on held-out views.
 
 ### Step 5 Execution Commands
 
 ```bash
 # 1. Topology hygiene audit on reconstructed mesh
-python src/mesh/eval_mesh.py --mesh outputs/<scene_name>/mesh/milo/mesh_cleaned_largest.ply
+python -m src.mesh.eval_mesh --mesh outputs/<scene_name>/mesh/milo/mesh_cleaned_largest.ply
 
-# 2. Chamfer & Hausdorff accuracy against LiDAR Ground Truth PCD
-python src/mesh/eval_mesh.py --mesh outputs/<scene_name>/mesh/2dgs/tsdf_mesh.ply --gt data/<scene_name>/lidar.pcd
+# 2. Accuracy against LiDAR Ground Truth PCD (scene-level alignment from the SfM sparse points)
+python -m src.mesh.eval_mesh --mesh outputs/<scene_name>/mesh/2dgs/tsdf_mesh.ply --gt data/<scene_name>/lidar.pcd
 
-# 3. Evaluation with Sim(3) transform JSON
-python src/mesh/eval_mesh.py --mesh outputs/<scene_name>/mesh/sugar/sugarfine_mesh.obj --gt data/<scene_name>/lidar.pcd --transform outputs/<scene_name>/mesh/sugar/eval/sugarfine_mesh/sim3_transform.json
+# 3. Recompute the cached scene transform (e.g. after a manual check)
+python -m src.mesh.eval_mesh --mesh outputs/<scene_name>/mesh/2dgs/tsdf_mesh.ply --gt data/<scene_name>/lidar.pcd --compute-transform
+
+# 4. Evaluation with an explicit Sim(3) transform JSON (e.g. hand-verified)
+python -m src.mesh.eval_mesh --mesh outputs/<scene_name>/mesh/sugar/sugarfine_mesh.obj --gt data/<scene_name>/lidar.pcd --transform outputs/<scene_name>/eval/alignment/sim3_hloc_lidar.json
 ```
 
-Results are written to `<mesh_dir>/eval/<mesh_stem>/` (`eval_results.json`, `sim3_transform.json`) unless `--out` is given.
+`--align-ref` selects the alignment source: `auto` (default, scene SfM sparse points; falls back to the mesh with a warning when none is found), `mesh` (the previous per-mesh behavior), or a path to a sparse model / point cloud in the mesh frame. Results are written to `<mesh_dir>/eval/<mesh_stem>/eval_results.json` unless `--out` is given; the scene transform is written to `outputs/<scene_name>/eval/alignment/sim3_<sfm>_<gt_stem>.json`.
 
 ## Step 5b: Novel View Synthesis Evaluation (`scripts/05_eval_nvs.sh`)
 
@@ -236,7 +240,7 @@ Stage scripts append runtime entries to `outputs/benchmark_timings.json` (stage,
 | --- | --- |
 | `data/<scene>/sparse/<method>/` | Registered / total images, sparse point count |
 | `outputs/<scene>/<model>/results.json`, `cfg_args`, `point_cloud/` | PSNR, SSIM, LPIPS, holdout flag, primitive count, model size |
-| `outputs/<scene>/mesh/<engine>/eval/<mesh>/eval_results.json` | Vertices, faces, watertightness, sliver ratio, Chamfer L1, HD95, GT coverage |
+| `outputs/<scene>/mesh/<engine>/eval/<mesh>/eval_results.json` | Vertices, faces, watertightness, sliver ratio, Chamfer L1, F-score / precision / recall, HD95, GT coverage, alignment fitness |
 
 ```bash
 ./scripts/run_3drc.sh results                          # outputs/results_summary.md + outputs/results_runs.csv
