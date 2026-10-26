@@ -47,6 +47,16 @@ def build_workspace(root: Path) -> None:
         "hygiene": {"num_vertices": 1000, "num_faces": 2000, "is_watertight": False, "sliver_ratio_pct": 1.5},
         "accuracy": {"chamfer_l1_m": 0.0123, "hausdorff_95_m": 0.05, "gt_coverage_pct": 91.2},
     })
+    sugar = root / "outputs" / scene / "mesh" / "sugar"
+    write_json(sugar / "pipeline_meta.json", {"stage": "Stage 3 (Mesh Extraction)", "engine": "SuGaR", "active_sfm": "hloc"})
+    write_json(sugar / "eval" / "sugarfine_mesh" / "eval_results.json", {
+        "mesh_path": "outputs/room/mesh/sugar/sugarfine_mesh.obj",
+        "metrics_version": 2,
+        "hygiene": {"num_vertices": 500, "num_faces": 900, "is_watertight": True, "sliver_ratio_pct": 0.5},
+        "accuracy": {"chamfer_l1_m": 0.0345, "hausdorff_95_m": 0.08, "gt_coverage_pct": 88.0,
+                     "fscore_threshold_m": 0.05, "precision": 0.8, "recall": 0.7, "fscore": 0.7467},
+        "alignment": {"source": "reference", "fitness": 0.912, "ambiguous": True},
+    })
     write_json(root / "outputs" / scene / "mesh" / "milo" / "pipeline_meta.json", {"stage": "Stage 3 (Mesh Reconstruction)", "engine": "MILo (Mesh-in-the-Loop SDF)"})
 
     env = {"gpu": "NVIDIA GeForce RTX 5070 Ti", "driver": "580.0", "torch": "2.11.0+cu128", "conda_env": "gs_train", "git_commit": "abc1234", "git_dirty": False}
@@ -89,10 +99,15 @@ def test_write_reports_hides_metrics_without_holdout(tmp_path):
     assert "RTX 5070 Ti" in markdown
     assert "(not evaluated)" in markdown
     assert "| 0.0123 |" in markdown
+    assert "| 0.7467 @ 0.05 m |" in markdown
+    assert "| 0.912 (ambiguous) |" in markdown
+    assert "(v1)" in markdown  # the legacy tsdf_mesh eval is flagged as not comparable
 
     rows = list(csv.DictReader(csv_path.open()))
     steps = sorted(r["step"] for r in rows)
-    assert steps == ["mesh", "mesh", "sfm", "sfm", "train", "train"]
+    assert steps == ["mesh", "mesh", "mesh", "sfm", "sfm", "train", "train"]
+    sugar_row = next(r for r in rows if r["output_dir"] == "outputs/room/mesh/sugar")
+    assert (sugar_row["fscore"], sugar_row["align_fitness"], sugar_row["metrics_version"]) == ("0.7467", "0.912", "2")
     no_holdout = next(r for r in rows if r["output_dir"] == "outputs/room/2dgs")
     assert no_holdout["psnr"] == ""
 
