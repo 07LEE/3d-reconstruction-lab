@@ -18,6 +18,9 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
 
+# Must match METRICS_VERSION in src/mesh/metrics.py (not imported to keep this module stdlib-only)
+MESH_METRICS_VERSION = 2
+
 def load_json(path: Path) -> Optional[Any]:
     """Loads a JSON file, returning None if it is missing or malformed."""
     if not path.is_file():
@@ -164,6 +167,8 @@ def collect_mesh_evals(run_dir: Path, root: Path) -> List[Dict[str, Any]]:
             "eval_dir": result_file.parent.relative_to(root).as_posix(),
             "hygiene": data.get("hygiene") or {},
             "accuracy": data.get("accuracy"),
+            "alignment": data.get("alignment") or {},
+            "metrics_version": data.get("metrics_version", 1),
         })
     return evals
 
@@ -304,25 +309,40 @@ def render_markdown(sfm: Dict[str, List[SfmRecord]], runs: Dict[str, List[RunRec
             lines.append("")
 
         mesh_runs = [r for r in scene_runs if r.kind == "mesh"]
+        legacy_evals = False
         if mesh_runs:
             lines += [
                 "### Step 3 / 5: Mesh Extraction and Evaluation",
                 "",
-                "| Engine | Mesh | Vertices | Faces | Watertight | Sliver % | Chamfer L1 (m) | HD95 (m) | GT Coverage % | Extract Time |",
-                "| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |",
+                "| Engine | Mesh | Vertices | Faces | Watertight | Sliver % | Chamfer L1 (m) | F-score | HD95 (m) | GT Coverage % | Align Fitness | Extract Time |",
+                "| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |",
             ]
             for r in mesh_runs:
                 if not r.mesh_evals:
-                    lines.append(f"| {r.engine} | `{r.rel_dir}` (not evaluated) | - | - | - | - | - | - | - | {_fmt_time(r.timing)} |")
+                    lines.append(f"| {r.engine} | `{r.rel_dir}` (not evaluated) | - | - | - | - | - | - | - | - | - | {_fmt_time(r.timing)} |")
                     continue
                 for ev in r.mesh_evals:
-                    hyg, acc = ev["hygiene"], ev["accuracy"] or {}
+                    hyg, acc, align = ev["hygiene"], ev["accuracy"] or {}, ev["alignment"]
+                    fscore = acc.get("fscore")
+                    fscore_cell = f"{_fmt(fscore, 4)} @ {acc['fscore_threshold_m']} m" if fscore is not None else "-"
+                    if ev["metrics_version"] < MESH_METRICS_VERSION and acc:
+                        legacy_evals = True
+                        fscore_cell += " (v1)"
+                    fitness = _fmt(align.get("fitness"), 3)
+                    if align.get("ambiguous"):
+                        fitness += " (ambiguous)"
                     lines.append(
                         f"| {r.engine} | `{r.rel_dir}/{ev['mesh']}` | {_fmt(hyg.get('num_vertices'))} | {_fmt(hyg.get('num_faces'))} "
                         f"| {_fmt(hyg.get('is_watertight'))} | {_fmt(hyg.get('sliver_ratio_pct'), 2)} | {_fmt(acc.get('chamfer_l1_m'), 4)} "
-                        f"| {_fmt(acc.get('hausdorff_95_m'), 4)} | {_fmt(acc.get('gt_coverage_pct'), 1)} | {_fmt_time(r.timing)} |"
+                        f"| {fscore_cell} | {_fmt(acc.get('hausdorff_95_m'), 4)} | {_fmt(acc.get('gt_coverage_pct'), 1)} | {fitness} | {_fmt_time(r.timing)} |"
                     )
             lines.append("")
+            if legacy_evals:
+                lines += [
+                    "Rows marked `(v1)` were evaluated before metrics v2 (per-mesh alignment, unclipped Chamfer terms) and are not",
+                    "comparable with other rows. Re-run `./scripts/run_3drc.sh eval` on those meshes.",
+                    "",
+                ]
 
     if not sfm and not runs:
         lines += ["No results found under `outputs/` or `data/`.", ""]
@@ -330,8 +350,8 @@ def render_markdown(sfm: Dict[str, List[SfmRecord]], runs: Dict[str, List[RunRec
 
 CSV_FIELDS = [
     "scene", "step", "engine", "output_dir", "active_sfm", "iterations", "holdout", "psnr", "ssim", "lpips",
-    "primitives", "model_mb", "mesh", "vertices", "faces", "watertight", "chamfer_l1_m", "hausdorff_95_m",
-    "gt_coverage_pct", "registered_images", "total_images", "sparse_points", "elapsed_seconds", "resumed_from",
+    "primitives", "model_mb", "mesh", "vertices", "faces", "watertight", "chamfer_l1_m", "fscore", "precision", "recall",
+    "fscore_threshold_m", "hausdorff_95_m", "gt_coverage_pct", "align_fitness", "metrics_version", "registered_images", "total_images", "sparse_points", "elapsed_seconds", "resumed_from",
     "gpu", "torch", "git_commit",
 ]
 
@@ -368,8 +388,11 @@ def build_csv_rows(sfm: Dict[str, List[SfmRecord]], runs: Dict[str, List[RunReco
                     hyg, acc = ev["hygiene"], ev["accuracy"] or {}
                     rows.append({**base, "mesh": ev["mesh"], "vertices": hyg.get("num_vertices"),
                                  "faces": hyg.get("num_faces"), "watertight": hyg.get("is_watertight"),
-                                 "chamfer_l1_m": acc.get("chamfer_l1_m"), "hausdorff_95_m": acc.get("hausdorff_95_m"),
-                                 "gt_coverage_pct": acc.get("gt_coverage_pct")})
+                                 "chamfer_l1_m": acc.get("chamfer_l1_m"), "fscore": acc.get("fscore"),
+                                 "precision": acc.get("precision"), "recall": acc.get("recall"),
+                                 "fscore_threshold_m": acc.get("fscore_threshold_m"), "hausdorff_95_m": acc.get("hausdorff_95_m"),
+                                 "gt_coverage_pct": acc.get("gt_coverage_pct"), "align_fitness": ev["alignment"].get("fitness"),
+                                 "metrics_version": ev["metrics_version"]})
             else:
                 rows.append(base)
     return rows

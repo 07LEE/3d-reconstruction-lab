@@ -2,7 +2,7 @@
 title: Architecture Decision Records (ADR)
 description: Index and operational rules for Architecture Decision Records in 3DRC.
 category: adr
-last_updated: 2026-08-10
+last_updated: 2026-10-26
 ---
 
 # Architecture Decision Records (ADR)
@@ -33,3 +33,4 @@ This directory documents key architectural decisions, rationale, and context for
 - 0014-mipsplatting-integration-and-environment-isolation.md: Mip-Splatting Integration for 3D Smoothing Filter and Multi-Scale Rendering
 - 0015-results-recording-and-aggregation.md: Results Recording and Aggregation for Cross-Engine Comparison
 - 0016-gaussian-grouping-output-under-scene-outputs.md: Gaussian Grouping Output Under Scene Outputs
+- 0017-scene-level-sim3-alignment-and-mesh-metrics-v2.md: Scene-Level Sim(3) Alignment and Mesh Metrics v2
