@@ -35,3 +35,4 @@ This directory documents key architectural decisions, rationale, and context for
 - 0016-gaussian-grouping-output-under-scene-outputs.md: Gaussian Grouping Output Under Scene Outputs
 - 0017-scene-level-sim3-alignment-and-mesh-metrics-v2.md: Scene-Level Sim(3) Alignment and Mesh Metrics v2
 - 0018-unified-gs-environment-with-per-backend-rasterizers.md: Unified Gaussian Environment with Per-Backend Rasterizer Builds
+- 0019-defer-in-memory-yuv-ingestion.md: Defer In-Memory YUV Ingestion, Use Disk Extraction as Interim Path
