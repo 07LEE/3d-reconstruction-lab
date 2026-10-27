@@ -12,14 +12,8 @@ else
     exit 1
 fi
 
-CONDA_PATH=$(conda info --base 2>/dev/null || echo "$HOME/miniconda3")
-if [ -f "$CONDA_PATH/etc/profile.d/conda.sh" ]; then
-    source "$CONDA_PATH/etc/profile.d/conda.sh"
-    set +u
-    conda activate gs_sugar
-    set -u
-    [ "${CONDA_DEFAULT_ENV:-}" = "gs_sugar" ] || { echo "[FATAL] Conda environment 'gs_sugar' not found or activation failed. Run: ./scripts/00_setup_environment.sh --env gs_sugar"; exit 1; }
-fi
+source "$(dirname "$0")/utils/activate_backend.sh"
+activate_backend sugar
 
 # Get project root
 PROJECT_ROOT=$(pwd)

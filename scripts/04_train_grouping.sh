@@ -12,14 +12,8 @@ else
     exit 1
 fi
 
-CONDA_PATH=$(conda info --base 2>/dev/null || echo "$HOME/miniconda3")
-if [ -f "$CONDA_PATH/etc/profile.d/conda.sh" ]; then
-    source "$CONDA_PATH/etc/profile.d/conda.sh"
-    set +u
-    conda activate gs_group
-    set -u
-    [ "${CONDA_DEFAULT_ENV:-}" = "gs_group" ] || { echo "[FATAL] Conda environment 'gs_group' not found or activation failed. Run: ./scripts/00_setup_environment.sh --env gs_group"; exit 1; }
-fi
+source "$(dirname "$0")/utils/activate_backend.sh"
+activate_backend grouping
 
 PROJECT_ROOT=$(pwd)
 

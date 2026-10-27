@@ -13,19 +13,15 @@ else
 fi
 
 CONDA_PATH=$(conda info --base 2>/dev/null || echo "$HOME/miniconda3")
-if [ -f "$CONDA_PATH/etc/profile.d/conda.sh" ]; then
-    source "$CONDA_PATH/etc/profile.d/conda.sh"
-    set +u
-    conda activate gs_milo
-    set -u
-    [ "${CONDA_DEFAULT_ENV:-}" = "gs_milo" ] || { echo "[FATAL] Conda environment 'gs_milo' not found or activation failed. Run: ./scripts/00_setup_environment.sh --env gs_milo"; exit 1; }
-fi
+source "$(dirname "$0")/utils/activate_backend.sh"
+activate_backend milo
 
 # Source CUDA & host compiler build environment (GCC 12 / NVCC 12.8)
 source "$(dirname "$0")/utils/setup_build_env.sh"
 
 # Ensure Conda environment site-packages is explicitly first in PYTHONPATH
-export PYTHONPATH="${CONDA_PREFIX}/lib/python3.10/site-packages"
+# Unified mode keeps the MILo rasterizer build ahead of site-packages
+export PYTHONPATH="${BACKEND_EXT_PATH:+$BACKEND_EXT_PATH:}${CONDA_PREFIX}/lib/python3.10/site-packages"
 
 # Get project root
 PROJECT_ROOT=$(pwd)
