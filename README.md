@@ -74,12 +74,24 @@ pytest tests
 ## Environment Architecture
 
 - `3drc`: Main pipeline orchestrator, Step 1 SfM (COLMAP, hloc, VGGT, FastMap), preprocessing (`dense_undistort`), and Step 5 geometric evaluation (`eval_mesh`).
-- `gs_train`: Inria 3DGS, PlanarGS, and 2DGS training (`dr_aa` & `diff-surfel-rasterization`), plus Open3D TSDF mesh extraction.
-- `gs_sugar`: SuGaR surface-aligned mesh extraction environment.
+- `gs_train`: Inria 3DGS and 2DGS training (`dr_aa` & `diff-surfel-rasterization`), plus Open3D TSDF mesh extraction.
+- `gs_sugar`: SuGaR surface-aligned mesh extraction and PlanarGS training (`diff-plane-rasterization`).
 - `gs_milo`: MILo differentiable mesh-in-the-loop training and extraction environment.
 - `gs_scaffold`: Scaffold-GS anchor-based training environment (isolated rasterizer build).
 - `gs_mipsplatting`: Mip-Splatting 3D smoothing filter training environment (isolated rasterizer build).
 - `gs_group`: Gaussian Grouping 3D SAM instance segmentation environment.
+
+### Unified Gaussian Environment (opt-in)
+
+The six `gs_*` environments differ only in which `diff_gaussian_rasterization` build they carry. The `gs` environment replaces them with one torch install: shared extensions go into `gs`, and each backend's rasterizer build goes into `.ext/<variant>/`, which `scripts/utils/activate_backend.sh` puts first on `PYTHONPATH` for that backend. See [ADR 0018](docs/adr/0018-unified-gs-environment-with-per-backend-rasterizers.md).
+
+```bash
+./scripts/00_setup_environment.sh --env gs        # build gs and .ext/{inria,scaffold,mipsplatting,milo,grouping}
+./scripts/utils/verify_patches.sh --verbose        # checks each backend loads its own rasterizer
+GS_ENV_MODE=unified ./scripts/run_3drc.sh train 3dgs data/<scene_name>
+```
+
+`GS_ENV_MODE=split` (default) keeps the per-backend environments above until every backend has been verified in unified mode.
 
 ## Pipeline Model Mapping
 
