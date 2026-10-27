@@ -31,6 +31,8 @@ while [ $# -gt 0 ]; do
 done
 
 ALL_ENVS=(3drc gs_train gs_sugar gs_group gs_milo gs_scaffold gs_mipsplatting)
+# 'gs' replaces every gs_* environment when scripts run with GS_ENV_MODE=unified (ADR 0018)
+UNIFIED_ENV=gs
 
 if [ "$BUILD_ALL" = "1" ]; then
     TARGET_ENVS=("${ALL_ENVS[@]}")
@@ -40,7 +42,7 @@ fi
 
 # Validate target environment names
 for e in "${TARGET_ENVS[@]}"; do
-    printf '%s\n' "${ALL_ENVS[@]}" | grep -qx "$e" \
+    printf '%s\n' "${ALL_ENVS[@]}" "$UNIFIED_ENV" | grep -qx "$e" \
         || { echo "[FATAL] Unknown environment: $e"; exit 1; }
 done
 
@@ -93,6 +95,29 @@ third_party/milo/submodules/diff-gaussian-rasterization_ms
 third_party/milo/submodules/diff-gaussian-rasterization_gof
 third_party/milo/submodules/simple-knn
 third_party/milo/submodules/fused-ssim"
+
+# Unified env: extensions with unique module names are shared. All simple-knn copies have
+# identical sources (patches only add includes), so one build serves every backend.
+ENV_EXTS[gs]="third_party/gaussian-splatting/submodules/simple-knn
+third_party/2d-gaussian-splatting/submodules/diff-surfel-rasterization
+third_party/PlanarGS/submodules/diff-plane-rasterization
+third_party/milo/submodules/diff-gaussian-rasterization_ms
+third_party/milo/submodules/diff-gaussian-rasterization_gof
+third_party/milo/submodules/fused-ssim"
+
+# Unified env: diff_gaussian_rasterization differs per backend under one module name, so each
+# build goes to .ext/<variant>/ (or $GS_EXT_ROOT/<variant>/) and scripts/utils/activate_backend.sh
+# puts it on PYTHONPATH.
+GS_EXT_ROOT="${GS_EXT_ROOT:-$(pwd)/.ext}"
+declare -A GS_RASTERIZER_VARIANTS
+GS_RASTERIZER_VARIANTS[inria]="third_party/gaussian-splatting/submodules/diff-gaussian-rasterization"
+GS_RASTERIZER_VARIANTS[scaffold]="third_party/scaffold-gs/submodules/diff-gaussian-rasterization"
+GS_RASTERIZER_VARIANTS[mipsplatting]="third_party/mip-splatting/submodules/diff-gaussian-rasterization"
+GS_RASTERIZER_VARIANTS[milo]="third_party/milo/submodules/diff-gaussian-rasterization"
+GS_RASTERIZER_VARIANTS[grouping]="third_party/gaussian-grouping/submodules/diff-gaussian-rasterization"
+if [ ! -d "${GS_RASTERIZER_VARIANTS[grouping]}" ]; then
+    GS_RASTERIZER_VARIANTS[grouping]="${GS_RASTERIZER_VARIANTS[inria]}"
+fi
 
 echo "=================================================="
 echo " Starting 3DRC Environment Setup..."
@@ -154,8 +179,26 @@ install_ext() {
     "$pip_bin" install --no-cache-dir --no-build-isolation -e "$ext_path"
 }
 
+# Builds one rasterizer variant into .ext/<variant>/ (not site-packages) for the unified env
+install_rasterizer_variant() {
+    local variant="$1"
+    local ext_path="${GS_RASTERIZER_VARIANTS[$variant]}"
+    local pip_bin="$CONDA_PATH/envs/$UNIFIED_ENV/bin/pip"
+
+    [ -d "$ext_path" ] || { echo "[FATAL] Missing extension path: $ext_path"; exit 1; }
+    echo "Building $ext_path -> $GS_EXT_ROOT/$variant..."
+    rm -rf "${GS_EXT_ROOT:?}/$variant"
+    "$pip_bin" install --no-cache-dir --no-build-isolation --no-deps --target "$GS_EXT_ROOT/$variant" "$ext_path"
+}
+
 build_env() {
     local env_name="$1"
+
+    if [ "$env_name" = "$UNIFIED_ENV" ]; then
+        for variant in inria scaffold mipsplatting milo grouping; do
+            install_rasterizer_variant "$variant"
+        done
+    fi
 
     if [ "$env_name" = "3drc" ] && [ -f "requirements.txt" ]; then
         echo "Installing external Python dependencies (requirements.txt) -> 3drc..."
