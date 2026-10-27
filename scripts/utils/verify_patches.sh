@@ -247,11 +247,62 @@ else
     log_check "skip" "Explicit check: gs_mipsplatting environment not installed"
 fi
 
+# Unified 'gs' env (ADR 0018): each backend's rasterizer must load from its own .ext/<variant>/
+# and expose that variant's settings fields; shared extensions must load without PYTHONPATH.
+GS_PYTHON="${CONDA_BASE_DIR}/envs/gs/bin/python"
+GS_EXT_ROOT="${GS_EXT_ROOT:-${REPO_ROOT}/.ext}"
+if [ -x "$GS_PYTHON" ]; then
+    for spec in "inria:antialiasing" "scaffold:" "mipsplatting:kernel_size,subpixel_offset" "milo:require_depth,require_coord" "grouping:"; do
+        variant="${spec%%:*}"
+        fields="${spec#*:}"
+        env_count=$((env_count + 1))
+        diag_out=""
+        if diag_out=$(PYTHONPATH="${GS_EXT_ROOT}/${variant}" EXPECT_DIR="${GS_EXT_ROOT}/${variant}" EXPECT_FIELDS="$fields" "$GS_PYTHON" - <<'PY' 2>&1
+import os, sys
+expect_dir, fields = os.environ["EXPECT_DIR"], [f for f in os.environ["EXPECT_FIELDS"].split(",") if f]
+try:
+    import diff_gaussian_rasterization as d
+    from diff_gaussian_rasterization import GaussianRasterizationSettings as S
+except Exception as e:
+    print(f"import failed: {type(e).__name__}: {e}")
+    sys.exit(1)
+if not os.path.realpath(d.__file__).startswith(os.path.realpath(expect_dir) + os.sep):
+    print(f"loaded from {d.__file__}, expected under {expect_dir}")
+    sys.exit(1)
+missing = [f for f in fields if f not in getattr(S, "_fields", ())]
+if missing:
+    print(f"settings fields missing: {missing}")
+    sys.exit(1)
+PY
+        ); then
+            log_check "ok" "Explicit check: gs uses .ext/${variant} rasterizer"
+            env_passed=$((env_passed + 1))
+        else
+            log_check "FAIL" "[gs] .ext/${variant} rasterizer verification failed: ${diag_out:-unknown error}"
+            fail=1
+        fi
+    done
+
+    env_count=$((env_count + 1))
+    diag_out=""
+    if diag_out=$(PYTHONPATH="" "$GS_PYTHON" -c "import simple_knn._C, diff_surfel_rasterization, diff_plane_rasterization, diff_gaussian_rasterization_ms, diff_gaussian_rasterization_gof, fused_ssim" 2>&1); then
+        log_check "ok" "Explicit check: gs shared extensions import"
+        env_passed=$((env_passed + 1))
+    else
+        log_check "FAIL" "[gs] shared extension import failed: ${diag_out:-unknown error}"
+        fail=1
+    fi
+else
+    env_skipped=$((env_skipped + 1))
+    log_check "skip" "Explicit check: gs (unified) environment not installed"
+fi
+
 # Blackwell sm_120 CUBIN SASS binary verification across C++ CUDA extensions
 export REPO_ROOT
 export CONDA_BASE_DIR
+export GS_EXT_ROOT
 PYTHON_AUDIT_BIN=""
-for e in 3drc gs_train gs_sugar gs_group gs_milo gs_scaffold gs_mipsplatting; do
+for e in 3drc gs gs_train gs_sugar gs_group gs_milo gs_scaffold gs_mipsplatting; do
     if [ -x "${CONDA_BASE_DIR}/envs/${e}/bin/python" ]; then
         PYTHON_AUDIT_BIN="${CONDA_BASE_DIR}/envs/${e}/bin/python"
         break
@@ -267,7 +318,7 @@ CONDA_BASE = os.environ.get("CONDA_BASE_DIR", os.path.expanduser("~/miniconda3")
 REPO_ROOT = os.environ.get("REPO_ROOT", os.path.abspath(os.path.join(os.path.dirname(__file__), "../..")))
 
 CUOBJDUMP = None
-for env_name in ["gs_train", "3drc", "gs_sugar", "gs_group", "gs_milo", "gs_scaffold", "gs_mipsplatting"]:
+for env_name in ["gs_train", "gs", "3drc", "gs_sugar", "gs_group", "gs_milo", "gs_scaffold", "gs_mipsplatting"]:
     cand = os.path.join(CONDA_BASE, "envs", env_name, "bin/cuobjdump")
     if os.path.exists(cand):
         CUOBJDUMP = cand
@@ -327,6 +378,27 @@ for env, (mods, repo_sub) in ENVS.items():
         else:
             print(f"  [MISS]  [{env}] {mod}: .so file not found")
             fail = 1
+
+# Unified env rasterizer variants live in .ext/<variant>/ rather than site-packages
+if os.path.exists(os.path.join(CONDA_BASE, "envs", "gs")):
+    for variant in ["inria", "scaffold", "mipsplatting", "milo", "grouping"]:
+        found = glob.glob(os.path.join(os.environ["GS_EXT_ROOT"], variant, "diff_gaussian_rasterization", "_C*.so"))
+        if not found:
+            print(f"  [MISS]  [gs] .ext/{variant}: .so file not found")
+            fail = 1
+            continue
+        total_checked += 1
+        try:
+            out = subprocess.check_output([CUOBJDUMP, "--list-elf", found[0]], stderr=subprocess.DEVNULL).decode()
+            archs = sorted(set(re.findall(r'sm_\d+', out)))
+            sm_str = " ".join(archs) if archs else "no CUBIN"
+            if "sm_120" in archs:
+                print(f"  [ok]    [gs] .ext/{variant} -> {sm_str}")
+            else:
+                print(f"  [WRONG] [gs] .ext/{variant} -> {sm_str} (native sm_120 missing)")
+                fail = 1
+        except Exception as e:
+            print(f"  [WARN]  [gs] .ext/{variant}: cuobjdump failed ({e})")
 
 print(f"SUMMARY:{total_checked}:{fail}:{total_skipped}")
 if fail != 0:

@@ -45,11 +45,11 @@ fi
 RENDER_EXTRA_ARGS=()
 METRICS_EXTRA_ARGS=()
 case "$BACKEND" in
-    3dgs)       ENV_NAME="gs_train";    REPO_DIR="third_party/gaussian-splatting" ;;
-    planargs)   ENV_NAME="gs_train";    REPO_DIR="third_party/PlanarGS" ;;
-    2dgs)       ENV_NAME="gs_train";    REPO_DIR="third_party/2d-gaussian-splatting"; RENDER_EXTRA_ARGS+=("--skip_mesh") ;;
-    scaffoldgs) ENV_NAME="gs_scaffold"; REPO_DIR="third_party/scaffold-gs" ;;
-    mipsplatting) ENV_NAME="gs_mipsplatting"; REPO_DIR="third_party/mip-splatting" ;;
+    3dgs)         REPO_DIR="third_party/gaussian-splatting" ;;
+    planargs)     REPO_DIR="third_party/PlanarGS" ;;
+    2dgs)         REPO_DIR="third_party/2d-gaussian-splatting"; RENDER_EXTRA_ARGS+=("--skip_mesh") ;;
+    scaffoldgs)   REPO_DIR="third_party/scaffold-gs" ;;
+    mipsplatting) REPO_DIR="third_party/mip-splatting" ;;
     *) log_fatal "Unknown NVS backend: ${BACKEND}" ;;
 esac
 
@@ -67,12 +67,9 @@ if [ "$BACKEND" = "mipsplatting" ]; then
     METRICS_EXTRA_ARGS+=("-r" "$TRAIN_RES")
 fi
 
-CONDA_PATH=$(conda info --base 2>/dev/null || echo "$HOME/miniconda3")
-set +u
-source "$CONDA_PATH/etc/profile.d/conda.sh"
-conda activate "$ENV_NAME"
-set -u
-[ "${CONDA_DEFAULT_ENV:-}" = "$ENV_NAME" ] || log_fatal "Conda environment '${ENV_NAME}' activation failed!"
+# Render in the training environment (PlanarGS needs diff_plane_rasterization from gs_sugar, not gs_train)
+source "$(dirname "$0")/utils/activate_backend.sh"
+activate_backend "$BACKEND"
 
 "$(dirname "$0")/utils/verify_patches.sh" || { echo "[FATAL] Patch verification failed!"; exit 1; }
 

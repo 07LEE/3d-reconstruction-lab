@@ -9,14 +9,8 @@ if [ -f "$CONFIG_PATH" ]; then
     source "$CONFIG_PATH"
 fi
 
-CONDA_PATH=$(conda info --base 2>/dev/null || echo "$HOME/miniconda3")
-set +u
-source "$CONDA_PATH/etc/profile.d/conda.sh"
-if ! conda activate gs_scaffold 2>/dev/null; then
-    echo "[FATAL] Conda environment 'gs_scaffold' not found. Run: ./scripts/00_setup_environment.sh --env gs_scaffold"
-    exit 1
-fi
-set -u
+source "$(dirname "$0")/utils/activate_backend.sh"
+activate_backend scaffoldgs
 
 # Run patch & environment verification inside activated environment
 "$(dirname "$0")/utils/verify_patches.sh" || { echo "[FATAL] Patch verification failed!"; exit 1; }

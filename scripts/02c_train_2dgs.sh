@@ -9,12 +9,8 @@ if [ -f "$CONFIG_PATH" ]; then
     source "$CONFIG_PATH"
 fi
 
-CONDA_PATH=$(conda info --base 2>/dev/null || echo "$HOME/miniconda3")
-set +u
-source "$CONDA_PATH/etc/profile.d/conda.sh"
-conda activate gs_train
-set -u
-[ "${CONDA_DEFAULT_ENV:-}" = "gs_train" ] || { echo "[FATAL] Conda environment 'gs_train' not found or activation failed. Run: ./scripts/00_setup_environment.sh --env gs_train"; exit 1; }
+source "$(dirname "$0")/utils/activate_backend.sh"
+activate_backend 2dgs
 
 # Run patch & environment verification inside activated environment
 "$(dirname "$0")/utils/verify_patches.sh" || { echo "[FATAL] Patch verification failed!"; exit 1; }
