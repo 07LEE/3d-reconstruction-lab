@@ -91,7 +91,7 @@ The six `gs_*` environments differ only in which `diff_gaussian_rasterization` b
 GS_ENV_MODE=unified ./scripts/run_3drc.sh train 3dgs data/<scene_name>
 ```
 
-`GS_ENV_MODE=split` (default) keeps the per-backend environments above until every backend has been verified in unified mode.
+`GS_ENV_MODE=unified` is the default. Set `GS_ENV_MODE=split` to use the per-backend environments above.
 
 ## Pipeline Model Mapping
 

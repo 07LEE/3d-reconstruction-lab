@@ -175,7 +175,7 @@ TRAIN_PYTHON="${CONDA_BASE_DIR}/envs/gs_train/bin/python"
 if [ -x "$TRAIN_PYTHON" ]; then
     env_count=$((env_count + 1))
     diag_out=""
-    if diag_out=$("$TRAIN_PYTHON" - <<'PY' 2>&1
+    if diag_out=$(PYTHONPATH="" "$TRAIN_PYTHON" - <<'PY' 2>&1
 import sys
 try:
     import diff_gaussian_rasterization as d
@@ -203,7 +203,7 @@ SCAFFOLD_PYTHON="${CONDA_BASE_DIR}/envs/gs_scaffold/bin/python"
 if [ -x "$SCAFFOLD_PYTHON" ]; then
     env_count=$((env_count + 1))
     diag_out=""
-    if diag_out=$("$SCAFFOLD_PYTHON" - <<'PY' 2>&1
+    if diag_out=$(PYTHONPATH="" "$SCAFFOLD_PYTHON" - <<'PY' 2>&1
 import sys
 try:
     import diff_gaussian_rasterization as d
@@ -227,7 +227,7 @@ MIPSPLATTING_PYTHON="${CONDA_BASE_DIR}/envs/gs_mipsplatting/bin/python"
 if [ -x "$MIPSPLATTING_PYTHON" ]; then
     env_count=$((env_count + 1))
     diag_out=""
-    if diag_out=$("$MIPSPLATTING_PYTHON" - <<'PY' 2>&1
+    if diag_out=$(PYTHONPATH="" "$MIPSPLATTING_PYTHON" - <<'PY' 2>&1
 import sys
 try:
     import diff_gaussian_rasterization as d
@@ -285,7 +285,7 @@ PY
 
     env_count=$((env_count + 1))
     diag_out=""
-    if diag_out=$(PYTHONPATH="" "$GS_PYTHON" -c "import simple_knn._C, diff_surfel_rasterization, diff_plane_rasterization, diff_gaussian_rasterization_ms, diff_gaussian_rasterization_gof, fused_ssim" 2>&1); then
+    if diag_out=$(PYTHONPATH="" "$GS_PYTHON" -c "import torch, simple_knn._C, diff_surfel_rasterization, diff_plane_rasterization, diff_gaussian_rasterization_ms, diff_gaussian_rasterization_gof, fused_ssim" 2>&1); then
         log_check "ok" "Explicit check: gs shared extensions import"
         env_passed=$((env_passed + 1))
     else

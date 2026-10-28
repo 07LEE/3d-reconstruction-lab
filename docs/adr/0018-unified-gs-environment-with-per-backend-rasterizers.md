@@ -16,7 +16,7 @@ Decision:
 1. Add a `gs` environment (`envs/gs.yml`, the union of the six gs_* dependency lists) built with `./scripts/00_setup_environment.sh --env gs`.
 2. Extensions with unique names, and one `simple_knn` build, are installed into `gs` site-packages in editable mode as before.
 3. Each `diff_gaussian_rasterization` variant (inria, scaffold, mipsplatting, milo, grouping) is installed non-editable with `pip install --target .ext/<variant>` (`GS_EXT_ROOT` overrides `.ext`). None is installed into site-packages, so a backend that does not select a variant fails to import instead of silently using another one.
-4. Stage scripts call `activate_backend <backend>` (`scripts/utils/activate_backend.sh`). With `GS_ENV_MODE=unified` it activates `gs` and prepends `.ext/<variant>` to `PYTHONPATH`; with `GS_ENV_MODE=split` (default) it activates the ADR 0001 environment, unchanged.
+4. Stage scripts call `activate_backend <backend>` (`scripts/utils/activate_backend.sh`). With `GS_ENV_MODE=unified` it activates `gs` and prepends `.ext/<variant>` to `PYTHONPATH`; with `GS_ENV_MODE=split` it activates the ADR 0001 environment, unchanged.
 5. `verify_patches.sh` checks, per variant, that `diff_gaussian_rasterization` loads from `.ext/<variant>` and exposes that variant's settings fields, and audits the `.ext` builds for sm_120 CUBIN.
 
 Alternatives:

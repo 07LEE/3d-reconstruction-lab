@@ -4,10 +4,10 @@
 # Usage (sourced): source scripts/utils/activate_backend.sh && activate_backend <backend>
 # Backends: 3dgs, 2dgs, tsdf, planargs, sugar, scaffoldgs, mipsplatting, milo, grouping
 #
-# GS_ENV_MODE=split (default): one Conda environment per backend family (ADR 0001).
-# GS_ENV_MODE=unified: one shared 'gs' environment. Every backend ships its own
+# GS_ENV_MODE=unified (default): one shared 'gs' environment. Every backend ships its own
 # diff_gaussian_rasterization under the same module name, so each build lives in
 # .ext/<variant>/ and is put first on PYTHONPATH for that backend only (ADR 0018).
+# GS_ENV_MODE=split: one Conda environment per backend family (ADR 0001).
 # GS_EXT_ROOT overrides the .ext/ location (must match the one used by 00_setup_environment.sh).
 
 _ACTIVATE_BACKEND_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
@@ -39,7 +39,7 @@ backend_rasterizer_variant() {
 # Activates the backend's environment and exports BACKEND_EXT_PATH (empty in split mode).
 activate_backend() {
     local backend="$1"
-    local mode="${GS_ENV_MODE:-split}"
+    local mode="${GS_ENV_MODE:-unified}"
     local variant env_name
 
     variant="$(backend_rasterizer_variant "$backend")" || { echo "[FATAL] Unknown backend: '${backend}'" >&2; exit 1; }

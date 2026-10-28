@@ -40,7 +40,7 @@ def parse(result: subprocess.CompletedProcess):
     ("mipsplatting", "gs_mipsplatting"), ("milo", "gs_milo"), ("grouping", "gs_group"),
 ])
 def test_split_mode_keeps_per_backend_envs(tmp_path, backend, env_name):
-    result = activate(tmp_path, backend, [env_name])
+    result = activate(tmp_path, backend, [env_name], GS_ENV_MODE="split")
     assert result.returncode == 0, result.stderr
     out = parse(result)
     assert out["ENV"] == env_name
@@ -61,13 +61,20 @@ def test_unified_mode_puts_backend_rasterizer_first(tmp_path, backend, variant):
     assert out["EXT"] == str(ext_root / variant)
     assert out["PYTHONPATH"] == f"{ext_root / variant}:/existing"
 
+def test_default_mode_is_unified(tmp_path):
+    ext_root = tmp_path / "ext"
+    (ext_root / "inria").mkdir(parents=True)
+    result = activate(tmp_path, "3dgs", ["gs"], GS_EXT_ROOT=str(ext_root))
+    assert result.returncode == 0, result.stderr
+    assert parse(result)["ENV"] == "gs"
+
 def test_unified_mode_without_build_fails(tmp_path):
     result = activate(tmp_path, "milo", ["gs"], GS_ENV_MODE="unified", GS_EXT_ROOT=str(tmp_path / "empty"))
     assert result.returncode != 0
     assert "--env gs" in result.stderr
 
 def test_missing_env_reports_setup_command(tmp_path):
-    result = activate(tmp_path, "scaffoldgs", [])
+    result = activate(tmp_path, "scaffoldgs", [], GS_ENV_MODE="split")
     assert result.returncode != 0
     assert "./scripts/00_setup_environment.sh --env gs_scaffold" in result.stderr
 
