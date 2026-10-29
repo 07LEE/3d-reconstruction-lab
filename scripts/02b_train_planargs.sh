@@ -15,7 +15,7 @@ fi
 source "$(dirname "$0")/utils/activate_backend.sh"
 activate_backend planargs
 
-# Run patch & environment verification inside activated gs_train environment
+# Run patch & environment verification inside activated gs environment
 "$(dirname "$0")/utils/verify_patches.sh" || { echo "[FATAL] Patch verification failed!"; exit 1; }
 
 # Source CUDA build environment (GCC 12 / NVCC 12.8)

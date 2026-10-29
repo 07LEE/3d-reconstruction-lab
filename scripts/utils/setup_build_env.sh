@@ -1,9 +1,7 @@
 # Dynamic CUDA build environment setup script
 CONDA_BASE_DIR=$(conda info --base 2>/dev/null || echo "$HOME/miniconda3")
-# Unified gs (torch cu130) builds with CUDA 13.2; the split gs_* environments (torch cu128) keep the 12.8 toolkit in gs_train.
-if [ -z "${BUILD_TOOLKIT_ENV:-}" ]; then
-    if [ "${GS_ENV_MODE:-unified}" = "split" ]; then BUILD_TOOLKIT_ENV=gs_train; else BUILD_TOOLKIT_ENV=cuda132; fi
-fi
+# Torch is cu130, so the extensions are built with the CUDA 13.2 toolkit from the cuda132 environment.
+BUILD_TOOLKIT_ENV="${BUILD_TOOLKIT_ENV:-cuda132}"
 TARGET_TOOLKIT_DIR="${CONDA_BASE_DIR}/envs/${BUILD_TOOLKIT_ENV}"
 
 if [ -d "$TARGET_TOOLKIT_DIR" ]; then

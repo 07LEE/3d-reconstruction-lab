@@ -34,53 +34,39 @@ def activate(tmp_path: Path, backend: str, envs, **env_overrides: str) -> subpro
 def parse(result: subprocess.CompletedProcess):
     return dict(line.split("=", 1) for line in result.stdout.splitlines() if "=" in line)
 
-@pytest.mark.parametrize("backend, env_name", [
-    ("3dgs", "gs_train"), ("2dgs", "gs_train"), ("tsdf", "gs_train"),
-    ("planargs", "gs_sugar"), ("sugar", "gs_sugar"), ("scaffoldgs", "gs_scaffold"),
-    ("mipsplatting", "gs_mipsplatting"), ("milo", "gs_milo"), ("grouping", "gs_group"),
-])
-def test_split_mode_keeps_per_backend_envs(tmp_path, backend, env_name):
-    result = activate(tmp_path, backend, [env_name], GS_ENV_MODE="split")
-    assert result.returncode == 0, result.stderr
-    out = parse(result)
-    assert out["ENV"] == env_name
-    assert out["EXT"] == ""
-    assert out["PYTHONPATH"] == ""
-
 @pytest.mark.parametrize("backend, variant", [
     ("3dgs", "inria"), ("2dgs", "inria"), ("tsdf", "inria"), ("planargs", "inria"), ("sugar", "inria"),
     ("scaffoldgs", "scaffold"), ("mipsplatting", "mipsplatting"), ("milo", "milo"), ("grouping", "grouping"),
 ])
-def test_unified_mode_puts_backend_rasterizer_first(tmp_path, backend, variant):
+def test_puts_backend_rasterizer_first(tmp_path, backend, variant):
     ext_root = tmp_path / "ext"
     (ext_root / variant).mkdir(parents=True)
-    result = activate(tmp_path, backend, ["gs"], GS_ENV_MODE="unified", GS_EXT_ROOT=str(ext_root), PYTHONPATH="/existing")
+    result = activate(tmp_path, backend, ["gs"], GS_EXT_ROOT=str(ext_root), PYTHONPATH="/existing")
     assert result.returncode == 0, result.stderr
     out = parse(result)
     assert out["ENV"] == "gs"
     assert out["EXT"] == str(ext_root / variant)
     assert out["PYTHONPATH"] == f"{ext_root / variant}:/existing"
 
-def test_default_mode_is_unified(tmp_path):
+def test_env_name_override(tmp_path):
     ext_root = tmp_path / "ext"
     (ext_root / "inria").mkdir(parents=True)
-    result = activate(tmp_path, "3dgs", ["gs"], GS_EXT_ROOT=str(ext_root))
+    result = activate(tmp_path, "3dgs", ["gs_custom"], GS_ENV_NAME="gs_custom", GS_EXT_ROOT=str(ext_root))
     assert result.returncode == 0, result.stderr
-    assert parse(result)["ENV"] == "gs"
+    assert parse(result)["ENV"] == "gs_custom"
 
-def test_unified_mode_without_build_fails(tmp_path):
-    result = activate(tmp_path, "milo", ["gs"], GS_ENV_MODE="unified", GS_EXT_ROOT=str(tmp_path / "empty"))
+def test_without_build_fails(tmp_path):
+    result = activate(tmp_path, "milo", ["gs"], GS_EXT_ROOT=str(tmp_path / "empty"))
     assert result.returncode != 0
     assert "--env gs" in result.stderr
 
 def test_missing_env_reports_setup_command(tmp_path):
-    result = activate(tmp_path, "scaffoldgs", [], GS_ENV_MODE="split")
+    result = activate(tmp_path, "scaffoldgs", [])
     assert result.returncode != 0
-    assert "./scripts/00_setup_environment.sh --env gs_scaffold" in result.stderr
+    assert "./scripts/00_setup_environment.sh --env gs" in result.stderr
 
-def test_unknown_backend_and_mode_fail(tmp_path):
-    assert activate(tmp_path, "nerf", ["gs_train"]).returncode != 0
-    assert activate(tmp_path / "x", "3dgs", ["gs_train"], GS_ENV_MODE="single").returncode != 0
+def test_unknown_backend_fails(tmp_path):
+    assert activate(tmp_path, "nerf", ["gs"]).returncode != 0
 
 def test_every_stage_script_activates_a_known_backend():
     for script in sorted((PROJECT_ROOT / "scripts").glob("0[2-4]*.sh")):

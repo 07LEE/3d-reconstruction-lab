@@ -89,7 +89,7 @@ Each stage records its runtime and environment fingerprint to `outputs/benchmark
 All submodules in `third_party/` reference official upstream repositories directly; custom changes are versioned patch files in `patches/`.
 
 - [Pipeline Architecture Guide](docs/pipeline_architecture.md): End-to-end workflow from dataset preparation (Step 0) to evaluation (Step 5).
-- [Conda Environments](docs/environments.md): The unified `gs` environment, the split `gs_*` environments, and the variables that select them.
+- [Conda Environments](docs/environments.md): The `3drc` and unified `gs` environments, how to build them, and the variables that configure them.
 - [GPU, CUDA and PyTorch Support](docs/gpu_support.md): Verified configuration, supported GPU generations, CUDA toolkit and driver requirements.
 - [Blackwell (sm_120) Build Notes](docs/blackwell_build_notes.md): Troubleshooting matrix and native `sm_120` CUBIN build guide for RTX 50 Series.
 - [Submodule Patches Guide](docs/submodule_patches.md): Patch catalog, `apply_patches.sh`, and `verify_patches.sh`.

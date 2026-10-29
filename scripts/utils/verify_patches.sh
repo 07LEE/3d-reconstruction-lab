@@ -171,82 +171,6 @@ env_count=0
 env_passed=0
 env_skipped=0
 
-TRAIN_PYTHON="${CONDA_BASE_DIR}/envs/gs_train/bin/python"
-if [ -x "$TRAIN_PYTHON" ]; then
-    env_count=$((env_count + 1))
-    diag_out=""
-    if diag_out=$(PYTHONPATH="" "$TRAIN_PYTHON" - <<'PY' 2>&1
-import sys
-try:
-    import diff_gaussian_rasterization as d
-    from diff_gaussian_rasterization import GaussianRasterizationSettings as S
-except Exception as e:
-    print(f"[FAIL] [gs_train] import failed: {type(e).__name__}: {e}")
-    sys.exit(1)
-if "antialiasing" not in getattr(S, "_fields", ()):
-    print(f"[WRONG] [gs_train] non-dr_aa rasterizer installed (path: {getattr(d, '__file__', 'unknown')})")
-    sys.exit(1)
-PY
-    ); then
-        log_check "ok" "Explicit check: gs_train has dr_aa rasterizer installed"
-        env_passed=$((env_passed + 1))
-    else
-        log_check "FAIL" "[gs_train] rasterizer verification failed: ${diag_out:-unknown error}"
-        fail=1
-    fi
-else
-    env_skipped=$((env_skipped + 1))
-    log_check "skip" "Explicit check: gs_train environment not installed"
-fi
-
-SCAFFOLD_PYTHON="${CONDA_BASE_DIR}/envs/gs_scaffold/bin/python"
-if [ -x "$SCAFFOLD_PYTHON" ]; then
-    env_count=$((env_count + 1))
-    diag_out=""
-    if diag_out=$(PYTHONPATH="" "$SCAFFOLD_PYTHON" - <<'PY' 2>&1
-import sys
-try:
-    import diff_gaussian_rasterization as d
-except Exception as e:
-    print(f"[FAIL] [gs_scaffold] import failed: {type(e).__name__}: {e}")
-    sys.exit(1)
-PY
-    ); then
-        log_check "ok" "Explicit check: gs_scaffold has dedicated rasterizer installed"
-        env_passed=$((env_passed + 1))
-    else
-        log_check "FAIL" "[gs_scaffold] rasterizer verification failed: ${diag_out:-unknown error}"
-        fail=1
-    fi
-else
-    env_skipped=$((env_skipped + 1))
-    log_check "skip" "Explicit check: gs_scaffold environment not installed"
-fi
-
-MIPSPLATTING_PYTHON="${CONDA_BASE_DIR}/envs/gs_mipsplatting/bin/python"
-if [ -x "$MIPSPLATTING_PYTHON" ]; then
-    env_count=$((env_count + 1))
-    diag_out=""
-    if diag_out=$(PYTHONPATH="" "$MIPSPLATTING_PYTHON" - <<'PY' 2>&1
-import sys
-try:
-    import diff_gaussian_rasterization as d
-except Exception as e:
-    print(f"[FAIL] [gs_mipsplatting] import failed: {type(e).__name__}: {e}")
-    sys.exit(1)
-PY
-    ); then
-        log_check "ok" "Explicit check: gs_mipsplatting has dedicated rasterizer installed"
-        env_passed=$((env_passed + 1))
-    else
-        log_check "FAIL" "[gs_mipsplatting] rasterizer verification failed: ${diag_out:-unknown error}"
-        fail=1
-    fi
-else
-    env_skipped=$((env_skipped + 1))
-    log_check "skip" "Explicit check: gs_mipsplatting environment not installed"
-fi
-
 # Unified 'gs' env (ADR 0018): each backend's rasterizer must load from its own .ext/<variant>/
 # and expose that variant's settings fields; shared extensions must load without PYTHONPATH.
 GS_PYTHON="${CONDA_BASE_DIR}/envs/${GS_ENV_NAME:-gs}/bin/python"
@@ -303,7 +227,7 @@ export CONDA_BASE_DIR
 export GS_EXT_ROOT
 export GS_ENV_NAME="${GS_ENV_NAME:-gs}"
 PYTHON_AUDIT_BIN=""
-for e in 3drc gs gs_train gs_sugar gs_group gs_milo gs_scaffold gs_mipsplatting; do
+for e in 3drc "${GS_ENV_NAME}"; do
     if [ -x "${CONDA_BASE_DIR}/envs/${e}/bin/python" ]; then
         PYTHON_AUDIT_BIN="${CONDA_BASE_DIR}/envs/${e}/bin/python"
         break
@@ -319,7 +243,7 @@ CONDA_BASE = os.environ.get("CONDA_BASE_DIR", os.path.expanduser("~/miniconda3")
 REPO_ROOT = os.environ.get("REPO_ROOT", os.path.abspath(os.path.join(os.path.dirname(__file__), "../..")))
 
 CUOBJDUMP = None
-for env_name in ["gs_train", os.environ.get("GS_ENV_NAME", "gs"), "3drc", "gs_sugar", "gs_group", "gs_milo", "gs_scaffold", "gs_mipsplatting"]:
+for env_name in [os.environ.get("GS_ENV_NAME", "gs"), "3drc"]:
     cand = os.path.join(CONDA_BASE, "envs", env_name, "bin/cuobjdump")
     if os.path.exists(cand):
         CUOBJDUMP = cand
@@ -327,12 +251,10 @@ for env_name in ["gs_train", os.environ.get("GS_ENV_NAME", "gs"), "3drc", "gs_su
 if not CUOBJDUMP:
     CUOBJDUMP = "cuobjdump"
 
+GS_ENV = os.environ.get("GS_ENV_NAME", "gs")
+# rasterizer variants are checked separately from .ext/<variant>/ below
 ENVS = {
-    "gs_milo": (["diff_gaussian_rasterization", "diff_gaussian_rasterization_ms", "diff_gaussian_rasterization_gof", "simple_knn", "fused_ssim"], "milo"),
-    "gs_train": (["diff_gaussian_rasterization", "simple_knn", "diff_surfel_rasterization"], "gaussian-splatting"),
-    "gs_sugar": (["diff_gaussian_rasterization", "simple_knn"], "sugar"),
-    "gs_scaffold": (["diff_gaussian_rasterization", "simple_knn"], "scaffold-gs"),
-    "gs_mipsplatting": (["diff_gaussian_rasterization", "simple_knn"], "mip-splatting")
+    GS_ENV: (["simple_knn", "diff_surfel_rasterization", "diff_plane_rasterization", "diff_gaussian_rasterization_ms", "diff_gaussian_rasterization_gof", "fused_ssim"], "gaussian-splatting"),
 }
 
 fail = 0
