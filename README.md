@@ -94,4 +94,5 @@ All submodules in `third_party/` reference official upstream repositories direct
 - [Blackwell (sm_120) Build Notes](docs/blackwell_build_notes.md): Troubleshooting matrix and native `sm_120` CUBIN build guide for RTX 50 Series.
 - [Submodule Patches Guide](docs/submodule_patches.md): Patch catalog, `apply_patches.sh`, and `verify_patches.sh`.
 - [Mesh Evaluation Methods](docs/mesh_evaluation_methods.md): How published papers evaluate meshes and obtain ground truth, compared with 3DRC.
+- [Large-Scale Training Research Notes](docs/large_scale_training_research.md): Open questions and a validation plan for scenes that do not fit on one GPU.
 - [Architecture Decision Records (ADR)](docs/adr/): Architecture decisions with operational writing rules.
