@@ -30,6 +30,7 @@ All submodules in `third_party/` (including `gaussian-splatting`) reference offi
 | `vggt` | `patches/third_party/vggt/0001-pycolmap-313-compat.patch` | PyCOLMAP 3.13+ API compatibility and temporary directory handling |
 | `2d-gaussian-splatting` | `patches/third_party/2d-gaussian-splatting/0001-colmap-camera-models.patch` | Support for `SIMPLE_RADIAL` and `RADIAL` camera models in 2DGS |
 | `2d-gaussian-splatting` | `patches/third_party/2d-gaussian-splatting/0002-mesh-utils-bounds-and-empty-fix.patch` | Empty cluster bounds guard in mesh postprocessing |
+| `2d-gaussian-splatting` | `patches/third_party/2d-gaussian-splatting/0003-matplotlib-buffer-rgba.patch` | `colormap` reads the canvas with `buffer_rgba` because matplotlib 3.10 removed `tostring_rgb` (crashed at the 7000-iteration report) |
 | `diff-surfel-rasterization` | `patches/third_party/2d-gaussian-splatting/submodules/diff-surfel-rasterization/0001-cstdint-and-zero-init.patch` | `<cstdint>` includes, zero-init structs, and backward SH gradient dimension match |
 | `scaffold-gs` | `patches/third_party/scaffold-gs/0001-rasterizer-antialiasing-compat.patch` | `antialiasing` kwarg guard and `visible_filter` fallback for dr_aa rasterizer |
 | `scaffold-gs` | `patches/third_party/scaffold-gs/0002-checkpoint-capture-and-getattr-fix.patch` | PyTorch 2.6+ `weights_only=False` fix, `[INFO]` CleanStreamFormatter logger, 10/11-element checkpoint tuple compatibility, `checkpoints/` & `events/` subdirectory isolation, and `getattr` guard for deleted `offset_denom` |

@@ -96,6 +96,17 @@ else
   fail=1
 fi
 
+# 6b. 2DGS colormap matplotlib buffer_rgba patch check (tostring_rgb was removed in matplotlib 3.10)
+GENERAL_UTILS_2D_PY="${REPO_ROOT}/third_party/2d-gaussian-splatting/utils/general_utils.py"
+patch_count=$((patch_count + 1))
+if [ -f "${GENERAL_UTILS_2D_PY}" ] && grep -q "buffer_rgba" "${GENERAL_UTILS_2D_PY}"; then
+  log_check "ok" "2DGS colormap buffer_rgba patch in general_utils.py"
+  patch_passed=$((patch_passed + 1))
+else
+  log_check "LOST" "2DGS colormap patch missing in general_utils.py"
+  fail=1
+fi
+
 # 7. 2DGS diff-surfel-rasterization cstdint and zero-init check
 SURFEL_RAST_CU="${REPO_ROOT}/third_party/2d-gaussian-splatting/submodules/diff-surfel-rasterization/cuda_rasterizer/rasterizer_impl.cu"
 SURFEL_RAST_H="${REPO_ROOT}/third_party/2d-gaussian-splatting/submodules/diff-surfel-rasterization/cuda_rasterizer/rasterizer_impl.h"
