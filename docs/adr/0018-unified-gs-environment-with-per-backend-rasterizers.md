@@ -1,6 +1,6 @@
 # 0018. Unified Gaussian Environment with Per-Backend Rasterizer Builds
 
-Status: Accepted (2026-10-27), default since 2026-10-29; Amends 0001; Amended by 0020
+Status: Accepted (2026-10-27), default since 2026-10-29; Amends 0001; Amended by 0020, 0021
 
 Context:
 ADR 0001 split the Gaussian backends into six Conda environments (gs_train, gs_sugar, gs_group, gs_milo, gs_scaffold, gs_mipsplatting) because several packages install a CUDA extension under the same module name. Since ADR 0012 all six use Python 3.10 and torch 2.11.0+cu128 with nearly identical pip dependencies, so every environment repeats the same multi-GB torch/CUDA install and the same extension builds. Comparing the extension sources (2026-10-27):
