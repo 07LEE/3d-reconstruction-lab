@@ -249,7 +249,7 @@ fi
 
 # Unified 'gs' env (ADR 0018): each backend's rasterizer must load from its own .ext/<variant>/
 # and expose that variant's settings fields; shared extensions must load without PYTHONPATH.
-GS_PYTHON="${CONDA_BASE_DIR}/envs/gs/bin/python"
+GS_PYTHON="${CONDA_BASE_DIR}/envs/${GS_ENV_NAME:-gs}/bin/python"
 GS_EXT_ROOT="${GS_EXT_ROOT:-${REPO_ROOT}/.ext}"
 if [ -x "$GS_PYTHON" ]; then
     for spec in "inria:antialiasing" "scaffold:" "mipsplatting:kernel_size,subpixel_offset" "milo:require_depth,require_coord" "grouping:"; do
@@ -301,6 +301,7 @@ fi
 export REPO_ROOT
 export CONDA_BASE_DIR
 export GS_EXT_ROOT
+export GS_ENV_NAME="${GS_ENV_NAME:-gs}"
 PYTHON_AUDIT_BIN=""
 for e in 3drc gs gs_train gs_sugar gs_group gs_milo gs_scaffold gs_mipsplatting; do
     if [ -x "${CONDA_BASE_DIR}/envs/${e}/bin/python" ]; then
@@ -318,7 +319,7 @@ CONDA_BASE = os.environ.get("CONDA_BASE_DIR", os.path.expanduser("~/miniconda3")
 REPO_ROOT = os.environ.get("REPO_ROOT", os.path.abspath(os.path.join(os.path.dirname(__file__), "../..")))
 
 CUOBJDUMP = None
-for env_name in ["gs_train", "gs", "3drc", "gs_sugar", "gs_group", "gs_milo", "gs_scaffold", "gs_mipsplatting"]:
+for env_name in ["gs_train", os.environ.get("GS_ENV_NAME", "gs"), "3drc", "gs_sugar", "gs_group", "gs_milo", "gs_scaffold", "gs_mipsplatting"]:
     cand = os.path.join(CONDA_BASE, "envs", env_name, "bin/cuobjdump")
     if os.path.exists(cand):
         CUOBJDUMP = cand
@@ -380,7 +381,7 @@ for env, (mods, repo_sub) in ENVS.items():
             fail = 1
 
 # Unified env rasterizer variants live in .ext/<variant>/ rather than site-packages
-if os.path.exists(os.path.join(CONDA_BASE, "envs", "gs")):
+if os.path.exists(os.path.join(CONDA_BASE, "envs", os.environ.get("GS_ENV_NAME", "gs"))):
     for variant in ["inria", "scaffold", "mipsplatting", "milo", "grouping"]:
         found = glob.glob(os.path.join(os.environ["GS_EXT_ROOT"], variant, "diff_gaussian_rasterization", "_C*.so"))
         if not found:

@@ -8,6 +8,7 @@
 # diff_gaussian_rasterization under the same module name, so each build lives in
 # .ext/<variant>/ and is put first on PYTHONPATH for that backend only (ADR 0018).
 # GS_ENV_MODE=split: one Conda environment per backend family (ADR 0001).
+# GS_ENV_NAME overrides the unified environment name (default: gs).
 # GS_EXT_ROOT overrides the .ext/ location (must match the one used by 00_setup_environment.sh).
 
 _ACTIVATE_BACKEND_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
@@ -45,7 +46,7 @@ activate_backend() {
     variant="$(backend_rasterizer_variant "$backend")" || { echo "[FATAL] Unknown backend: '${backend}'" >&2; exit 1; }
     case "$mode" in
         split)   env_name="$(backend_split_env "$backend")" ;;
-        unified) env_name="gs" ;;
+        unified) env_name="${GS_ENV_NAME:-gs}" ;;
         *) echo "[FATAL] GS_ENV_MODE must be 'split' or 'unified', got '${mode}'" >&2; exit 1 ;;
     esac
 

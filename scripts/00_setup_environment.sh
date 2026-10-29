@@ -32,12 +32,12 @@ done
 
 ALL_ENVS=(3drc gs_train gs_sugar gs_group gs_milo gs_scaffold gs_mipsplatting)
 # 'gs' replaces every gs_* environment when scripts run with GS_ENV_MODE=unified (ADR 0018)
-UNIFIED_ENV=gs
+UNIFIED_ENV="${GS_ENV_NAME:-gs}"
 
 if [ "$BUILD_ALL" = "1" ]; then
     TARGET_ENVS=("${ALL_ENVS[@]}")
 elif [ "${#TARGET_ENVS[@]}" -eq 0 ]; then
-    TARGET_ENVS=(3drc gs_train)
+    TARGET_ENVS=(3drc "$UNIFIED_ENV")
 fi
 
 # Validate target environment names
@@ -98,7 +98,7 @@ third_party/milo/submodules/fused-ssim"
 
 # Unified env: extensions with unique module names are shared. All simple-knn copies have
 # identical sources (patches only add includes), so one build serves every backend.
-ENV_EXTS[gs]="third_party/2d-gaussian-splatting/submodules/diff-surfel-rasterization
+ENV_EXTS["$UNIFIED_ENV"]="third_party/2d-gaussian-splatting/submodules/diff-surfel-rasterization
 third_party/PlanarGS/submodules/diff-plane-rasterization
 third_party/milo/submodules/diff-gaussian-rasterization_ms
 third_party/milo/submodules/diff-gaussian-rasterization_gof
@@ -161,6 +161,21 @@ done
 
 # 4. Build CUDA Extensions & Submodules across Target Environments
 echo -e "\n[Step 4/5] Building CUDA Extensions and Submodules..."
+# torch and the build toolkit must share a CUDA major version: unified gs (cu130) -> cuda132, split gs_* (cu128) -> gs_train
+UNIFIED_TARGET=false
+printf '%s\n' "${TARGET_ENVS[@]}" | grep -qx "$UNIFIED_ENV" && UNIFIED_TARGET=true
+if [ "$UNIFIED_TARGET" = true ] && printf '%s\n' "${TARGET_ENVS[@]}" | grep -qE '^gs_'; then
+    echo "[FATAL] Build '$UNIFIED_ENV' (CUDA 13.2) and the split gs_* environments (CUDA 12.8) in separate runs."
+    exit 1
+fi
+if [ -z "${BUILD_TOOLKIT_ENV:-}" ]; then
+    if [ "$UNIFIED_TARGET" = true ]; then BUILD_TOOLKIT_ENV=cuda132; else BUILD_TOOLKIT_ENV=gs_train; fi
+fi
+export BUILD_TOOLKIT_ENV
+if [ "$BUILD_TOOLKIT_ENV" = "cuda132" ] && ! conda env list | awk '{print $1}' | grep -qx "cuda132"; then
+    echo "  • Creating build toolkit env 'cuda132' (CUDA 13.2)..."
+    conda env create -f envs/cuda132.yml || { echo "[FATAL] Failed to create the cuda132 toolkit env."; exit 1; }
+fi
 export CC=/usr/bin/gcc-12
 export CXX=/usr/bin/g++-12
 source scripts/utils/setup_build_env.sh || { echo "[FATAL] Build environment setup failed."; exit 1; }
@@ -175,7 +190,12 @@ install_ext() {
     [ -x "$pip_bin" ] || { echo "[FATAL] No pip binary found in environment: $target_env"; exit 1; }
 
     echo "Building $ext_path -> $target_env..."
-    "$pip_bin" install --no-cache-dir --no-build-isolation -e "$ext_path"
+    if [ "${3:-editable}" = "copy" ]; then
+        # Installed into site-packages so a rebuild never overwrites the .so another environment imports
+        "$pip_bin" install --no-cache-dir --no-build-isolation --no-deps "$ext_path"
+    else
+        "$pip_bin" install --no-cache-dir --no-build-isolation -e "$ext_path"
+    fi
 }
 
 # Builds one rasterizer variant into .ext/<variant>/ (not site-packages) for the unified env
@@ -203,15 +223,17 @@ install_tetra_nerf() {
     abi="$("$env_prefix/bin/python" -c 'import torch; print(int(torch._C._GLIBCXX_USE_CXX11_ABI))')"
     torch_cmake="$("$env_prefix/bin/python" -c 'import torch; print(torch.utils.cmake_prefix_path)')"
 
+    # The conda ld shipped with the CUDA toolkit cannot link against a newer system glibc, so the system
+    # linker goes first for g++ (PATH) and for the nvcc host-link step (-B).
     echo "Building $src -> $target_env (tetranerf C++ extension)..."
     "$env_prefix/bin/pip" install --no-cache-dir --no-build-isolation --no-deps "$src"
-    PATH="$env_prefix/bin:$PATH" cmake -S "$src" -B "$build_dir" \
+    PATH="/usr/bin:$env_prefix/bin:$PATH" NVCC_APPEND_FLAGS="-Xcompiler -B/usr/bin" "$env_prefix/bin/cmake" -S "$src" -B "$build_dir" \
         -DCMAKE_PREFIX_PATH="$torch_cmake;$env_prefix" -DCONDA_PREFIX="$env_prefix" \
         -DPython_EXECUTABLE="$env_prefix/bin/python" -DCMAKE_CUDA_COMPILER="$CUDA_HOME/bin/nvcc" \
         -DCMAKE_CUDA_HOST_COMPILER="$CXX" -DCMAKE_CUDA_ARCHITECTURES=120 \
         "-DCMAKE_CXX_FLAGS_RELEASE=-O3 -DNDEBUG -D_GLIBCXX_USE_CXX11_ABI=$abi" \
         || { echo "[FATAL] tetranerf CMake configure failed"; exit 1; }
-    PATH="$env_prefix/bin:$PATH" cmake --build "$build_dir" -j"$(nproc)" \
+    PATH="/usr/bin:$env_prefix/bin:$PATH" NVCC_APPEND_FLAGS="-Xcompiler -B/usr/bin" "$env_prefix/bin/cmake" --build "$build_dir" -j"$(nproc)" \
         || { echo "[FATAL] tetranerf build failed"; exit 1; }
     site_ext="$("$env_prefix/bin/python" -c 'import tetranerf.utils.extension as e, os; print(os.path.dirname(e.__file__))' 2>/dev/null || true)"
     [ -n "$site_ext" ] || site_ext="$env_prefix/lib/python3.10/site-packages/tetranerf/utils/extension"
@@ -253,7 +275,8 @@ build_env() {
     fi
 
     while IFS= read -r ext; do
-        [ -n "$ext" ] && install_ext "$env_name" "$ext"
+        [ -z "$ext" ] && continue
+        if [ "$env_name" = "$UNIFIED_ENV" ]; then install_ext "$env_name" "$ext" copy; else install_ext "$env_name" "$ext"; fi
     done <<< "${ENV_EXTS[$env_name]}"
 }
 
@@ -262,10 +285,13 @@ for env_name in "${TARGET_ENVS[@]}"; do
 done
 
 # Activate primary target environment
-active_env="gs_train"
-if ! conda env list | awk '{print $1}' | grep -qx "gs_train"; then
-    active_env="${TARGET_ENVS[0]}"
-fi
+active_env="${TARGET_ENVS[0]}"
+for candidate in "$UNIFIED_ENV" gs_train; do
+    if printf '%s\n' "${TARGET_ENVS[@]}" | grep -qx "$candidate"; then
+        active_env="$candidate"
+        break
+    fi
+done
 echo "Activating Conda env '$active_env'..."
 conda activate "$active_env"
 

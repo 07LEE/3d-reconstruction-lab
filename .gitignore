@@ -10,7 +10,7 @@ __pycache__/
 /weights/
 
 # Per-backend rasterizer builds for the unified 'gs' env
-/.ext/
+/.ext*/
 
 # Virtual Environments
 venv/

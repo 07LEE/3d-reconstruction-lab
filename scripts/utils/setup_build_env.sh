@@ -1,12 +1,20 @@
 # Dynamic CUDA build environment setup script
 CONDA_BASE_DIR=$(conda info --base 2>/dev/null || echo "$HOME/miniconda3")
-BUILD_TOOLKIT_ENV="${BUILD_TOOLKIT_ENV:-gs_train}"
+# Unified gs (torch cu130) builds with CUDA 13.2; the split gs_* environments (torch cu128) keep the 12.8 toolkit in gs_train.
+if [ -z "${BUILD_TOOLKIT_ENV:-}" ]; then
+    if [ "${GS_ENV_MODE:-unified}" = "split" ]; then BUILD_TOOLKIT_ENV=gs_train; else BUILD_TOOLKIT_ENV=cuda132; fi
+fi
 TARGET_TOOLKIT_DIR="${CONDA_BASE_DIR}/envs/${BUILD_TOOLKIT_ENV}"
 
 if [ -d "$TARGET_TOOLKIT_DIR" ]; then
     export CUDA_HOME="$TARGET_TOOLKIT_DIR"
     export PATH="$CUDA_HOME/bin:$PATH"
     export LD_LIBRARY_PATH="$CUDA_HOME/lib:${LD_LIBRARY_PATH:-}"
+    # Conda toolkits keep headers under targets/<arch>/include, not $CUDA_HOME/include, so host-side g++ would
+    # otherwise pick up an unrelated system CUDA (e.g. /usr/include/cuda.h) and bake in the wrong version.
+    if [ -d "$CUDA_HOME/targets/x86_64-linux/include" ]; then
+        export CPATH="$CUDA_HOME/targets/x86_64-linux/include${CPATH:+:$CPATH}"
+    fi
 fi
 
 export TORCH_CUDA_ARCH_LIST="${TORCH_CUDA_ARCH_LIST:-12.0+PTX}"
