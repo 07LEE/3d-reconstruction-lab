@@ -1,7 +1,10 @@
 """3D Mesh Evaluation and Ground Truth Comparison Module.
 
 Computes 3D Mesh Topology Hygiene, Geometry Complexity, Sliver Triangles,
-and Sim(3) 7-DoF Aligned Chamfer/Hausdorff Accuracy against LiDAR GT PointClouds.
+and Sim(3) 7-DoF Aligned Chamfer / Hausdorff / F-score Accuracy against LiDAR GT PointClouds.
+
+The Sim(3) transform is estimated once per scene from the SfM sparse points the meshes were
+built from (see src/mesh/alignment.py), so all meshes of a scene are scored in the same frame.
 """
 
 from __future__ import annotations
@@ -17,6 +20,13 @@ from typing import Any, Dict, Optional, Tuple
 import numpy as np
 import open3d as o3d
 import trimesh
+
+if __package__ in (None, ""):
+    # Allow `python src/mesh/eval_mesh.py` in addition to `python -m src.mesh.eval_mesh`
+    sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
+
+from src.mesh.alignment import global_align_sim3, read_colmap_points3d
+from src.mesh.metrics import METRICS_VERSION, surface_distance_metrics
 
 def compute_mesh_hygiene_and_topology(mesh_path: str | Path, check_self_intersect: bool = False) -> Dict[str, Any]:
     """Computes mesh topology hygiene and triangle quality metrics via Trimesh.
@@ -108,123 +118,186 @@ def compute_mesh_hygiene_and_topology(mesh_path: str | Path, check_self_intersec
         "self_intersecting_faces": self_intersecting_faces,
     }
 
-def align_sim3_point_to_point(source_pcd: o3d.geometry.PointCloud, target_pcd: o3d.geometry.PointCloud, max_correspondence_distance: float = 0.5) -> np.ndarray:
-    """Computes Sim(3) 7-DoF registration with scale estimation using Multi-Scale PointToPoint ICP.
 
-    Args:
-        source_pcd: Reconstructed surface sample point cloud.
-        target_pcd: Ground Truth LiDAR point cloud.
-        max_correspondence_distance: Maximum correspondence threshold in meters.
+def load_point_set(path: str | Path, n_samples: int) -> np.ndarray:
+    """Loads a point cloud (.pcd/.ply), COLMAP sparse model, or mesh (sampled) as an Nx3 array."""
+    path = Path(path)
+    if path.is_dir() or path.name.startswith("points3D."):
+        return read_colmap_points3d(path)
+    # A .ply may hold a mesh; reading it as a point cloud would return only its vertices
+    if path.suffix.lower() != ".pcd":
+        mesh = o3d.io.read_triangle_mesh(str(path))
+        if len(mesh.triangles) > 0:
+            return np.asarray(mesh.sample_points_uniformly(number_of_points=n_samples).points)
+    return np.asarray(o3d.io.read_point_cloud(str(path)).points)
 
-    Returns:
-        4x4 transformation matrix encoding rotation, translation, and uniform scale.
+def file_fingerprint(path: Path) -> str:
+    if path.is_dir():
+        path = next((path / name for name in ("points3D.bin", "points3D.txt") if (path / name).is_file()), path)
+    stat = path.stat()
+    return f"{path.name}:{stat.st_size}:{stat.st_mtime_ns}"
+
+def resolve_scene_alignment_reference(mesh_path: Path) -> Tuple[Optional[Path], Optional[Path]]:
+    """Finds the SfM sparse model a mesh under outputs/<scene>/ was built from.
+
+    Reads `active_sfm` and `source_dataset` from the nearest pipeline_meta.json and falls back
+    to data/<scene>/sparse/0. Returns (sparse model dir, scene-level alignment cache dir).
     """
-    print("[Eval] Computing 7-DoF Sim(3) registration (Scale + Rigid Transformation)...")
+    parts = mesh_path.parts
+    if "outputs" not in parts:
+        return None, None
+    idx = len(parts) - 1 - parts[::-1].index("outputs")
+    if idx + 1 >= len(parts) - 1:
+        return None, None
+    root = Path(*parts[:idx])
+    scene_dir = root / "outputs" / parts[idx + 1]
 
-    # Downsample for robust and rapid coarse registration
-    src_down = source_pcd.voxel_down_sample(voxel_size=0.05) if len(source_pcd.points) > 50000 else source_pcd
-    tgt_down = target_pcd.voxel_down_sample(voxel_size=0.05) if len(target_pcd.points) > 50000 else target_pcd
+    meta: Dict[str, Any] = {}
+    for directory in [mesh_path.parent, *mesh_path.parent.parents]:
+        meta_file = directory / "pipeline_meta.json"
+        if meta_file.is_file():
+            try:
+                meta = json.loads(meta_file.read_text())
+            except (OSError, ValueError):
+                meta = {}
+            break
+        if directory == scene_dir:
+            break
 
-    # Initial coarse alignment via centroids and bounding box extents
-    source_center = src_down.get_center()
-    target_center = tgt_down.get_center()
+    dataset = Path(meta["source_dataset"]) if meta.get("source_dataset") else Path("data") / scene_dir.name
+    dataset_dir = dataset if dataset.is_absolute() else root / dataset
+    candidates = []
+    if meta.get("active_sfm") not in (None, "", "unknown"):
+        candidates.append(dataset_dir / "sparse" / str(meta["active_sfm"]))
+    candidates.append(dataset_dir / "sparse" / "0")
 
-    source_extent = np.linalg.norm(src_down.get_max_bound() - src_down.get_min_bound())
-    target_extent = np.linalg.norm(tgt_down.get_max_bound() - tgt_down.get_min_bound())
+    for sparse_dir in candidates:
+        if (sparse_dir / "points3D.bin").is_file() or (sparse_dir / "points3D.txt").is_file():
+            return sparse_dir, scene_dir / "eval" / "alignment"
+    return None, scene_dir / "eval" / "alignment"
 
-    init_scale = target_extent / (source_extent + 1e-8)
-    current_transform = np.identity(4)
-    current_transform[:3, :3] *= init_scale
-    current_transform[:3, 3] = target_center - (source_center * init_scale)
+def estimate_alignment(src_points: np.ndarray, gt_points: np.ndarray, threshold: float) -> Tuple[np.ndarray, Dict[str, Any]]:
+    print(f"[Eval] Computing 7-DoF Sim(3) registration ({len(src_points):,} source points, threshold {threshold} m)...")
+    result = global_align_sim3(src_points, gt_points, threshold=threshold)
+    info = {
+        "scale": round(result.scale, 6),
+        "fitness": round(result.fitness, 4),
+        "inlier_rmse_m": round(result.inlier_rmse, 5),
+        "threshold_m": threshold,
+        "ambiguous": result.ambiguous,
+    }
+    if result.ambiguous:
+        print("[Warn] Alignment is ambiguous: another rotation fits nearly as well (symmetric scene?). Verify it visually.")
+    return result.transform, info
 
-    # Multi-scale coarse-to-fine ICP stages
-    thresholds = [max_correspondence_distance * 4.0, max_correspondence_distance * 2.0, max_correspondence_distance]
-    for thresh in thresholds:
-        reg = o3d.pipelines.registration.registration_icp(
-            src_down, tgt_down, thresh, current_transform,
-            o3d.pipelines.registration.TransformationEstimationPointToPoint(with_scaling=True),
-            o3d.pipelines.registration.ICPConvergenceCriteria(max_iteration=100)
-        )
-        current_transform = reg.transformation
+def resolve_transform(args: argparse.Namespace, mesh_file: Path, out_dir: Path) -> Tuple[np.ndarray, Dict[str, Any]]:
+    """Loads or computes the mesh-to-GT Sim(3) transform.
 
-    return current_transform
+    Order: explicit --transform file, then the scene-level transform estimated from the SfM
+    sparse points (shared by every mesh of the scene and cached), then the mesh itself.
+    """
+    if args.transform and Path(args.transform).is_file() and not args.compute_transform:
+        print(f"[Eval] Loading precomputed Sim(3) transform matrix from {args.transform}")
+        data = json.loads(Path(args.transform).read_text())
+        info = {k: v for k, v in data.items() if k != "transform_matrix"}
+        return np.array(data["transform_matrix"]), {**info, "transform_path": args.transform}
 
-def evaluate_gt_accuracy(mesh_path: str | Path, gt_path: str | Path, transform_matrix: Optional[np.ndarray] = None, compute_transform: bool = False, n_samples: int = 2000000, coverage_radius: float = 0.5) -> Tuple[Dict[str, Any], np.ndarray]:
-    """Evaluates Chamfer accuracy/completeness and 95% Hausdorff against Ground Truth LiDAR PCD.
+    gt_path = Path(args.gt)
+    ref_path: Optional[Path] = None
+    cache_file: Optional[Path] = Path(args.transform) if args.transform else None
+    if args.align_ref == "auto":
+        ref_path, cache_dir = resolve_scene_alignment_reference(Path(args.mesh).absolute())
+        if ref_path is None:
+            print("[Warn] No SfM sparse model found for this mesh; aligning the mesh itself to GT. "
+                  "Meshes aligned this way are not in a shared frame. Pass --align-ref to fix.")
+        elif cache_file is None:
+            cache_file = cache_dir / f"sim3_{ref_path.resolve().name}_{gt_path.stem}.json"
+    elif args.align_ref != "mesh":
+        ref_path = Path(args.align_ref)
+
+    fingerprint = {"gt_fingerprint": file_fingerprint(gt_path)}
+    if ref_path is not None:
+        fingerprint["ref_fingerprint"] = file_fingerprint(ref_path)
+
+    if cache_file is not None and cache_file.is_file() and not args.compute_transform:
+        data = json.loads(cache_file.read_text())
+        if all(data.get(k) == v for k, v in fingerprint.items()):
+            print(f"[Eval] Reusing scene-level Sim(3) transform from {cache_file}")
+            info = {k: v for k, v in data.items() if k != "transform_matrix"}
+            return np.array(data["transform_matrix"]), {**info, "transform_path": str(cache_file)}
+        print(f"[Eval] Cached transform {cache_file} is stale (reference or GT changed); recomputing.")
+
+    gt_points = load_point_set(gt_path, args.n_samples)
+    if ref_path is not None:
+        print(f"[Eval] Aligning SfM reference {ref_path} to GT")
+        src_points = load_point_set(ref_path, args.n_samples)
+        source = "reference"
+    else:
+        src_points = load_point_set(mesh_file, 200000)
+        source = "mesh"
+    transform, info = estimate_alignment(src_points, gt_points, args.align_threshold)
+    info = {"source": source, "ref_path": str(ref_path) if ref_path else str(mesh_file), "gt_path": str(gt_path), **info, **fingerprint}
+
+    save_path = cache_file if cache_file is not None else out_dir / "sim3_transform.json"
+    save_path.parent.mkdir(parents=True, exist_ok=True)
+    save_path.write_text(json.dumps({"transform_matrix": transform.tolist(), **info}, indent=2))
+    print(f"[Eval] Saved Sim(3) transform to {save_path}")
+    return transform, {**info, "transform_path": str(save_path)}
+
+def evaluate_gt_accuracy(mesh_path: str | Path, gt_path: str | Path, transform_matrix: np.ndarray,
+                         n_samples: int = 2000000, truncation: float = 0.5,
+                         fscore_thresholds: Tuple[float, ...] = (0.01, 0.02, 0.05, 0.1),
+                         fscore_threshold: float = 0.05) -> Dict[str, Any]:
+    """Evaluates accuracy, completeness, Chamfer, HD95, and F-score against Ground Truth.
 
     Args:
         mesh_path: Path to reconstructed mesh file.
         gt_path: Path to Ground Truth PCD or mesh file.
-        transform_matrix: Optional precomputed 4x4 Sim(3) transform.
-        compute_transform: If True, forces recomputing Sim(3) alignment.
+        transform_matrix: 4x4 Sim(3) transform from the mesh frame to the GT frame.
         n_samples: Number of surface sample points (default: 2M).
-        coverage_radius: Maximum radius threshold in meters for GT coverage calculation.
-
-    Returns:
-        Tuple of (accuracy metrics dictionary, 4x4 Sim(3) transformation matrix).
+        truncation: Distance clip and GT coverage radius in meters.
+        fscore_thresholds: Thresholds in meters for the F-score curve.
+        fscore_threshold: Primary F-score threshold in meters.
     """
     path_mesh = Path(mesh_path)
-    path_gt = Path(gt_path)
-
     print(f"[Eval] Loading Open3D Mesh: {path_mesh}")
     mesh = o3d.io.read_triangle_mesh(str(path_mesh))
-    mesh.compute_vertex_normals()
 
     print(f"[Eval] Uniformly sampling {n_samples:,} surface points from mesh...")
     mesh_pcd = mesh.sample_points_uniformly(number_of_points=n_samples)
-
-    print(f"[Eval] Loading Ground Truth: {path_gt}")
-    if path_gt.suffix.lower() in [".pcd", ".ply"]:
-        gt_pcd = o3d.io.read_point_cloud(str(path_gt))
-    else:
-        gt_mesh = o3d.io.read_triangle_mesh(str(path_gt))
-        gt_pcd = gt_mesh.sample_points_uniformly(number_of_points=n_samples)
-
-    if compute_transform or transform_matrix is None:
-        transform_matrix = align_sim3_point_to_point(mesh_pcd, gt_pcd, max_correspondence_distance=coverage_radius)
-
     mesh_pcd.transform(transform_matrix)
 
-    # Accuracy: Mesh -> GT (nearest distance from mesh sample to GT)
+    print(f"[Eval] Loading Ground Truth: {gt_path}")
+    gt_pcd = o3d.geometry.PointCloud(o3d.utility.Vector3dVector(load_point_set(gt_path, n_samples)))
+
     dists_mesh_to_gt = np.asarray(mesh_pcd.compute_point_cloud_distance(gt_pcd))
-    accuracy_mean = float(np.mean(dists_mesh_to_gt))
-    accuracy_rmse = float(np.sqrt(np.mean(dists_mesh_to_gt ** 2)))
-
-    # Completeness: GT -> Mesh (filtered by coverage radius)
     dists_gt_to_mesh = np.asarray(gt_pcd.compute_point_cloud_distance(mesh_pcd))
-    valid_gt_mask = dists_gt_to_mesh <= coverage_radius
-    valid_dists = dists_gt_to_mesh[valid_gt_mask] if np.any(valid_gt_mask) else dists_gt_to_mesh
+    return surface_distance_metrics(dists_mesh_to_gt, dists_gt_to_mesh, truncation, fscore_thresholds, fscore_threshold)
 
-    completeness_mean = float(np.mean(valid_dists))
-    completeness_rmse = float(np.sqrt(np.mean(valid_dists ** 2)))
-
-    chamfer_l1 = (accuracy_mean + completeness_mean) / 2.0
-    hausdorff_95 = float(np.percentile(dists_mesh_to_gt, 95))
-
-    return {
-        "accuracy_mean_m": round(accuracy_mean, 5),
-        "accuracy_rmse_m": round(accuracy_rmse, 5),
-        "completeness_mean_m": round(completeness_mean, 5),
-        "completeness_rmse_m": round(completeness_rmse, 5),
-        "chamfer_l1_m": round(chamfer_l1, 5),
-        "hausdorff_95_m": round(hausdorff_95, 5),
-        "gt_coverage_pct": round(float(np.mean(valid_gt_mask)) * 100.0, 2),
-    }, transform_matrix
+def parse_thresholds(value: str) -> Tuple[float, ...]:
+    return tuple(float(v) for v in value.split(",") if v.strip())
 
 def main() -> None:
     parser = argparse.ArgumentParser(description="3D Mesh Topology Hygiene & Sim(3) GT Evaluation Tool")
     parser.add_argument("--mesh", type=str, required=True, help="Path to input .obj or .ply mesh file")
     parser.add_argument("--gt", type=str, default=None, help="Path to Ground Truth LiDAR PCD or Mesh file")
-    parser.add_argument("--transform", type=str, default=None, help="Path to precomputed Sim(3) transform JSON file")
-    parser.add_argument("--compute-transform", action="store_true", help="Force compute new Sim(3) transform and save")
+    parser.add_argument("--transform", type=str, default=None, help="Sim(3) transform JSON: loaded if it exists, otherwise computed and saved there")
+    parser.add_argument("--compute-transform", action="store_true", help="Force recomputing the Sim(3) transform even if one is cached")
+    parser.add_argument("--align-ref", type=str, default="auto",
+                        help="Alignment source: 'auto' (scene SfM sparse points, shared by all meshes), 'mesh' (the mesh itself), "
+                             "or a path to a COLMAP sparse model / point cloud in the mesh frame (default: auto)")
+    parser.add_argument("--align-threshold", type=float, default=0.1, help="Final ICP correspondence threshold in meters (default: 0.1m)")
     parser.add_argument("--n-samples", type=int, default=2000000, help="Number of uniform surface sample points (default: 2M)")
-    parser.add_argument("--coverage-radius", type=float, default=0.5, help="GT coverage mask radius in meters (default: 0.5m)")
+    parser.add_argument("--coverage-radius", type=float, default=0.5, help="Distance clip and GT coverage radius in meters (default: 0.5m)")
+    parser.add_argument("--fscore-thresholds", type=parse_thresholds, default=(0.01, 0.02, 0.05, 0.1), help="F-score curve thresholds in meters (default: 0.01,0.02,0.05,0.1)")
+    parser.add_argument("--fscore-threshold", type=float, default=0.05, help="Primary F-score threshold in meters (default: 0.05m)")
     parser.add_argument("--check-self-intersect", action="store_true", help="Enable computationally expensive self-intersection check")
-    parser.add_argument("--out", type=str, default="outputs/eval", help="Output directory for eval results")
+    parser.add_argument("--out", type=str, default=None, help="Output directory for eval results (default: <mesh_dir>/eval/<mesh_stem>)")
 
     args = parser.parse_args()
 
-    out_dir = Path(args.out)
+    mesh_file = Path(args.mesh).resolve()
+    out_dir = Path(args.out) if args.out else mesh_file.parent / "eval" / mesh_file.stem
     out_dir.mkdir(parents=True, exist_ok=True)
 
     print("==================================================")
@@ -236,31 +309,23 @@ def main() -> None:
 
     # 2. Sim(3) GT Accuracy Analysis
     gt_res = None
-    transform_matrix = None
+    alignment = None
     if args.gt:
-        if args.transform and Path(args.transform).is_file() and not args.compute_transform:
-            print(f"[Eval] Loading precomputed Sim(3) transform matrix from {args.transform}")
-            with open(args.transform, "r") as f:
-                transform_matrix = np.array(json.load(f)["transform_matrix"])
-
-        gt_res, transform_matrix = evaluate_gt_accuracy(
-            args.mesh, args.gt, transform_matrix=transform_matrix,
-            compute_transform=args.compute_transform, n_samples=args.n_samples,
-            coverage_radius=args.coverage_radius
+        transform_matrix, alignment = resolve_transform(args, mesh_file, out_dir)
+        gt_res = evaluate_gt_accuracy(
+            args.mesh, args.gt, transform_matrix, n_samples=args.n_samples, truncation=args.coverage_radius,
+            fscore_thresholds=args.fscore_thresholds, fscore_threshold=args.fscore_threshold,
         )
-
-        transform_save_path = out_dir / "sim3_transform.json"
-        with open(transform_save_path, "w") as f:
-            json.dump({"transform_matrix": transform_matrix.tolist()}, f, indent=2)
-        print(f"[Eval] Saved Sim(3) transform matrix to {transform_save_path}")
 
     # Combine Results
     results = {
         "mesh_path": args.mesh,
         "gt_path": args.gt,
         "timestamp": time.strftime("%Y-%m-%d %H:%M:%S"),
+        "metrics_version": METRICS_VERSION,
         "hygiene": hygiene_res,
         "accuracy": gt_res,
+        "alignment": alignment,
     }
 
     # Save Results
@@ -281,9 +346,12 @@ def main() -> None:
 
     if gt_res:
         print("--------------------------------------------------")
-        print(f"Sim(3) Aligned Chamfer L1: {gt_res['chamfer_l1_m']} m")
+        print(f"Alignment: {alignment.get('source', 'file')} | Fitness: {alignment.get('fitness', '-')} "
+              f"| Inlier RMSE: {alignment.get('inlier_rmse_m', '-')} m | Ambiguous: {alignment.get('ambiguous', '-')}")
+        print(f"Sim(3) Aligned Chamfer L1: {gt_res['chamfer_l1_m']} m (distances clipped at {gt_res['truncation_m']} m)")
         print(f"  - Accuracy (Mesh -> GT):   {gt_res['accuracy_mean_m']} m (RMSE: {gt_res['accuracy_rmse_m']} m)")
         print(f"  - Completeness (GT -> Mesh): {gt_res['completeness_mean_m']} m (RMSE: {gt_res['completeness_rmse_m']} m)")
+        print(f"F-score @ {gt_res['fscore_threshold_m']} m: {gt_res['fscore']} (Precision: {gt_res['precision']} | Recall: {gt_res['recall']})")
         print(f"Hausdorff 95%: {gt_res['hausdorff_95_m']} m | GT Coverage: {gt_res['gt_coverage_pct']}%")
 
     print("==================================================")

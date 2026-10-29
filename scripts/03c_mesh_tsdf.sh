@@ -9,13 +9,10 @@ if [ -f "$CONFIG_PATH" ]; then
     source "$CONFIG_PATH"
 fi
 
-CONDA_PATH=$(conda info --base 2>/dev/null || echo "$HOME/miniconda3")
-set +u
-source "$CONDA_PATH/etc/profile.d/conda.sh"
-conda activate gs_train
-set -u
+source "$(dirname "$0")/utils/activate_backend.sh"
+activate_backend tsdf
 
-# Run patch & environment verification inside activated gs_train environment
+# Run patch & environment verification inside activated gs environment
 "$(dirname "$0")/utils/verify_patches.sh" || { echo "[FATAL] Patch verification failed!"; exit 1; }
 
 INPUT_DATASET="${1:-$DATA_DIR}"
@@ -56,6 +53,7 @@ echo "Starting TSDF Mesh Extraction (Scene: $SCENE_NAME, Source Model: $MODEL_DI
 VOXEL_SIZE="${TSDF_VOXEL_SIZE:-0.005}"
 DEPTH_TRUNC="${TSDF_DEPTH_TRUNC:-6.0}"
 
+bench_start
 python third_party/2d-gaussian-splatting/render.py \
     -m "$MODEL_DIR" \
     --data_device "$DATA_DEVICE" \
@@ -74,6 +72,9 @@ if [ -n "$EXPORTED_MESH" ] && [ -f "$EXPORTED_MESH" ]; then
     cp "$EXPORTED_MESH" "${MESH_OUTPUT_DIR}/tsdf_mesh.ply"
     echo "TSDF Mesh Extraction Completed!"
     echo "Canonical Mesh saved to: ${MESH_OUTPUT_DIR}/tsdf_mesh.ply"
+
+    bench_record "tsdf_mesh" "$SCENE_NAME" "$MESH_OUTPUT_DIR" \
+        "source_model=$SOURCE_MODEL_NAME" "voxel_size=$VOXEL_SIZE" "depth_trunc=$DEPTH_TRUNC" "active_sfm=$ACTIVE_SFM"
 
     # Dynamically record execution provenance metadata
     cat <<EOF > "$MESH_OUTPUT_DIR/pipeline_meta.json"

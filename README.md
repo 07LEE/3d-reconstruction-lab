@@ -1,61 +1,72 @@
 # 3D Reconstruction Lab
 
-A personal lab environment for hands-on experimentation and benchmarking of 3D reconstruction pipelines — SfM, Gaussian Splatting variants, and mesh extraction engines — on Blackwell hardware.
+3DRC turns photos or video frames of a scene into a 3D model. It estimates the camera poses, trains a Gaussian Splatting scene, extracts a mesh, and measures how good the result is. Several research implementations sit behind one command line so they can be compared on the same input.
 
-## System Requirements
+It is a personal lab for experimenting and benchmarking, developed on an NVIDIA RTX 5070 Ti (Blackwell, 16GB).
 
-- NVIDIA GPU with CUDA support (16GB+ VRAM recommended)
-- CUDA Toolkit 12.8+ (required for `sm_120`; 12.4+ for older architectures)
-- PyTorch 2.11.0+cu128 (Stable, `sm_120` native CUBIN required for Blackwell)
+## What it does
 
-## Verified Configuration
+1. **Camera poses (SfM)**: hloc, COLMAP, VGGT, or FastMap.
+2. **Gaussian training**: Inria 3DGS, PlanarGS, 2DGS, Scaffold-GS, Mip-Splatting.
+3. **Mesh extraction**: SuGaR, MILo, or TSDF.
+4. **Segmentation** (optional): Gaussian Grouping.
+5. **Evaluation**: mesh accuracy against a LiDAR scan, novel-view quality (PSNR/SSIM/LPIPS), and one comparison report.
 
-- GPU: NVIDIA GeForce RTX 5070 Ti (Blackwell Architecture, `sm_120`, 16GB VRAM)
-- CUDA: CUDA 12.8 Toolkit / PyTorch 2.11.0+cu128
-- Host OS: Ubuntu 24.04 LTS (GCC 12 host compiler via `-ccbin /usr/bin/g++-12`)
-- CUBIN Binaries: Native `sm_120` SASS CUBIN with `12.0+PTX` fallback
-- Rasterizer Performance Benchmark (RTX 5070 Ti, 1,112-frame indoor scene):
-  - PTX JIT Fallback (`sm_90` SASS + JIT on `sm_120`): `~37.18 it/s`
-  - Native `sm_120` SASS CUBIN: `~66.09 it/s` (`~1.78x` throughput performance gain)
+## Requirements
+
+- Linux with Conda and an NVIDIA GPU (16GB+ VRAM recommended)
+- A driver that supports CUDA 13.2
+
+CUDA, PyTorch, and GPU generation details are in [GPU, CUDA and PyTorch Support](docs/gpu_support.md).
 
 ## Quick Start
 
 ```bash
-# 1. Apply tracked patches and verify environment
-./scripts/utils/apply_patches.sh
+# 1. Build the environments (compiles CUDA extensions, takes a while)
+./scripts/00_setup_environment.sh
 ./scripts/utils/verify_patches.sh
 
-# 2. Run Step 1 Camera Pose Estimation (COLMAP, hloc, VGGT, FastMap)
-./scripts/run_3drc.sh sfm
+# 2. Put your scene images in data/<scene_name>/raw_images/
 
-# 3. Run Step 2 Gaussian Training (Inria 3DGS / PlanarGS / 2DGS / Scaffold-GS)
-./scripts/run_3drc.sh train 3dgs
-./scripts/run_3drc.sh train planargs
-./scripts/run_3drc.sh train 2dgs
-./scripts/run_3drc.sh train scaffoldgs
-
-# 4. Run Step 3 Mesh Reconstruction (SuGaR / MILo / TSDF)
-./scripts/run_3drc.sh sugar
-./scripts/run_3drc.sh milo
-./scripts/run_3drc.sh tsdf
-
-# 5. Evaluate 3D Mesh Topology & Geometric Accuracy
-./scripts/run_3drc.sh eval outputs/<scene_name>/mesh/milo/mesh_cleaned_largest.ply
-./scripts/run_3drc.sh eval outputs/<scene_name>/mesh/2dgs/tsdf_mesh.ply data/<scene_name>/lidar.pcd
-
-# 6. Inspect Generated Artifacts
-./scripts/run_3drc.sh outputs
+# 3. Run everything: SfM -> training -> mesh -> mesh evaluation -> results report
+./scripts/run_3drc.sh pipeline data/<scene_name> hloc --train 2dgs --mesh tsdf
 ```
 
-## Environment Architecture
+For an Android YUV capture session, extract the frames with the `yuv-sensor` CLI and point `raw_images` at its `extracted_frames_undistorted` output ([ADR 0019](docs/adr/0019-defer-in-memory-yuv-ingestion.md)).
 
-- `3drc`: Main pipeline orchestrator, Step 1 SfM (COLMAP, hloc, VGGT, FastMap), preprocessing (`dense_undistort`), and Step 5 geometric evaluation (`eval_mesh`).
-- `gs_train`: Inria 3DGS, PlanarGS, and 2DGS training (`dr_aa` & `diff-surfel-rasterization`), plus Open3D TSDF mesh extraction.
-- `gs_sugar`: SuGaR surface-aligned mesh extraction environment.
-- `gs_milo`: MILo differentiable mesh-in-the-loop training and extraction environment.
-- `gs_group`: Gaussian Grouping 3D SAM instance segmentation environment.
+`pipeline` options: SuGaR needs `--train 3dgs|planargs`, TSDF needs `--train 2dgs`, MILo works with any backend. Mesh evaluation uses `data/<scene_name>/lidar.pcd` (or `lidar.ply`) as ground truth when present; `--gt` overrides it.
 
-## Pipeline Model Mapping
+## Step by Step
+
+```bash
+# Step 1: camera poses
+./scripts/run_3drc.sh sfm hloc data/<scene_name>
+
+# Step 2: Gaussian training
+./scripts/run_3drc.sh train 3dgs data/<scene_name>        # also: planargs, 2dgs, scaffoldgs, mipsplatting
+
+# Step 3: mesh
+./scripts/run_3drc.sh sugar data/<scene_name>
+./scripts/run_3drc.sh milo data/<scene_name>
+./scripts/run_3drc.sh tsdf data/<scene_name>
+
+# Step 4: segmentation
+./scripts/run_3drc.sh grouping data/<scene_name>
+
+# Step 5: evaluation
+./scripts/run_3drc.sh eval outputs/<scene_name>/mesh/milo/mesh_cleaned_largest.ply
+./scripts/run_3drc.sh eval outputs/<scene_name>/mesh/2dgs/tsdf_mesh.ply data/<scene_name>/lidar.pcd
+./scripts/run_3drc.sh nvs data/<scene_name> 3dgs/inria_30k   # model trained with GS_EVAL_MODE="true"
+
+# Results
+./scripts/run_3drc.sh outputs                                 # list generated artifacts
+./scripts/run_3drc.sh results                                 # one comparison report
+./scripts/run_3drc.sh results --publish docs/results.md
+```
+
+Each stage records its runtime and environment fingerprint to `outputs/benchmark_timings.json`; `results` joins SfM statistics, NVS metrics, mesh metrics, model sizes, and timings into `outputs/results_summary.md` and `outputs/results_runs.csv` ([ADR 0015](docs/adr/0015-results-recording-and-aggregation.md)). Unit tests run without a GPU: `pytest tests`.
+
+## Methods
 
 | Tool | Pipeline Step | Core Role | Methodology |
 | --- | --- | --- | --- |
@@ -64,25 +75,23 @@ A personal lab environment for hands-on experimentation and benchmarking of 3D r
 | [VGGT-Omega](https://github.com/facebookresearch/vggt) | Step 1 (SfM) | Feed-forward pose estimation | Visual Geometry Transformer pose initialization |
 | [FastMap](https://github.com/pals-ttic/fastmap) | Step 1 (SfM) | GPU-accelerated pose estimation | Fast keypoint matching and mapping |
 | [3DGS (Inria)](https://github.com/graphdeco-inria/gaussian-splatting) | Step 2 (Training) | 3D Gaussian scene optimization | Differentiable 3D Gaussian rasterization |
-| [PlanarGS](https://github.com/SJTU-ViSYS-team/PlanarGS) | Step 2 (Training) | Planar-regularized 3DGS | Planar priors on detected indoor surfaces |
+| [PlanarGS](https://github.com/SJTU-ViSYS-team/PlanarGS) | Step 2b (Training) | Planar-regularized 3DGS | Planar priors on detected indoor surfaces |
 | [2DGS](https://github.com/hbb1/2d-gaussian-splatting) | Step 2c (Training) | Planar surfel representation | Exact ray-splat intersection with 2D oriented disks |
 | [Scaffold-GS](https://github.com/city-super/scaffold-gs) | Step 2d (Training) | Anchor-based 3DGS representation | Learnable anchors for view-dependent attribute prediction |
+| [Mip-Splatting](https://github.com/autonomousvision/mip-splatting) | Step 2e (Training) | Alias-free 3DGS rendering | 3D smoothing filter and 2D Mip filter |
 | [SuGaR](https://github.com/Anttwo/SuGaR) | Step 3 (Mesh Extraction) | UV-textured OBJ polygon mesh | Surface-Aligned Gaussian Regularization |
 | [MILo](https://github.com/Anttwo/MILo) | Step 3b (Mesh Extraction) | Compact collision mesh | Differentiable Mesh-in-the-loop MT SDF |
 | [TSDF (Open3D)](https://github.com/isl-org/Open3D) | Step 3c (Mesh Extraction) | Volumetric polygon mesh | Volumetric Open3D TSDF Integration from depth/normals |
 | [Gaussian Grouping](https://github.com/lkeab/gaussian-grouping) | Step 4 (Segmentation) | 3D object instance segmentation | 3D Identity Embedding from SAM masks |
 
-## Submodule Patches
+## Documentation
 
-All submodules in `third_party/` reference official upstream repositories directly. Custom modifications (e.g. Blackwell sm_120 CUBIN build fixes, camera model extensions) are maintained as versioned patch files in `patches/`.
+All submodules in `third_party/` reference official upstream repositories directly; custom changes are versioned patch files in `patches/`.
 
-For the complete patch catalog, patch application, and verification workflows, refer to the [Submodule Patches Guide](docs/submodule_patches.md).
-
-## Detailed Documentation Guides
-
-For in-depth technical guides, execution options, and evaluation methodologies, refer to the documentation in [`docs/`](docs/):
-
-- [Pipeline Architecture Guide](docs/pipeline_architecture.md): Complete end-to-end workflow from Dataset Preparation (Step 0) to SfM, Gaussian Training, Mesh Extraction, and Quantitative Evaluation (Step 5).
-- [Blackwell (sm_120) Build Notes](docs/blackwell_build_notes.md): Troubleshooting matrix and native sm_120 CUBIN build guide for RTX 50 Series.
-- [Submodule Patches Guide](docs/submodule_patches.md): Patch maintenance, `apply_patches.sh`, and `verify_patches.sh` mechanisms for official upstream submodules.
-- [Architecture Decision Records (ADR)](docs/adr/): Architecture decision records with operational writing rules.
+- [Pipeline Architecture Guide](docs/pipeline_architecture.md): End-to-end workflow from dataset preparation (Step 0) to evaluation (Step 5).
+- [Conda Environments](docs/environments.md): The `3drc` and unified `gs` environments, how to build them, and the variables that configure them.
+- [GPU, CUDA and PyTorch Support](docs/gpu_support.md): Verified configuration, supported GPU generations, CUDA toolkit and driver requirements.
+- [Blackwell (sm_120) Build Notes](docs/blackwell_build_notes.md): Troubleshooting matrix and native `sm_120` CUBIN build guide for RTX 50 Series.
+- [Submodule Patches Guide](docs/submodule_patches.md): Patch catalog, `apply_patches.sh`, and `verify_patches.sh`.
+- [Mesh Evaluation Methods](docs/mesh_evaluation_methods.md): How published papers evaluate meshes and obtain ground truth, compared with 3DRC.
+- [Architecture Decision Records (ADR)](docs/adr/): Architecture decisions with operational writing rules.

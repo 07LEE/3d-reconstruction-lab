@@ -5,9 +5,12 @@ __pycache__/
 *.pyd
 
 # Data & Results (Large files)
-data/
-outputs/
-weights/
+/data/
+/outputs/
+/weights/
+
+# Per-backend rasterizer builds for the unified 'gs' env
+/.ext*/
 
 # Virtual Environments
 venv/

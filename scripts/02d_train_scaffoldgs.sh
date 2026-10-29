@@ -9,15 +9,8 @@ if [ -f "$CONFIG_PATH" ]; then
     source "$CONFIG_PATH"
 fi
 
-CONDA_PATH=$(conda info --base 2>/dev/null || echo "$HOME/miniconda3")
-set +u
-source "$CONDA_PATH/etc/profile.d/conda.sh"
-if ! conda activate gs_scaffold 2>/dev/null; then
-    echo "[FATAL] Conda environment 'gs_scaffold' not found!"
-    echo "        Please build the environment first using scripts/00_setup_environment.sh"
-    exit 1
-fi
-set -u
+source "$(dirname "$0")/utils/activate_backend.sh"
+activate_backend scaffoldgs
 
 # Run patch & environment verification inside activated environment
 "$(dirname "$0")/utils/verify_patches.sh" || { echo "[FATAL] Patch verification failed!"; exit 1; }
@@ -93,6 +86,14 @@ if [ -n "$CHECKPOINTS_LIST" ]; then
     fi
 fi
 
+# Deduplicate & upper-bound filter --save_iterations against GS_ITERATIONS
+MAX_ITER="${GS_ITERATIONS:-30000}"
+mapfile -t SAVE_ITERS < <(printf '%s\n' "$MAX_ITER" | sort -un)
+EXTRA_TRAIN_ARGS+=("--save_iterations" "${SAVE_ITERS[@]}")
+
+
+
+RESUMED_FROM=""
 # Auto-resume from latest checkpoint if available (with staleness invalidation guard)
 LATEST_CHKPNT=$(ls -v "${MODEL_OUTPUT}"/checkpoints/chkpnt*.pth "${MODEL_OUTPUT}"/chkpnt*.pth 2>/dev/null | tail -n 1 || true)
 SPARSE_PTS="${TARGET_DATA_DIR}/sparse/0/points3D.bin"
@@ -107,9 +108,11 @@ if [ -n "$LATEST_CHKPNT" ]; then
     else
         log_info "Auto-resuming Scaffold-GS training from latest checkpoint: $(basename "$LATEST_CHKPNT")"
         EXTRA_TRAIN_ARGS+=("--start_checkpoint" "$LATEST_CHKPNT")
+        RESUMED_FROM="$(basename "$LATEST_CHKPNT")"
     fi
 fi
 
+bench_start
 python third_party/scaffold-gs/train.py \
     -s "$TARGET_DATA_DIR" \
     --model_path "$MODEL_OUTPUT" \
@@ -117,6 +120,10 @@ python third_party/scaffold-gs/train.py \
     -r "$DOWNSAMPLE_RATE" \
     --iterations "${GS_ITERATIONS:-30000}" \
     "${EXTRA_TRAIN_ARGS[@]}"
+
+bench_record "scaffoldgs_train" "$SCENE_NAME" "$MODEL_OUTPUT" \
+    "iterations=${GS_ITERATIONS:-30000}" "downsample_rate=$DOWNSAMPLE_RATE" \
+    "eval_split=${GS_EVAL_MODE:-false}" "active_sfm=$ACTIVE_SFM" "resumed_from=$RESUMED_FROM"
 
 # Dynamically record execution provenance metadata
 cat <<EOF > "$MODEL_OUTPUT/pipeline_meta.json"

@@ -2,7 +2,7 @@
 title: Pipeline Architecture Guide
 description: Technical architecture, stage workflows, and execution guide for the 3DRC reconstruction pipeline.
 category: guide
-last_updated: 2026-08-14
+last_updated: 2026-10-26
 ---
 
 # 3DRC Pipeline Architecture Guide
@@ -26,7 +26,7 @@ This document provides technical details, configuration parameters, and executio
             │  (Sparse Reconstruction & Intrinsic/Extrinsic Cameras)
             ▼
 ┌─────────────────────────┐
-│   Step 2: 3DGS Training │  (Inria 3DGS, PlanarGS, 2DGS Surfels)
+│   Step 2: 3DGS Training │  (Inria 3DGS, PlanarGS, 2DGS Surfels, Scaffold-GS, Mip-Splatting)
 └───────────┬─────────────┘
             │  (Trained 3D/2D Gaussian Point Cloud Checkpoint)
             ▼
@@ -41,7 +41,7 @@ This document provides technical details, configuration parameters, and executio
             │
             ▼
 ┌─────────────────────────┐
-│   Step 5: 3D Mesh Eval  │  (3-Axis Topology Hygiene, Chamfer/Hausdorff LiDAR Metric)
+│   Step 5: Evaluation    │  (Mesh: Topology Hygiene, Chamfer/F-score/HD95 vs LiDAR / 5b NVS: PSNR, SSIM, LPIPS)
 └─────────────────────────┘
 ```
 
@@ -57,6 +57,10 @@ This document provides technical details, configuration parameters, and executio
 - Synthetic NeRF / Blender: chair, drums, ficus, hotdog, lego, materials, mic, ship
 
 Datasets must follow the standard COLMAP / Inria directory structure (`images/`, `sparse/0/` with `cameras.bin`, `images.bin`, `points3D.bin`).
+
+### Scene Selection
+
+Each step resolves the scene in this order: the dataset path argument (`data/<scene_name>`), the `SCENE_NAME` environment variable, then the most recently modified directory in `data/`. The last fallback prints a warning because any write into `data/<scene>/` (e.g. the SfM cache) changes which scene it picks. Set `REQUIRE_SCENE=true` to make a missing scene an error instead.
 
 ### Download & Preprocessing Commands
 
@@ -107,6 +111,7 @@ Optimizes 3D/2D Gaussian Splatting scene representations using differentiable ra
 | PlanarGS | `02b_train_planargs.sh` | Sparse COLMAP Poses | Planar regularization on detected indoor surfaces |
 | 2DGS | `02c_train_2dgs.sh` | Sparse COLMAP Poses | 2D planar surfel representation with analytical ray-splat intersection |
 | Scaffold-GS | `02d_train_scaffoldgs.sh` | Sparse COLMAP Poses | Anchor-based representation for view-dependent object detail |
+| Mip-Splatting | `02e_train_mipsplatting.sh` | Sparse COLMAP Poses | 3D smoothing filter and 2D anti-aliasing for multi-scale rendering |
 
 ### Step 2 Execution Commands
 
@@ -122,12 +127,16 @@ Optimizes 3D/2D Gaussian Splatting scene representations using differentiable ra
 
 # Anchor-based Scaffold-GS training (Scaffold-GS)
 ./scripts/02d_train_scaffoldgs.sh data/<scene_name>
+
+# 3D smoothing filter Mip-Splatting training (Mip-Splatting)
+./scripts/02e_train_mipsplatting.sh data/<scene_name>
 ```
 
 - Output Checkpoint (Inria 3DGS): `outputs/<scene_name>/3dgs/inria_30k/`
 - Output Checkpoint (PlanarGS): `outputs/<scene_name>/3dgs/planargs/`
 - Output Checkpoint (2DGS): `outputs/<scene_name>/2dgs/`
 - Output Checkpoint (Scaffold-GS): `outputs/<scene_name>/scaffoldgs/`
+- Output Checkpoint (Mip-Splatting): `outputs/<scene_name>/mipsplatting/`
 
 ### Dynamic Training Checkpoint Configuration
 
@@ -167,10 +176,12 @@ Extracts polygon meshes for rendering, collision checking, and geometry analysis
 
 Learns 3D Identity Embeddings lifted from SAM 2D masks for object-level segmentation.
 
+- Output: `outputs/<scene_name>/grouping/` (previously `third_party/gaussian-grouping/output/<scene_name>/`, which is no longer written).
+
 ### Step 4 Execution Commands
 
 ```bash
-./scripts/04_train_grouping.sh
+./scripts/04_train_grouping.sh data/<scene_name>
 ```
 
 ## Step 5: Mesh Topology and Geometric Evaluation (`src/mesh/eval_mesh.py`)
@@ -180,25 +191,60 @@ Learns 3D Identity Embeddings lifted from SAM 2D masks for object-level segmenta
 Evaluates mesh surface topology and computes geometric distance against reference LiDAR point clouds.
 
 1. Topology Audit: Watertightness (is_watertight), 2-manifold consistency, self-intersecting triangle count, and Euler characteristic (chi = V - E + F).
-2. Geometric Distance: Symmetric Chamfer Distance (CD, 2M sampled points) and Hausdorff Distance (HD).
-3. Sim(3) 7-DoF Alignment: Umeyama RANSAC scale and rigid alignment against reference coordinate systems.
+2. Geometric Distance: Chamfer L1 (mean of accuracy and completeness, 2M sampled points), F-score with precision / recall at a distance threshold (default 0.05 m, curve at 0.01 / 0.02 / 0.05 / 0.1 m), 95th percentile Hausdorff Distance (HD95), and GT coverage. Accuracy and completeness clip each distance at `--coverage-radius` (default 0.5 m), so GT regions the mesh misses count at the clip distance instead of being dropped.
+3. Sim(3) 7-DoF Alignment: Estimated once per scene from the SfM sparse points the meshes were trained on (`data/<scene>/sparse/<active_sfm>/points3D.bin`), not from each mesh, so every mesh of a scene is scored in the same frame. The 24 PCA axis hypotheses are each refined with scale-aware ICP and the best fit is kept; the transform is cached in `outputs/<scene>/eval/alignment/` and reused until the sparse model or GT changes. See [ADR 0017](adr/0017-scene-level-sim3-alignment-and-mesh-metrics-v2.md).
 
 ### Limitations & Evaluation Notes
 
 > [!NOTE]
 >
 > - Chamfer Distance Bias in Room-Scale Scenes: In typical indoor environments, walls, floors, and ceilings constitute the vast majority of surface area. As a result, global Chamfer Distance predominantly reflects wall flatness and may penalize models that preserve fine object geometry.
+> - Alignment Check: `eval_results.json` records the alignment `fitness` (fraction of SfM points within `--align-threshold` of the GT after alignment) and an `ambiguous` flag set when a different rotation fits nearly as well (symmetric rooms). Low fitness or an ambiguous flag means the transform should be checked visually before the numbers are trusted.
 > - Recommended Complementary Metrics: For holistic benchmarking, combine geometric distance with Novel View Synthesis (NVS) rendering metrics (PSNR, SSIM, LPIPS) on held-out views.
 
 ### Step 5 Execution Commands
 
 ```bash
 # 1. Topology hygiene audit on reconstructed mesh
-python src/mesh/eval_mesh.py --mesh outputs/<scene_name>/mesh/milo/mesh_cleaned_largest.ply
+python -m src.mesh.eval_mesh --mesh outputs/<scene_name>/mesh/milo/mesh_cleaned_largest.ply
 
-# 2. Chamfer & Hausdorff accuracy against LiDAR Ground Truth PCD
-python src/mesh/eval_mesh.py --mesh outputs/<scene_name>/mesh/2dgs/tsdf_mesh.ply --gt data/<scene_name>/lidar.pcd
+# 2. Accuracy against LiDAR Ground Truth PCD (scene-level alignment from the SfM sparse points)
+python -m src.mesh.eval_mesh --mesh outputs/<scene_name>/mesh/2dgs/tsdf_mesh.ply --gt data/<scene_name>/lidar.pcd
 
-# 3. Evaluation with Sim(3) transform JSON
-python src/mesh/eval_mesh.py --mesh outputs/<scene_name>/mesh/sugar/sugarfine_mesh.obj --gt data/<scene_name>/lidar.pcd --transform outputs/<scene_name>/eval/sim3_transform.json
+# 3. Recompute the cached scene transform (e.g. after a manual check)
+python -m src.mesh.eval_mesh --mesh outputs/<scene_name>/mesh/2dgs/tsdf_mesh.ply --gt data/<scene_name>/lidar.pcd --compute-transform
+
+# 4. Evaluation with an explicit Sim(3) transform JSON (e.g. hand-verified)
+python -m src.mesh.eval_mesh --mesh outputs/<scene_name>/mesh/sugar/sugarfine_mesh.obj --gt data/<scene_name>/lidar.pcd --transform outputs/<scene_name>/eval/alignment/sim3_hloc_lidar.json
+```
+
+`./scripts/run_3drc.sh pipeline` runs this step after mesh extraction on the mesh it produced (SuGaR `refined_mesh/<scene>/*.obj`, TSDF `tsdf_mesh.ply`, MILo `mesh_cleaned_largest.ply`). It uses `--gt <file>` (or `PIPELINE_GT`), else `data/<scene_name>/lidar.pcd` or `lidar.ply`; without GT it records topology only. A missing `--gt` file stops the pipeline before SfM.
+
+`--align-ref` selects the alignment source: `auto` (default, scene SfM sparse points; falls back to the mesh with a warning when none is found), `mesh` (the previous per-mesh behavior), or a path to a sparse model / point cloud in the mesh frame. Results are written to `<mesh_dir>/eval/<mesh_stem>/eval_results.json` unless `--out` is given; the scene transform is written to `outputs/<scene_name>/eval/alignment/sim3_<sfm>_<gt_stem>.json`.
+
+## Step 5b: Novel View Synthesis Evaluation (`scripts/05_eval_nvs.sh`)
+
+Renders held-out test views with the backend's own `render.py --skip_train` and computes PSNR / SSIM / LPIPS with its `metrics.py`. Metrics are written to `<model_dir>/results.json` and `per_view.json`.
+
+- The model must be trained with `GS_EVAL_MODE="true"` (every 8th view held out). Models without `eval=True` in `cfg_args` are rejected.
+- The backend is inferred from the output path (`3dgs/inria_30k`, `3dgs/planargs`, `2dgs`, `scaffoldgs`, `mipsplatting`); override with `NVS_BACKEND`.
+
+```bash
+GS_EVAL_MODE=true ./scripts/run_3drc.sh train 2dgs data/<scene_name>   # or set GS_EVAL_MODE in configs/default_config.sh
+./scripts/run_3drc.sh nvs data/<scene_name> 2dgs
+```
+
+## Results Aggregation (`src/utils/collect_results.py`)
+
+Stage scripts append runtime entries to `outputs/benchmark_timings.json` (stage, output directory, parameters, `resumed_from`, GPU / driver / torch / git commit fingerprint). The collector joins them with:
+
+| Source | Metrics |
+| --- | --- |
+| `data/<scene>/sparse/<method>/` | Registered / total images, sparse point count |
+| `outputs/<scene>/<model>/results.json`, `cfg_args`, `point_cloud/` | PSNR, SSIM, LPIPS, holdout flag, primitive count, model size |
+| `outputs/<scene>/mesh/<engine>/eval/<mesh>/eval_results.json` | Vertices, faces, watertightness, sliver ratio, Chamfer L1, F-score / precision / recall, HD95, GT coverage, alignment fitness |
+
+```bash
+./scripts/run_3drc.sh results                          # outputs/results_summary.md + outputs/results_runs.csv
+./scripts/run_3drc.sh results --publish docs/results.md  # also write a tracked copy
 ```

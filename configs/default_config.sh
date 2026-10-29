@@ -16,17 +16,21 @@ if [ -n "${1:-}" ] && [ -d "$1" ]; then
 elif [ -n "${SCENE_NAME:-}" ]; then
     SCENE_NAME="${SCENE_NAME}"
 else
-    # Dynamically pick the most recently modified dataset directory inside data/
+    # Dynamically pick the most recently modified dataset directory inside data/.
+    # Any write into data/<scene>/ (e.g. SfM cache) changes this choice, so warn loudly
+    # and allow REQUIRE_SCENE=true to refuse the fallback entirely.
     LATEST_DATASET_DIR=$(ls -td "$PROJECT_ROOT_CFG"/data/*/ 2>/dev/null | grep -v '/\.' | head -n 1 || true)
     if [ -n "$LATEST_DATASET_DIR" ]; then
         SCENE_NAME=$(basename "$LATEST_DATASET_DIR")
+        if [ "${REQUIRE_SCENE:-false}" = "true" ]; then
+            echo "[FATAL] REQUIRE_SCENE=true: pass a dataset path (data/<scene>) or set SCENE_NAME." >&2
+            exit 1
+        fi
         if [ "${QUIET_CONFIG:-false}" != "true" ] && [ "${_3DRC_SCENE_NOTICE_SHOWN:-0}" = "0" ]; then
             export _3DRC_SCENE_NOTICE_SHOWN=1
-            if type log_info >/dev/null 2>&1; then
-                log_info "No dataset path provided. Dynamically defaulting to latest dataset: '${SCENE_NAME}'."
-            else
-                echo "[INFO]  No dataset path provided. Dynamically defaulting to latest dataset: '${SCENE_NAME}'."
-            fi
+            NUM_DATASETS=$(ls -d "$PROJECT_ROOT_CFG"/data/*/ 2>/dev/null | grep -vc '/\.' || true)
+            echo "[WARN]  No dataset path provided. Using most recently modified dataset: '${SCENE_NAME}' (${NUM_DATASETS} in data/)." >&2
+            echo "[WARN]  Pass data/<scene> or set SCENE_NAME=<scene> to pin the scene (REQUIRE_SCENE=true disables this fallback)." >&2
         fi
     else
         if type log_fatal >/dev/null 2>&1; then
@@ -57,12 +61,12 @@ export CAMERA_MODE="SINGLE"  # Options: SINGLE, PER_FOLDER, PER_IMAGE, AUTO
 export CAMERA_MODEL="SIMPLE_RADIAL"  # Options: SIMPLE_RADIAL, PINHOLE, OPENCV
 
 # 3DGS training parameters
-DOWNSAMPLE_RATE=4
-DATA_DEVICE="cpu"
-DENSIFY_GRAD_THRESHOLD=0.0002
-GS_ITERATIONS=30000
-export GS_CHECKPOINT_INTERVAL=10000  # Automatically generates checkpoints every N iterations up to GS_ITERATIONS
-GS_EVAL_MODE="false"  # Options: false (full reconstruction), true (holdout evaluation)
+DOWNSAMPLE_RATE="${DOWNSAMPLE_RATE:-4}"
+DATA_DEVICE="${DATA_DEVICE:-cpu}"
+DENSIFY_GRAD_THRESHOLD="${DENSIFY_GRAD_THRESHOLD:-0.0002}"
+GS_ITERATIONS="${GS_ITERATIONS:-30000}"
+export GS_CHECKPOINT_INTERVAL="${GS_CHECKPOINT_INTERVAL:-10000}"  # Automatically generates checkpoints every N iterations up to GS_ITERATIONS
+GS_EVAL_MODE="${GS_EVAL_MODE:-false}"  # Options: false (full reconstruction), true (holdout evaluation; required for Step 5b NVS metrics)
 
 # SuGaR parameters
 SUGAR_REGULARIZATION="dn_consistency"
@@ -70,8 +74,8 @@ SUGAR_HIGH_POLY="True"
 SUGAR_REFINEMENT="short"
 
 # TSDF Mesh Extraction parameters
-TSDF_VOXEL_SIZE=0.005
-TSDF_DEPTH_TRUNC=6.0
+TSDF_VOXEL_SIZE="${TSDF_VOXEL_SIZE:-0.01}"
+TSDF_DEPTH_TRUNC="${TSDF_DEPTH_TRUNC:-3.0}"
 
 # MILo parameters
 MILO_IMP_METRIC="indoor"  # Options: indoor, outdoor
@@ -79,4 +83,4 @@ MILO_RASTERIZER="radegs"  # Options: radegs, 2dgs, 3dgs
 
 # Gaussian Grouping parameters
 GROUPING_DATASET="${SCENE_NAME}"
-GROUPING_DOWNSAMPLE=1
+GROUPING_DOWNSAMPLE="${GROUPING_DOWNSAMPLE:-1}"

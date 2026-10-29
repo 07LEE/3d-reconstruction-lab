@@ -13,19 +13,15 @@ else
 fi
 
 CONDA_PATH=$(conda info --base 2>/dev/null || echo "$HOME/miniconda3")
-if [ -f "$CONDA_PATH/etc/profile.d/conda.sh" ]; then
-    source "$CONDA_PATH/etc/profile.d/conda.sh"
-    set +u
-    conda activate gs_milo
-    set -u
-    [ "${CONDA_DEFAULT_ENV:-}" = "gs_milo" ] || { echo "[FATAL] Conda environment 'gs_milo' activation failed!"; exit 1; }
-fi
+source "$(dirname "$0")/utils/activate_backend.sh"
+activate_backend milo
 
 # Source CUDA & host compiler build environment (GCC 12 / NVCC 12.8)
 source "$(dirname "$0")/utils/setup_build_env.sh"
 
 # Ensure Conda environment site-packages is explicitly first in PYTHONPATH
-export PYTHONPATH="${CONDA_PREFIX}/lib/python3.10/site-packages"
+# Unified mode keeps the MILo rasterizer build ahead of site-packages
+export PYTHONPATH="${BACKEND_EXT_PATH:+$BACKEND_EXT_PATH:}${CONDA_PREFIX}/lib/python3.10/site-packages"
 
 # Get project root
 PROJECT_ROOT=$(pwd)
@@ -81,9 +77,11 @@ cd third_party/milo/milo || exit 1
 
 # Execute MILo Training & Mesh Extraction
 echo "Starting MILo Differentiable Mesh Training & Extraction (Scene: $SCENE_NAME, Dataset: $DENSE_DATASET, Active SfM: $ACTIVE_SFM)..."
+bench_start
 python train.py \
     -s "$PROJECT_ROOT/$DENSE_DATASET" \
     -m "$MILO_MODEL_DIR" \
+    --iterations "${GS_ITERATIONS:-30000}" \
     --imp_metric "${MILO_IMP_METRIC:-indoor}" \
     --rasterizer "${MILO_RASTERIZER:-radegs}" \
     --data_device "${DATA_DEVICE:-cpu}"
@@ -101,8 +99,14 @@ cd "$PROJECT_ROOT"
 if [ -f "$MILO_MODEL_DIR/mesh_learnable_sdf.ply" ]; then
     python3 src/mesh/clean_milo_mesh.py \
         --input "$MILO_MODEL_DIR/mesh_learnable_sdf.ply" \
-        --output "$MILO_MODEL_DIR/mesh_cleaned_largest.ply" || true
+        --output "$MILO_MODEL_DIR/mesh_cleaned_largest.ply"
+else
+    echo "[FATAL] MILo mesh extraction failed: mesh_learnable_sdf.ply not found in $MILO_MODEL_DIR" >&2
+    exit 1
 fi
+
+bench_record "milo_mesh" "$SCENE_NAME" "$MILO_MODEL_DIR" \
+    "imp_metric=${MILO_IMP_METRIC:-indoor}" "rasterizer=${MILO_RASTERIZER:-radegs}" "active_sfm=$ACTIVE_SFM"
 
 # Dynamically record execution provenance metadata
 cat <<EOF > "$MILO_MODEL_DIR/pipeline_meta.json"

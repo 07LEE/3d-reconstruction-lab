@@ -1,6 +1,6 @@
 # 0001. Split Conda Environments by Component
 
-Status: Accepted (2026-08-07)
+Status: Superseded by 0021 (2026-10-29); previously Amended by 0018 (2026-10-27)
 
 Context:
 In a single monolithic gs_original environment, SuGaR's bundled rasterizer (2023 release) displaced site-packages' Inria dr_aa rasterizer variant. Because both packages shared the name diff_gaussian_rasterization, they silently displaced each other, surfacing as an unexpected antialiasing keyword TypeError while source trees remained unmodified and invisible to git status.

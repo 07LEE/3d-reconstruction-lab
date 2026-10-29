@@ -1,0 +1,40 @@
+name: gs
+channels:
+  - defaults
+  - nvidia
+  - conda-forge
+dependencies:
+  - python=3.10
+  - pip
+  # MILo builds tetra-nerf (CGAL) and needs cmake
+  - cgal-cpp=6.0.1
+  - cmake
+  - gmp
+  - mpfr
+  - eigen
+  - pip:
+      - --extra-index-url https://download.pytorch.org/whl/cu130
+      - torch==2.11.0+cu130
+      - torchvision==0.26.0+cu130
+      - torchaudio==2.11.0+cu130
+      - numpy
+      - plyfile
+      - tqdm
+      - opencv-python
+      - einops
+      - wandb
+      - lpips
+      - laspy
+      - scipy
+      - jaxtyping
+      - typeguard
+      - wadler-lindig
+      - colorama
+      - open3d==0.19.0
+      - tensorboard
+      - pybind11
+      - trimesh
+      - matplotlib
+      - rich
+      - mediapy
+      - iopath

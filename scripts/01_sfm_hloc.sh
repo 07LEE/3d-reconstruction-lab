@@ -4,9 +4,18 @@ set -euo pipefail
 # [Step 01] hloc SuperPoint+SuperGlue SfM Pipeline
 # High-precision camera pose estimation for large-scale high-resolution datasets
 
+# Arguments are (method, dataset) or (dataset, method); pass the dataset to the config
+CONFIG_SCENE_ARG=""
+for arg in "$@"; do
+    if [ -d "$arg" ] || [[ "$arg" == data/* ]]; then
+        CONFIG_SCENE_ARG="$arg"
+        break
+    fi
+done
+
 CONFIG_PATH="configs/default_config.sh"
 if [ -f "$CONFIG_PATH" ]; then
-    source "$CONFIG_PATH"
+    source "$CONFIG_PATH" ${CONFIG_SCENE_ARG:+"$CONFIG_SCENE_ARG"}
 else
     echo "[FATAL] Configuration file not found at $CONFIG_PATH!"
     exit 1
@@ -18,7 +27,7 @@ if [ -f "$CONDA_PATH/etc/profile.d/conda.sh" ]; then
     set +u
     conda activate 3drc
     set -u
-    [ "${CONDA_DEFAULT_ENV:-}" = "3drc" ] || { echo "[FATAL] Conda environment '3drc' activation failed!"; exit 1; }
+    [ "${CONDA_DEFAULT_ENV:-}" = "3drc" ] || { echo "[FATAL] Conda environment '3drc' not found or activation failed. Run: ./scripts/00_setup_environment.sh --env 3drc"; exit 1; }
 fi
 
 ARG1="${1:-}"
@@ -47,6 +56,7 @@ fi
 SPARSE_BASE_DIR="${INPUT_DATASET}/sparse"
 SPARSE_METHOD_DIR="${SPARSE_BASE_DIR}/${METHOD}"
 
+bench_start
 case "$METHOD" in
     sfm)
         mkdir -p "$SPARSE_METHOD_DIR"
@@ -107,9 +117,11 @@ if [ -d "${INPUT_DATASET}/cache/sfm" ]; then
         PROMOTION_INFO=$(python3 -c '
 import pycolmap, sys, glob, os
 models_dir = sys.argv[1]
+# The largest model is written to the sfm root; only the smaller ones land in models/.
+candidates = [os.path.dirname(models_dir)] + sorted(glob.glob(os.path.join(models_dir, "*")))
 best_model = ""
 max_imgs = -1
-for m in sorted(glob.glob(os.path.join(models_dir, "*"))):
+for m in candidates:
     if os.path.isdir(m):
         try:
             rec = pycolmap.Reconstruction(m)
@@ -126,7 +138,9 @@ if best_model:
         if [ -n "$PROMOTION_INFO" ]; then
             BEST_MODEL=$(echo "$PROMOTION_INFO" | cut -d'|' -f1)
             REG_COUNT=$(echo "$PROMOTION_INFO" | cut -d'|' -f2)
-            if [ -n "$BEST_MODEL" ] && [ -d "$BEST_MODEL" ]; then
+            if [ "$BEST_MODEL" = "${INPUT_DATASET}/cache/sfm" ]; then
+                log_info "Largest model is the sfm root ($REG_COUNT registered images); keeping it in ${SPARSE_METHOD_DIR}."
+            elif [ -n "$BEST_MODEL" ] && [ -d "$BEST_MODEL" ]; then
                 log_info "Promoting submodel $(basename "$BEST_MODEL") ($REG_COUNT registered images) to root of ${SPARSE_METHOD_DIR}..."
                 # Clear residual sparse files before promoting largest model
                 rm -f "${SPARSE_METHOD_DIR}/cameras.bin" "${SPARSE_METHOD_DIR}/images.bin" "${SPARSE_METHOD_DIR}/points3D.bin" "${SPARSE_METHOD_DIR}/points3D.ply" 2>/dev/null || true
@@ -139,7 +153,8 @@ if [ -d "${INPUT_DATASET}/0" ]; then
     mv "${INPUT_DATASET}/0"/* "$SPARSE_METHOD_DIR/" 2>/dev/null || true
     rmdir "${INPUT_DATASET}/0" 2>/dev/null || true
 fi
-if [ -f "${SPARSE_BASE_DIR}/cameras.bin" ]; then
+# hloc writes only under cache/ and ${SPARSE_METHOD_DIR}; *.bin left in sparse/ come from training stages and are stale.
+if [ "$METHOD" != "hloc" ] && [ -f "${SPARSE_BASE_DIR}/cameras.bin" ]; then
     mv "${SPARSE_BASE_DIR}"/*.bin "$SPARSE_METHOD_DIR/" 2>/dev/null || true
     mv "${SPARSE_BASE_DIR}"/*.ply "$SPARSE_METHOD_DIR/" 2>/dev/null || true
 fi
@@ -203,5 +218,8 @@ cd "$SPARSE_BASE_DIR"
 rm -rf 0
 ln -s "$METHOD" 0
 cd - > /dev/null
+
+bench_record "sfm_${METHOD}" "$(basename "$INPUT_DATASET")" "$SPARSE_METHOD_DIR" \
+    "method=${METHOD}" "strategy=${SFM_STRATEGY}"
 
 echo "SfM Reconstruction (${METHOD}) Completed! Saved to ${SPARSE_METHOD_DIR} (Active symlink: ${SPARSE_BASE_DIR}/0 -> ${METHOD})"

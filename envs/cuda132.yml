@@ -1,0 +1,7 @@
+name: cuda132
+channels:
+  - nvidia
+  - defaults
+dependencies:
+  # Build-time CUDA toolkit (nvcc, headers, libs) for the unified gs environment; not used at runtime
+  - cuda-toolkit=13.2

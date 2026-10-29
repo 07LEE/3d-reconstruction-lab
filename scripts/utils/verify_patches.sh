@@ -96,6 +96,17 @@ else
   fail=1
 fi
 
+# 6b. 2DGS colormap matplotlib buffer_rgba patch check (tostring_rgb was removed in matplotlib 3.10)
+GENERAL_UTILS_2D_PY="${REPO_ROOT}/third_party/2d-gaussian-splatting/utils/general_utils.py"
+patch_count=$((patch_count + 1))
+if [ -f "${GENERAL_UTILS_2D_PY}" ] && grep -q "buffer_rgba" "${GENERAL_UTILS_2D_PY}"; then
+  log_check "ok" "2DGS colormap buffer_rgba patch in general_utils.py"
+  patch_passed=$((patch_passed + 1))
+else
+  log_check "LOST" "2DGS colormap patch missing in general_utils.py"
+  fail=1
+fi
+
 # 7. 2DGS diff-surfel-rasterization cstdint and zero-init check
 SURFEL_RAST_CU="${REPO_ROOT}/third_party/2d-gaussian-splatting/submodules/diff-surfel-rasterization/cuda_rasterizer/rasterizer_impl.cu"
 SURFEL_RAST_H="${REPO_ROOT}/third_party/2d-gaussian-splatting/submodules/diff-surfel-rasterization/cuda_rasterizer/rasterizer_impl.h"
@@ -169,58 +180,71 @@ fi
 # Multi-environment explicit rasterizer verification
 env_count=0
 env_passed=0
+env_skipped=0
 
-TRAIN_PYTHON="${CONDA_BASE_DIR}/envs/gs_train/bin/python"
-if [ -x "$TRAIN_PYTHON" ]; then
-    env_count=$((env_count + 1))
-    diag_out=""
-    if diag_out=$("$TRAIN_PYTHON" - <<'PY' 2>&1
-import sys
+# Unified 'gs' env (ADR 0018): each backend's rasterizer must load from its own .ext/<variant>/
+# and expose that variant's settings fields; shared extensions must load without PYTHONPATH.
+GS_PYTHON="${CONDA_BASE_DIR}/envs/${GS_ENV_NAME:-gs}/bin/python"
+GS_EXT_ROOT="${GS_EXT_ROOT:-${REPO_ROOT}/.ext}"
+if [ -x "$GS_PYTHON" ]; then
+    for spec in "inria:antialiasing" "scaffold:" "mipsplatting:kernel_size,subpixel_offset" "milo:require_depth,require_coord" "grouping:"; do
+        variant="${spec%%:*}"
+        fields="${spec#*:}"
+        env_count=$((env_count + 1))
+        diag_out=""
+        if diag_out=$(PYTHONPATH="${GS_EXT_ROOT}/${variant}" EXPECT_DIR="${GS_EXT_ROOT}/${variant}" EXPECT_FIELDS="$fields" "$GS_PYTHON" - <<'PY' 2>&1
+import os, sys
+expect_dir, fields = os.environ["EXPECT_DIR"], [f for f in os.environ["EXPECT_FIELDS"].split(",") if f]
 try:
     import diff_gaussian_rasterization as d
     from diff_gaussian_rasterization import GaussianRasterizationSettings as S
 except Exception as e:
-    print(f"[FAIL] [gs_train] import failed: {type(e).__name__}: {e}")
+    print(f"import failed: {type(e).__name__}: {e}")
     sys.exit(1)
-if "antialiasing" not in getattr(S, "_fields", ()):
-    print(f"[WRONG] [gs_train] non-dr_aa rasterizer installed (path: {getattr(d, '__file__', 'unknown')})")
+if not os.path.realpath(d.__file__).startswith(os.path.realpath(expect_dir) + os.sep):
+    print(f"loaded from {d.__file__}, expected under {expect_dir}")
+    sys.exit(1)
+missing = [f for f in fields if f not in getattr(S, "_fields", ())]
+if missing:
+    print(f"settings fields missing: {missing}")
     sys.exit(1)
 PY
-    ); then
-        log_check "ok" "Explicit check: gs_train has dr_aa rasterizer installed"
-        env_passed=$((env_passed + 1))
-    else
-        log_check "FAIL" "[gs_train] rasterizer verification failed: ${diag_out:-unknown error}"
-        fail=1
-    fi
-fi
+        ); then
+            log_check "ok" "Explicit check: gs uses .ext/${variant} rasterizer"
+            env_passed=$((env_passed + 1))
+        else
+            log_check "FAIL" "[gs] .ext/${variant} rasterizer verification failed: ${diag_out:-unknown error}"
+            fail=1
+        fi
+    done
 
-SCAFFOLD_PYTHON="${CONDA_BASE_DIR}/envs/gs_scaffold/bin/python"
-if [ -x "$SCAFFOLD_PYTHON" ]; then
     env_count=$((env_count + 1))
     diag_out=""
-    if diag_out=$("$SCAFFOLD_PYTHON" - <<'PY' 2>&1
-import sys
-try:
-    import diff_gaussian_rasterization as d
-except Exception as e:
-    print(f"[FAIL] [gs_scaffold] import failed: {type(e).__name__}: {e}")
-    sys.exit(1)
-PY
-    ); then
-        log_check "ok" "Explicit check: gs_scaffold has dedicated rasterizer installed"
+    if diag_out=$(PYTHONPATH="" "$GS_PYTHON" -c "import torch, simple_knn._C, diff_surfel_rasterization, diff_plane_rasterization, diff_gaussian_rasterization_ms, diff_gaussian_rasterization_gof, fused_ssim" 2>&1); then
+        log_check "ok" "Explicit check: gs shared extensions import"
         env_passed=$((env_passed + 1))
     else
-        log_check "FAIL" "[gs_scaffold] rasterizer verification failed: ${diag_out:-unknown error}"
+        log_check "FAIL" "[gs] shared extension import failed: ${diag_out:-unknown error}"
         fail=1
     fi
+else
+    env_skipped=$((env_skipped + 1))
+    log_check "skip" "Explicit check: gs (unified) environment not installed"
 fi
 
 # Blackwell sm_120 CUBIN SASS binary verification across C++ CUDA extensions
 export REPO_ROOT
 export CONDA_BASE_DIR
-PYTHON_AUDIT_BIN="${CONDA_BASE_DIR}/envs/gs_milo/bin/python"
-if [ ! -x "$PYTHON_AUDIT_BIN" ]; then PYTHON_AUDIT_BIN="python3"; fi
+export GS_EXT_ROOT
+export GS_ENV_NAME="${GS_ENV_NAME:-gs}"
+PYTHON_AUDIT_BIN=""
+for e in 3drc "${GS_ENV_NAME}"; do
+    if [ -x "${CONDA_BASE_DIR}/envs/${e}/bin/python" ]; then
+        PYTHON_AUDIT_BIN="${CONDA_BASE_DIR}/envs/${e}/bin/python"
+        break
+    fi
+done
+if [ -z "$PYTHON_AUDIT_BIN" ]; then PYTHON_AUDIT_BIN="python3"; fi
 
 cubin_output=""
 if cubin_output=$("$PYTHON_AUDIT_BIN" - <<'PY' 2>&1
@@ -228,21 +252,31 @@ import os, sys, glob, subprocess, re
 
 CONDA_BASE = os.environ.get("CONDA_BASE_DIR", os.path.expanduser("~/miniconda3"))
 REPO_ROOT = os.environ.get("REPO_ROOT", os.path.abspath(os.path.join(os.path.dirname(__file__), "../..")))
-CUOBJDUMP = os.path.join(CONDA_BASE, "envs/gs_train/bin/cuobjdump")
 
+CUOBJDUMP = None
+for env_name in [os.environ.get("GS_ENV_NAME", "gs"), "3drc"]:
+    cand = os.path.join(CONDA_BASE, "envs", env_name, "bin/cuobjdump")
+    if os.path.exists(cand):
+        CUOBJDUMP = cand
+        break
+if not CUOBJDUMP:
+    CUOBJDUMP = "cuobjdump"
+
+GS_ENV = os.environ.get("GS_ENV_NAME", "gs")
+# rasterizer variants are checked separately from .ext/<variant>/ below
 ENVS = {
-    "gs_milo": (["diff_gaussian_rasterization", "diff_gaussian_rasterization_ms", "diff_gaussian_rasterization_gof", "simple_knn", "fused_ssim"], "milo"),
-    "gs_train": (["diff_gaussian_rasterization", "simple_knn", "diff_surfel_rasterization"], "gaussian-splatting"),
-    "gs_sugar": (["diff_gaussian_rasterization", "simple_knn"], "sugar"),
-    "gs_scaffold": (["diff_gaussian_rasterization", "simple_knn"], "scaffold-gs")
+    GS_ENV: (["simple_knn", "diff_surfel_rasterization", "diff_plane_rasterization", "diff_gaussian_rasterization_ms", "diff_gaussian_rasterization_gof", "fused_ssim"], "gaussian-splatting"),
 }
 
 fail = 0
 total_checked = 0
+total_skipped = 0
 
 for env, (mods, repo_sub) in ENVS.items():
     env_dir = os.path.join(CONDA_BASE, "envs", env)
     if not os.path.exists(env_dir):
+        print(f"  [skip]  [{env}] environment not installed")
+        total_skipped += 1
         continue
     
     site_pkg = os.path.join(env_dir, "lib/python3.10/site-packages")
@@ -279,7 +313,28 @@ for env, (mods, repo_sub) in ENVS.items():
             print(f"  [MISS]  [{env}] {mod}: .so file not found")
             fail = 1
 
-print(f"SUMMARY:{total_checked}:{fail}")
+# Unified env rasterizer variants live in .ext/<variant>/ rather than site-packages
+if os.path.exists(os.path.join(CONDA_BASE, "envs", os.environ.get("GS_ENV_NAME", "gs"))):
+    for variant in ["inria", "scaffold", "mipsplatting", "milo", "grouping"]:
+        found = glob.glob(os.path.join(os.environ["GS_EXT_ROOT"], variant, "diff_gaussian_rasterization", "_C*.so"))
+        if not found:
+            print(f"  [MISS]  [gs] .ext/{variant}: .so file not found")
+            fail = 1
+            continue
+        total_checked += 1
+        try:
+            out = subprocess.check_output([CUOBJDUMP, "--list-elf", found[0]], stderr=subprocess.DEVNULL).decode()
+            archs = sorted(set(re.findall(r'sm_\d+', out)))
+            sm_str = " ".join(archs) if archs else "no CUBIN"
+            if "sm_120" in archs:
+                print(f"  [ok]    [gs] .ext/{variant} -> {sm_str}")
+            else:
+                print(f"  [WRONG] [gs] .ext/{variant} -> {sm_str} (native sm_120 missing)")
+                fail = 1
+        except Exception as e:
+            print(f"  [WARN]  [gs] .ext/{variant}: cuobjdump failed ({e})")
+
+print(f"SUMMARY:{total_checked}:{fail}:{total_skipped}")
 if fail != 0:
     sys.exit(1)
 PY
@@ -291,9 +346,11 @@ else
 fi
 
 cubin_total=0
+cubin_skipped=0
 if echo "$cubin_output" | grep -q "SUMMARY:"; then
     summary_line=$(echo "$cubin_output" | grep "SUMMARY:" | tail -n 1)
     cubin_total=$(echo "$summary_line" | cut -d':' -f2)
+    cubin_skipped=$(echo "$summary_line" | cut -d':' -f4)
 fi
 
 if [ "$VERBOSE" = "1" ]; then
@@ -306,8 +363,16 @@ if [ "$fail" -eq 0 ]; then
     if [ "$VERBOSE" = "0" ]; then
         echo "[VERIFY] Environment & Patch Verification Summary"
         printf "  • Source Code Patches (%2d/%2d)                : [ OK ]\n" "$patch_passed" "$patch_count"
-        printf "  • Conda Rasterizer Installs (%2d/%2d)          : [ OK ]\n" "$env_passed" "$env_count"
-        printf "  • CUDA Extensions sm_120 CUBIN (%2d/%2d)        : [ OK ]\n" "$cubin_total" "$cubin_total"
+        if [ "$env_skipped" -gt 0 ]; then
+            printf "  • Conda Rasterizer Installs (%2d/%2d, %d skipped): [ OK ]\n" "$env_passed" "$env_count" "$env_skipped"
+        else
+            printf "  • Conda Rasterizer Installs (%2d/%2d)          : [ OK ]\n" "$env_passed" "$env_count"
+        fi
+        if [ "$cubin_skipped" -gt 0 ]; then
+            printf "  • CUDA Extensions sm_120 CUBIN (%2d checked, %d skipped): [ OK ]\n" "$cubin_total" "$cubin_skipped"
+        else
+            printf "  • CUDA Extensions sm_120 CUBIN (%2d/%2d)        : [ OK ]\n" "$cubin_total" "$cubin_total"
+        fi
     fi
 else
     echo ""

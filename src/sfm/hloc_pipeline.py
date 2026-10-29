@@ -20,6 +20,7 @@ sys.path.append(str(Path(__file__).resolve().parent.parent.parent / "third_party
 
 import pycolmap
 from hloc import extract_features, match_features, pairs_from_exhaustive, pairs_from_retrieval, reconstruction
+from src.sfm.camera_utils import parse_camera_prior_from_dataset
 
 def log_performance(image_dir: str | Path, output_dir: str | Path, strategy: str, time_extract: float, time_pairs: float, time_match: float, time_sfm: float, time_total: float) -> None:
     """Logs detailed execution timing metrics for hloc pipeline to outputs/performance_log.txt.
@@ -291,8 +292,13 @@ def run_hloc_pipeline(image_dir: str | Path, output_dir: str | Path, weights_dir
             raise ValueError(f"Invalid CAMERA_MODE '{mode_str}'. Valid choices: {valid}")
         cam_mode = getattr(pycolmap.CameraMode, mode_str)
         camera_model = os.environ.get("CAMERA_MODEL", "SIMPLE_RADIAL").upper()
-
         image_options = {"camera_model": camera_model}
+
+        camera_prior = parse_camera_prior_from_dataset(images)
+        if camera_prior is not None:
+            image_options.update(camera_prior)
+            print(f"[hloc] Injected camera prior: {camera_prior}")
+
         reconstruction.main(
             sfm_dir,
             images,

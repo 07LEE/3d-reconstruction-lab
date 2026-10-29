@@ -97,9 +97,13 @@ def extract_artifact_info(file_path: Path, scene_dir: Path, active_sfm: Optional
     # 1. Infer Stage Dynamically from Directory Hierarchy
     if "sparse" in rel_parts:
         stage = "Stage 1 (SfM)"
+    elif "eval" in rel_parts:
+        stage = "Stage 5 (Eval)"
     elif "mesh" in rel_parts:
         stage = "Stage 3 (Mesh)"
-    elif "eval" in rel_parts or ext == ".json":
+    elif rel_parts[0] == "grouping":
+        stage = "Stage 4 (Segmentation)"
+    elif ext == ".json":
         stage = "Stage 5 (Eval)"
     elif any(k in rel_parts for k in ["3dgs", "2dgs", "planargs", "point_cloud"]):
         stage = "Stage 2 (Training)"
