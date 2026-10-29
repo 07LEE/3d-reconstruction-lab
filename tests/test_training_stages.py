@@ -254,9 +254,7 @@ def test_resumes_from_the_latest_checkpoint(workspace, stage):
     assert trainer_calls(workspace) == [expected_trainer(workspace, stage, [*DEFAULT_EXTRA, *resume])]
     assert "resumed_from=chkpnt30000.pth" in parse_bench(bench_calls(workspace)[0])["set"]
 
-def test_stale_checkpoint_is_not_resumed(workspace, stage, request):
-    if stage == "planargs":
-        request.applymarker(pytest.mark.xfail(strict=True, reason="PlanarGS looks for the sparse model after changing directory"))
+def test_stale_checkpoint_is_not_resumed(workspace, stage):
     add_sfm_model(workspace)
     model = model_path(workspace, stage)
     model.mkdir(parents=True)

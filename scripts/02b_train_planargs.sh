@@ -23,7 +23,6 @@ fi
 
 # Execute PlanarGS Training
 log_info "Starting PlanarGS Training (Scene: $SCENE_NAME, Dataset: $INPUT_DATASET)..."
-cd third_party/PlanarGS || exit 1
 
 train_extra_args
 
@@ -33,13 +32,16 @@ if [ ! -x "$PYTHON_BIN" ]; then
 fi
 
 bench_start
-"$PYTHON_BIN" train.py \
-    -s "$PROJECT_ROOT/$TARGET_DATA_DIR" \
-    -m "$MODEL_OUTPUT" \
-    -r "$DOWNSAMPLE_RATE" \
-    --data_device "$DATA_DEVICE" \
-    --densify_grad_threshold "${DENSIFY_GRAD_THRESHOLD:-0.0002}" \
-    --iterations "${GS_ITERATIONS:-30000}" \
-    "${EXTRA_TRAIN_ARGS[@]}"
+(
+    cd third_party/PlanarGS
+    "$PYTHON_BIN" train.py \
+        -s "$PROJECT_ROOT/$TARGET_DATA_DIR" \
+        -m "$MODEL_OUTPUT" \
+        -r "$DOWNSAMPLE_RATE" \
+        --data_device "$DATA_DEVICE" \
+        --densify_grad_threshold "${DENSIFY_GRAD_THRESHOLD:-0.0002}" \
+        --iterations "${GS_ITERATIONS:-30000}" \
+        "${EXTRA_TRAIN_ARGS[@]}"
+)
 
 train_finish 3dgs_planargs_train "PlanarGS (Planar-Regularized 3DGS)"
