@@ -28,6 +28,25 @@ if [ -f "${INPUT_DATASET}/sparse/0/cameras.bin" ] || [ -f "${INPUT_DATASET}/spar
    [ -f "${INPUT_DATASET}/sparse/cameras.bin" ] || [ -f "${INPUT_DATASET}/sparse/cameras.txt" ]; then
     echo "Using existing pre-computed dataset structure at: ${INPUT_DATASET}"
     TARGET_DATA_DIR="${INPUT_DATASET}"
+else
+    # Guard: Ensure SfM reconstruction model exists before cleaning/updating
+    SRC="${INPUT_DATASET}/cache/sfm"
+    if [ ! -f "$SRC/cameras.bin" ] && [ ! -f "$SRC/cameras.txt" ] && [ ! -f "$SRC/models/0/cameras.bin" ]; then
+        echo "[FATAL] SfM model not found in ${INPUT_DATASET}/sparse/0 or $SRC"
+        exit 1
+    fi
+
+    # Update SfM data link after verification succeeds
+    echo "Updating SfM data in ${INPUT_DATASET}/sparse/0..."
+    mkdir -p "${INPUT_DATASET}/sparse/0"
+
+    if [ -d "$SRC/models/0" ]; then
+        cp -r "$SRC/models/0/"* "${INPUT_DATASET}/sparse/0/"
+    else
+        cp -r "$SRC/"* "${INPUT_DATASET}/sparse/0/" 2>/dev/null || true
+    fi
+
+    TARGET_DATA_DIR="${INPUT_DATASET}"
 fi
 
 # Ensure PlanarGS dataset_readers finds images.bin and cameras.bin directly under sparse/
@@ -82,6 +101,7 @@ if [ -n "$CHECKPOINTS_LIST" ]; then
 fi
 
 # Deduplicate & upper-bound filter --save_iterations against GS_ITERATIONS
+MAX_ITER="${GS_ITERATIONS:-30000}"
 mapfile -t SAVE_ITERS < <(printf '%s\n' "$MAX_ITER" | sort -un)
 EXTRA_TRAIN_ARGS+=("--save_iterations" "${SAVE_ITERS[@]}")
 

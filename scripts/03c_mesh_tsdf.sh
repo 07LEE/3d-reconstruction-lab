@@ -50,8 +50,8 @@ if [ -L "${INPUT_DATASET}/sparse/0" ]; then
 fi
 
 echo "Starting TSDF Mesh Extraction (Scene: $SCENE_NAME, Source Model: $MODEL_DIR, Active SfM: $ACTIVE_SFM)..."
-VOXEL_SIZE="${TSDF_VOXEL_SIZE:-0.005}"
-DEPTH_TRUNC="${TSDF_DEPTH_TRUNC:-6.0}"
+VOXEL_SIZE="$TSDF_VOXEL_SIZE"
+DEPTH_TRUNC="$TSDF_DEPTH_TRUNC"
 
 bench_start
 python third_party/2d-gaussian-splatting/render.py \
