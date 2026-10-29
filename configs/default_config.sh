@@ -83,4 +83,4 @@ MILO_RASTERIZER="radegs"  # Options: radegs, 2dgs, 3dgs
 
 # Gaussian Grouping parameters
 GROUPING_DATASET="${SCENE_NAME}"
-GROUPING_DOWNSAMPLE=1
+GROUPING_DOWNSAMPLE="${GROUPING_DOWNSAMPLE:-1}"

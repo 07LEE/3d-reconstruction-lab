@@ -44,6 +44,7 @@ def parse_camera_prior_from_dataset(dataset_dir: str | Path) -> Optional[Dict[st
             if calib_path.is_file():
                 prior = _extract_prior_from_json(calib_path)
                 if prior is not None:
+                    prior = _adapt_prior_to_extracted_frames(prior, path)
                     print(f"[CameraUtils] Successfully extracted camera prior from '{calib_path.name}': {prior}")
                     return prior
 
@@ -134,3 +135,67 @@ def _extract_prior_from_json(json_path: Path) -> Optional[Dict[str, str]]:
 
     except Exception:
         return None
+
+
+def _first_image_size(image_dir: Path) -> Optional[Tuple[int, int]]:
+    """Returns (width, height) of the first image in image_dir, or None if unreadable."""
+    try:
+        from PIL import Image
+
+        for pattern in ("*.jpg", "*.jpeg", "*.png"):
+            for image_path in sorted(image_dir.glob(pattern)):
+                with Image.open(image_path) as img:
+                    return img.size
+    except Exception:
+        return None
+    return None
+
+
+def _adapt_prior_to_extracted_frames(prior: Dict[str, str], image_dir: Path) -> Dict[str, str]:
+    """Expresses a sensor-frame calibration prior in the frame of the extracted images.
+
+    yuv_sensor undistorts with the unchanged camera matrix and then rotates the frame upright
+    (extraction_info.json: sensor_orientation, undistorted), while session.json keeps the sensor-frame
+    calibration. Rotating the intrinsics with the image and dropping the distortion of undistorted
+    frames keeps the prior consistent with the pixels COLMAP actually sees.
+
+    Args:
+        prior: Sensor-frame prior from _extract_prior_from_json (OPENCV).
+        image_dir: Directory holding the extracted frames and extraction_info.json.
+
+    Returns:
+        Dict[str, str]: Adapted prior, or the input prior when no extraction info applies.
+    """
+    info_path = image_dir / "extraction_info.json"
+    if not info_path.is_file():
+        return prior
+    try:
+        with open(info_path, "r", encoding="utf-8") as f:
+            info = json.load(f)
+        orientation = int(info.get("sensor_orientation", 0)) % 360
+        undistorted = bool(info.get("undistorted", False))
+        fx, fy, cx, cy, k1, k2, p1, p2 = (float(v) for v in prior["camera_params"].split(","))
+    except Exception:
+        return prior
+    if orientation not in (0, 90, 180, 270) or (orientation == 0 and not undistorted):
+        return prior
+
+    size = _first_image_size(image_dir)
+    if size is None:
+        return prior
+    # Size of the frame before the upright rotation.
+    old_w, old_h = size if orientation in (0, 180) else (size[1], size[0])
+
+    if orientation == 90:
+        fx, fy, cx, cy, p1, p2 = fy, fx, old_h - cy, cx, p2, -p1
+    elif orientation == 180:
+        cx, cy, p1, p2 = old_w - cx, old_h - cy, -p1, -p2
+    elif orientation == 270:
+        fx, fy, cx, cy, p1, p2 = fy, fx, cy, old_w - cx, -p2, p1
+
+    if undistorted:
+        return {"camera_model": "PINHOLE", "camera_params": f"{fx:.6f},{fy:.6f},{cx:.6f},{cy:.6f}"}
+    return {
+        "camera_model": "OPENCV",
+        "camera_params": f"{fx:.6f},{fy:.6f},{cx:.6f},{cy:.6f},{k1:.6f},{k2:.6f},{p1:.6f},{p2:.6f}",
+    }

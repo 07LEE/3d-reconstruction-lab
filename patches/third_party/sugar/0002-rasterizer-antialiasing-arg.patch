@@ -1,0 +1,66 @@
+diff --git a/sugar_scene/sugar_model.py b/sugar_scene/sugar_model.py
+--- a/sugar_scene/sugar_model.py
++++ b/sugar_scene/sugar_model.py
+@@ -2222,7 +2222,8 @@
+             sh_degree=sh_deg,
+             campos=camera_center,
+             prefiltered=False,
+-            debug=False
++            debug=False,
++            antialiasing=False
+         )
+     
+         rasterizer = GaussianRasterizer(raster_settings=raster_settings)
+@@ -2314,7 +2315,7 @@
+                 print("scales", scales.shape)
+             print("screenspace_points", screenspace_points.shape)
+         
+-        rendered_image, radii = rasterizer(
++        rendered_image, radii, *_ = rasterizer(
+             means3D = positions,
+             means2D = means2D,
+             shs = shs,
+diff --git a/sugar_scene/sugar_compositor.py b/sugar_scene/sugar_compositor.py
+--- a/sugar_scene/sugar_compositor.py
++++ b/sugar_scene/sugar_compositor.py
+@@ -117,7 +117,8 @@
+             sh_degree=sh_deg,
+             campos=camera_center,
+             prefiltered=False,
+-            debug=False
++            debug=False,
++            antialiasing=False
+         )
+     
+         rasterizer = GaussianRasterizer(raster_settings=raster_settings)
+@@ -217,7 +218,7 @@
+                 print("scales", scales.shape)
+             print("screenspace_points", screenspace_points.shape)
+         
+-        rendered_image, radii = rasterizer(
++        rendered_image, radii, *_ = rasterizer(
+             means3D = positions,
+             means2D = means2D,
+             shs = shs,
+diff --git a/gaussian_splatting/gaussian_renderer/__init__.py b/gaussian_splatting/gaussian_renderer/__init__.py
+--- a/gaussian_splatting/gaussian_renderer/__init__.py
++++ b/gaussian_splatting/gaussian_renderer/__init__.py
+@@ -45,7 +45,8 @@
+         sh_degree=pc.active_sh_degree,
+         campos=viewpoint_camera.camera_center,
+         prefiltered=False,
+-        debug=pipe.debug
++        debug=pipe.debug,
++        antialiasing=False
+     )
+ 
+     rasterizer = GaussianRasterizer(raster_settings=raster_settings)
+@@ -82,7 +83,7 @@
+         colors_precomp = override_color
+ 
+     # Rasterize visible Gaussians to image, obtain their radii (on screen). 
+-    rendered_image, radii = rasterizer(
++    rendered_image, radii, *_ = rasterizer(
+         means3D = means3D,
+         means2D = means2D,
+         shs = shs,

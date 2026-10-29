@@ -12,7 +12,7 @@ fi
 source "$(dirname "$0")/utils/activate_backend.sh"
 activate_backend tsdf
 
-# Run patch & environment verification inside activated gs_train environment
+# Run patch & environment verification inside activated gs environment
 "$(dirname "$0")/utils/verify_patches.sh" || { echo "[FATAL] Patch verification failed!"; exit 1; }
 
 INPUT_DATASET="${1:-$DATA_DIR}"

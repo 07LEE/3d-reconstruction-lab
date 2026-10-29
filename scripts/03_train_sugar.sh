@@ -65,6 +65,8 @@ ITERATION_TO_LOAD="${3:-${GS_ITERATIONS:-30000}}"
 # Execute SuGaR Pipeline
 echo "Starting SuGaR Mesh Extraction (Scene: $SCENE_NAME, Source Checkpoint: $GS_CHECKPOINT, Iteration: $ITERATION_TO_LOAD, Active SfM: $ACTIVE_SFM)..."
 bench_start
+# output/ is SuGaR's scratch directory; leftovers from an earlier run or scene would pass the checks below
+rm -rf output
 python train_full_pipeline.py \
     -s "$PROJECT_ROOT/$INPUT_DATASET" \
     --gs_output_dir "$GS_CHECKPOINT" \
@@ -76,12 +78,13 @@ python train_full_pipeline.py \
 
 # Sync output files to scene specific mesh directory
 echo "Syncing extracted SuGaR results to $SUGAR_MESH_DIR..."
-if [ -d "output" ] && compgen -G "output/*" > /dev/null; then
-    cp -r output/* "$SUGAR_MESH_DIR/"
-else
-    echo "[FATAL] SuGaR pipeline failed: No exported meshes found in output/" >&2
+# train_full_pipeline.py launches each stage with os.system and ignores its exit code, so success
+# is judged by the final product: the refined mesh exported as .obj
+if ! compgen -G "output/refined_mesh/*/*.obj" > /dev/null; then
+    echo "[FATAL] SuGaR pipeline failed: no refined mesh (.obj) found in output/refined_mesh/" >&2
     exit 1
 fi
+cp -r output/* "$SUGAR_MESH_DIR/"
 
 bench_record "sugar_mesh" "$SCENE_NAME" "$SUGAR_MESH_DIR" \
     "source_model=$GS_SUBDIR" "regularization=$SUGAR_REGULARIZATION" "active_sfm=$ACTIVE_SFM"

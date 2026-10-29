@@ -67,7 +67,7 @@ if [ "$BACKEND" = "mipsplatting" ]; then
     METRICS_EXTRA_ARGS+=("-r" "$TRAIN_RES")
 fi
 
-# Render in the training environment (PlanarGS needs diff_plane_rasterization from gs_sugar, not gs_train)
+# Render in the training backend's environment (each backend selects its own rasterizer build)
 source "$(dirname "$0")/utils/activate_backend.sh"
 activate_backend "$BACKEND"
 

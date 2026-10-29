@@ -117,9 +117,11 @@ if [ -d "${INPUT_DATASET}/cache/sfm" ]; then
         PROMOTION_INFO=$(python3 -c '
 import pycolmap, sys, glob, os
 models_dir = sys.argv[1]
+# The largest model is written to the sfm root; only the smaller ones land in models/.
+candidates = [os.path.dirname(models_dir)] + sorted(glob.glob(os.path.join(models_dir, "*")))
 best_model = ""
 max_imgs = -1
-for m in sorted(glob.glob(os.path.join(models_dir, "*"))):
+for m in candidates:
     if os.path.isdir(m):
         try:
             rec = pycolmap.Reconstruction(m)
@@ -136,7 +138,9 @@ if best_model:
         if [ -n "$PROMOTION_INFO" ]; then
             BEST_MODEL=$(echo "$PROMOTION_INFO" | cut -d'|' -f1)
             REG_COUNT=$(echo "$PROMOTION_INFO" | cut -d'|' -f2)
-            if [ -n "$BEST_MODEL" ] && [ -d "$BEST_MODEL" ]; then
+            if [ "$BEST_MODEL" = "${INPUT_DATASET}/cache/sfm" ]; then
+                log_info "Largest model is the sfm root ($REG_COUNT registered images); keeping it in ${SPARSE_METHOD_DIR}."
+            elif [ -n "$BEST_MODEL" ] && [ -d "$BEST_MODEL" ]; then
                 log_info "Promoting submodel $(basename "$BEST_MODEL") ($REG_COUNT registered images) to root of ${SPARSE_METHOD_DIR}..."
                 # Clear residual sparse files before promoting largest model
                 rm -f "${SPARSE_METHOD_DIR}/cameras.bin" "${SPARSE_METHOD_DIR}/images.bin" "${SPARSE_METHOD_DIR}/points3D.bin" "${SPARSE_METHOD_DIR}/points3D.ply" 2>/dev/null || true
@@ -149,7 +153,8 @@ if [ -d "${INPUT_DATASET}/0" ]; then
     mv "${INPUT_DATASET}/0"/* "$SPARSE_METHOD_DIR/" 2>/dev/null || true
     rmdir "${INPUT_DATASET}/0" 2>/dev/null || true
 fi
-if [ -f "${SPARSE_BASE_DIR}/cameras.bin" ]; then
+# hloc writes only under cache/ and ${SPARSE_METHOD_DIR}; *.bin left in sparse/ come from training stages and are stale.
+if [ "$METHOD" != "hloc" ] && [ -f "${SPARSE_BASE_DIR}/cameras.bin" ]; then
     mv "${SPARSE_BASE_DIR}"/*.bin "$SPARSE_METHOD_DIR/" 2>/dev/null || true
     mv "${SPARSE_BASE_DIR}"/*.ply "$SPARSE_METHOD_DIR/" 2>/dev/null || true
 fi

@@ -50,6 +50,18 @@ cuobjdump --list-elf <path_to_extension>/_C*.so | grep -o "sm_[0-9]*"
 export NVCC_PREPEND_FLAGS="-ccbin /usr/bin/g++-12"
 ```
 
+### 5. Exception Specification Errors in mathcalls.h (glibc 2.41+ with CUDA 12.x)
+
+- Symptom: nvcc fails on every .cu file with `exception specification is incompatible with that of previous function "cospi"` (also `sinpi`, `rsqrt`, `cospif`, `sinpif`, `rsqrtf`) pointing at `/usr/include/x86_64-linux-gnu/bits/mathcalls.h`.
+- Root Cause: glibc 2.41+ (Ubuntu 26.04 ships 2.43) declares these functions `noexcept`, while the CUDA 12.x `crt/math_functions.h` declares them without it. CUDA 12.8 and 12.9 both conflict, 13.0 still conflicts on `rsqrt`/`rsqrtf`, 13.2 does not. The host compiler version does not matter, the clash is between two headers.
+- Solution: build with the CUDA 13.2 toolkit (`cuda132`, selected automatically for the unified `gs` environment). The split `gs_*` environments (CUDA 12.8) cannot be rebuilt on such a host; their existing binaries keep working.
+
+### 6. Host Code Compiled Against the Wrong CUDA Version, or Linked with an Old ld
+
+- Symptom: `torch_scatter` reports it was compiled with CUDA 12.4 while PyTorch has 13.0, or a CMake CUDA/C++ compiler test fails with `libc.so.6: undefined reference to __rseq_size@GLIBC_2.35`.
+- Root Cause: Conda toolkits keep headers in `targets/x86_64-linux/include`, not `$CUDA_HOME/include`, so g++ picks up a system CUDA from `/usr/include`. The binutils `ld` in the toolkit environment is older than the system glibc and cannot link executables against it.
+- Solution: `scripts/utils/setup_build_env.sh` puts the toolkit headers on `CPATH`. CMake based builds (tetranerf) put `/usr/bin` first on `PATH` and pass `NVCC_APPEND_FLAGS="-Xcompiler -B/usr/bin"` so the system linker is used.
+
 ### 4. Dead Lock File Hangs (torch.utils.cpp_extension.load)
 
 - Symptom: JIT compilation (e.g. nvdiffrast_plugin) hangs indefinitely without throwing an exception or timing out.

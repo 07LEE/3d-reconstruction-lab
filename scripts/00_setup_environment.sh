@@ -7,7 +7,6 @@ set -e
 
 # Argument Parsing
 TARGET_ENVS=()
-BUILD_ALL=0
 
 while [ $# -gt 0 ]; do
     case "$1" in
@@ -19,10 +18,6 @@ while [ $# -gt 0 ]; do
             TARGET_ENVS+=("$2")
             shift 2
             ;;
-        --all)
-            BUILD_ALL=1
-            shift
-            ;;
         *)
             echo "[FATAL] Unknown option: $1"
             exit 1
@@ -30,19 +25,16 @@ while [ $# -gt 0 ]; do
     esac
 done
 
-ALL_ENVS=(3drc gs_train gs_sugar gs_group gs_milo gs_scaffold gs_mipsplatting)
-# 'gs' replaces every gs_* environment when scripts run with GS_ENV_MODE=unified (ADR 0018)
-UNIFIED_ENV=gs
+# The single Gaussian environment (ADR 0018); GS_ENV_NAME overrides its name
+UNIFIED_ENV="${GS_ENV_NAME:-gs}"
 
-if [ "$BUILD_ALL" = "1" ]; then
-    TARGET_ENVS=("${ALL_ENVS[@]}")
-elif [ "${#TARGET_ENVS[@]}" -eq 0 ]; then
-    TARGET_ENVS=(3drc gs_train)
+if [ "${#TARGET_ENVS[@]}" -eq 0 ]; then
+    TARGET_ENVS=(3drc "$UNIFIED_ENV")
 fi
 
 # Validate target environment names
 for e in "${TARGET_ENVS[@]}"; do
-    printf '%s\n' "${ALL_ENVS[@]}" "$UNIFIED_ENV" | grep -qx "$e" \
+    printf '%s\n' 3drc "$UNIFIED_ENV" | grep -qx "$e" \
         || { echo "[FATAL] Unknown environment: $e"; exit 1; }
 done
 
@@ -73,33 +65,9 @@ TARGET_ENVS=("${UNIQUE_TARGET_ENVS[@]}")
 declare -A ENV_EXTS
 ENV_EXTS[3drc]="third_party/hloc"
 
-ENV_EXTS[gs_train]="third_party/gaussian-splatting/submodules/diff-gaussian-rasterization
-third_party/gaussian-splatting/submodules/simple-knn
-third_party/2d-gaussian-splatting/submodules/diff-surfel-rasterization"
-
-ENV_EXTS[gs_scaffold]="third_party/scaffold-gs/submodules/diff-gaussian-rasterization
-third_party/scaffold-gs/submodules/simple-knn"
-
-ENV_EXTS[gs_mipsplatting]="third_party/mip-splatting/submodules/diff-gaussian-rasterization
-third_party/mip-splatting/submodules/simple-knn"
-
-ENV_EXTS[gs_sugar]="third_party/gaussian-splatting/submodules/diff-gaussian-rasterization
-third_party/gaussian-splatting/submodules/simple-knn
-third_party/PlanarGS/submodules/diff-plane-rasterization"
-
-# Note: gs_group rasterizer is resolved conditionally inside build_env()
-ENV_EXTS[gs_group]="third_party/gaussian-splatting/submodules/simple-knn"
-
-ENV_EXTS[gs_milo]="third_party/milo/submodules/diff-gaussian-rasterization
-third_party/milo/submodules/diff-gaussian-rasterization_ms
-third_party/milo/submodules/diff-gaussian-rasterization_gof
-third_party/milo/submodules/simple-knn
-third_party/milo/submodules/fused-ssim"
-
 # Unified env: extensions with unique module names are shared. All simple-knn copies have
 # identical sources (patches only add includes), so one build serves every backend.
-ENV_EXTS[gs]="third_party/gaussian-splatting/submodules/simple-knn
-third_party/2d-gaussian-splatting/submodules/diff-surfel-rasterization
+ENV_EXTS["$UNIFIED_ENV"]="third_party/2d-gaussian-splatting/submodules/diff-surfel-rasterization
 third_party/PlanarGS/submodules/diff-plane-rasterization
 third_party/milo/submodules/diff-gaussian-rasterization_ms
 third_party/milo/submodules/diff-gaussian-rasterization_gof
@@ -162,21 +130,27 @@ done
 
 # 4. Build CUDA Extensions & Submodules across Target Environments
 echo -e "\n[Step 4/5] Building CUDA Extensions and Submodules..."
+# torch (cu130) and the build toolkit must share a CUDA major version, so build with CUDA 13.2 from 'cuda132'
+BUILD_TOOLKIT_ENV="${BUILD_TOOLKIT_ENV:-cuda132}"
+export BUILD_TOOLKIT_ENV
+if [ "$BUILD_TOOLKIT_ENV" = "cuda132" ] && ! conda env list | awk '{print $1}' | grep -qx "cuda132"; then
+    echo "  • Creating build toolkit env 'cuda132' (CUDA 13.2)..."
+    conda env create -f envs/cuda132.yml || { echo "[FATAL] Failed to create the cuda132 toolkit env."; exit 1; }
+fi
 export CC=/usr/bin/gcc-12
 export CXX=/usr/bin/g++-12
 source scripts/utils/setup_build_env.sh || { echo "[FATAL] Build environment setup failed."; exit 1; }
 
-# Helper function for absolute isolated pip install
+# Installs into site-packages (non-editable) so a rebuild never overwrites a .so that is imported elsewhere
 install_ext() {
-    local target_env="$1"
-    local ext_path="$2"
-    local pip_bin="$CONDA_PATH/envs/$target_env/bin/pip"
+    local ext_path="$1"
+    local pip_bin="$CONDA_PATH/envs/$UNIFIED_ENV/bin/pip"
 
     [ -d "$ext_path" ] || { echo "[FATAL] Missing extension path: $ext_path"; exit 1; }
-    [ -x "$pip_bin" ] || { echo "[FATAL] No pip binary found in environment: $target_env"; exit 1; }
+    [ -x "$pip_bin" ] || { echo "[FATAL] No pip binary found in environment: $UNIFIED_ENV"; exit 1; }
 
-    echo "Building $ext_path -> $target_env..."
-    "$pip_bin" install --no-cache-dir --no-build-isolation -e "$ext_path"
+    echo "Building $ext_path -> $UNIFIED_ENV..."
+    "$pip_bin" install --no-cache-dir --no-build-isolation --no-deps "$ext_path"
 }
 
 # Builds one rasterizer variant into .ext/<variant>/ (not site-packages) for the unified env
@@ -191,13 +165,55 @@ install_rasterizer_variant() {
     "$pip_bin" install --no-cache-dir --no-build-isolation --no-deps --target "$GS_EXT_ROOT/$variant" "$ext_path"
 }
 
+# MILo's tetra-nerf: the pip package is Python-only, so the C++ extension is built with CMake
+# against the target env's torch (CMake's Torch config forces ABI=0 while the cu128 wheels use ABI=1).
+install_tetra_nerf() {
+    local target_env="$1"
+    local env_prefix="$CONDA_PATH/envs/$target_env"
+    local src="third_party/milo/submodules/tetra_triangulation"
+    local build_dir site_ext abi torch_cmake
+
+    [ -d "$src" ] || { echo "[FATAL] Missing extension path: $src"; exit 1; }
+    build_dir="$(mktemp -d)"
+    abi="$("$env_prefix/bin/python" -c 'import torch; print(int(torch._C._GLIBCXX_USE_CXX11_ABI))')"
+    torch_cmake="$("$env_prefix/bin/python" -c 'import torch; print(torch.utils.cmake_prefix_path)')"
+
+    # The conda ld shipped with the CUDA toolkit cannot link against a newer system glibc, so the system
+    # linker goes first for g++ (PATH) and for the nvcc host-link step (-B).
+    echo "Building $src -> $target_env (tetranerf C++ extension)..."
+    "$env_prefix/bin/pip" install --no-cache-dir --no-build-isolation --no-deps "$src"
+    PATH="/usr/bin:$env_prefix/bin:$PATH" NVCC_APPEND_FLAGS="-Xcompiler -B/usr/bin" "$env_prefix/bin/cmake" -S "$src" -B "$build_dir" \
+        -DCMAKE_PREFIX_PATH="$torch_cmake;$env_prefix" -DCONDA_PREFIX="$env_prefix" \
+        -DPython_EXECUTABLE="$env_prefix/bin/python" -DCMAKE_CUDA_COMPILER="$CUDA_HOME/bin/nvcc" \
+        -DCMAKE_CUDA_HOST_COMPILER="$CXX" -DCMAKE_CUDA_ARCHITECTURES=120 \
+        "-DCMAKE_CXX_FLAGS_RELEASE=-O3 -DNDEBUG -D_GLIBCXX_USE_CXX11_ABI=$abi" \
+        || { echo "[FATAL] tetranerf CMake configure failed"; exit 1; }
+    PATH="/usr/bin:$env_prefix/bin:$PATH" NVCC_APPEND_FLAGS="-Xcompiler -B/usr/bin" "$env_prefix/bin/cmake" --build "$build_dir" -j"$(nproc)" \
+        || { echo "[FATAL] tetranerf build failed"; exit 1; }
+    site_ext="$("$env_prefix/bin/python" -c 'import tetranerf.utils.extension as e, os; print(os.path.dirname(e.__file__))' 2>/dev/null || true)"
+    [ -n "$site_ext" ] || site_ext="$env_prefix/lib/python3.10/site-packages/tetranerf/utils/extension"
+    cp "$build_dir"/tetranerf/utils/extension/*.so "$site_ext"/
+    rm -rf "${build_dir:?}"
+}
+
 build_env() {
     local env_name="$1"
 
     if [ "$env_name" = "$UNIFIED_ENV" ]; then
+        # nvdiffrast has no Python 3.10 wheel on PyPI; install from the milo submodule
+        # non-editable: milo puts submodules/ on sys.path, where an editable nvdiffrast resolves to a bare namespace dir
+        "$CONDA_PATH/envs/$UNIFIED_ENV/bin/pip" install --no-cache-dir --no-build-isolation --no-deps third_party/milo/submodules/nvdiffrast
+        # scaffold-gs imports torch_scatter, which has no wheel for this torch/CUDA combination
+        "$CONDA_PATH/envs/$UNIFIED_ENV/bin/pip" install --no-cache-dir --no-build-isolation torch_scatter==2.1.2
+        # simple_knn is a namespace package (no __init__.py); an editable install cannot be imported
+        "$CONDA_PATH/envs/$UNIFIED_ENV/bin/pip" install --no-cache-dir --no-build-isolation --no-deps third_party/gaussian-splatting/submodules/simple-knn
         for variant in inria scaffold mipsplatting milo grouping; do
             install_rasterizer_variant "$variant"
         done
+        # PlanarGS and SuGaR import pytorch3d; no wheel exists for this torch/CUDA combination (pinned to the commit SuGaR was validated with)
+        "$CONDA_PATH/envs/$UNIFIED_ENV/bin/pip" install --no-cache-dir --no-build-isolation --no-deps \
+            "git+https://github.com/facebookresearch/pytorch3d.git@9381c4016376345bb795b97c45a6c2de66db354a"
+        install_tetra_nerf "$UNIFIED_ENV"
     fi
 
     if [ "$env_name" = "3drc" ] && [ -f "requirements.txt" ]; then
@@ -205,16 +221,9 @@ build_env() {
         "$CONDA_PATH/envs/3drc/bin/pip" install --no-cache-dir -r requirements.txt
     fi
 
-    if [ "$env_name" = "gs_group" ]; then
-        if [ -d "third_party/gaussian-grouping/submodules/diff-gaussian-rasterization" ]; then
-            install_ext "gs_group" "third_party/gaussian-grouping/submodules/diff-gaussian-rasterization"
-        else
-            install_ext "gs_group" "third_party/gaussian-splatting/submodules/diff-gaussian-rasterization"
-        fi
-    fi
-
     while IFS= read -r ext; do
-        [ -n "$ext" ] && install_ext "$env_name" "$ext"
+        [ -z "$ext" ] && continue
+        install_ext "$ext"
     done <<< "${ENV_EXTS[$env_name]}"
 }
 
@@ -223,9 +232,9 @@ for env_name in "${TARGET_ENVS[@]}"; do
 done
 
 # Activate primary target environment
-active_env="gs_train"
-if ! conda env list | awk '{print $1}' | grep -qx "gs_train"; then
-    active_env="${TARGET_ENVS[0]}"
+active_env="${TARGET_ENVS[0]}"
+if printf '%s\n' "${TARGET_ENVS[@]}" | grep -qx "$UNIFIED_ENV"; then
+    active_env="$UNIFIED_ENV"
 fi
 echo "Activating Conda env '$active_env'..."
 conda activate "$active_env"
