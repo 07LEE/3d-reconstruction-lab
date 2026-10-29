@@ -181,7 +181,8 @@ case "$COMMAND" in
             fi
         fi
         echo "[3DRC CLI] Executing Step 3: SuGaR Mesh Reconstruction..."
-        ./scripts/03_train_sugar.sh ${ARG_DATASET:+"$ARG_DATASET"} ${ARG_SOURCE_MODEL:+"$ARG_SOURCE_MODEL"} "${GS_ITERATIONS:-30000}"
+        # The dataset always goes first so an omitted one cannot shift the source model into its slot
+        ./scripts/03_train_sugar.sh "${ARG_DATASET:-$DATA_DIR}" ${ARG_SOURCE_MODEL:+"$ARG_SOURCE_MODEL"}
         ;;
     milo)
         ARG_DATASET="${2:-}"
@@ -203,7 +204,8 @@ case "$COMMAND" in
             fi
         fi
         echo "[3DRC CLI] Executing Step 3c: TSDF Mesh Extraction..."
-        ./scripts/03c_mesh_tsdf.sh ${ARG_DATASET:+"$ARG_DATASET"} ${ARG_SOURCE_MODEL:+"$ARG_SOURCE_MODEL"}
+        # The dataset always goes first so an omitted one cannot shift the source model into its slot
+        ./scripts/03c_mesh_tsdf.sh "${ARG_DATASET:-$DATA_DIR}" ${ARG_SOURCE_MODEL:+"$ARG_SOURCE_MODEL"}
         ;;
     grouping)
         ARG_DATASET="${2:-}"
