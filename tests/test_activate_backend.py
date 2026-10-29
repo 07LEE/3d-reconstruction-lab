@@ -70,7 +70,7 @@ def test_unknown_backend_fails(tmp_path):
 
 def test_every_stage_script_activates_a_known_backend():
     for script in sorted((PROJECT_ROOT / "scripts").glob("0[2-4]*.sh")):
-        lines = [l.split() for l in script.read_text().splitlines() if l.startswith("activate_backend ")]
+        lines = [l.split() for l in script.read_text().splitlines() if l.startswith(("activate_backend ", "train_env "))]
         assert len(lines) == 1, script.name
         assert lines[0][1] in BACKENDS, script.name
         assert "conda activate" not in script.read_text(), script.name
