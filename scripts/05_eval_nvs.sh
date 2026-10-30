@@ -30,9 +30,11 @@ fi
 MODEL_DIR="$(cd "$MODEL_DIR" && pwd)"
 
 # Backend resolution from the output layout; override with NVS_BACKEND=3dgs|planargs|2dgs|scaffoldgs|mipsplatting
+# Only the part below outputs/<scene>/ is looked at, so a scene or parent directory named like a backend cannot decide it
+MODEL_SCOPE="/${MODEL_DIR#"$PROJECT_ROOT/$OUTPUT_DIR/$SCENE_NAME/"}"
 BACKEND="${NVS_BACKEND:-}"
 if [ -z "$BACKEND" ]; then
-    case "$MODEL_DIR" in
+    case "$MODEL_SCOPE" in
         */3dgs/planargs*) BACKEND="planargs" ;;
         */2dgs*)          BACKEND="2dgs" ;;
         */scaffoldgs*)    BACKEND="scaffoldgs" ;;
@@ -62,7 +64,8 @@ fi
 
 # Mip-Splatting names its render folders by training resolution (test_preds_<r>), so metrics.py needs it
 if [ "$BACKEND" = "mipsplatting" ]; then
-    TRAIN_RES=$(grep -o "resolution=-\?[0-9]\+" "$CFG_ARGS" | head -n 1 | cut -d= -f2)
+    # "|| true": a grep without a match must reach the explanation below instead of ending the script under pipefail
+    TRAIN_RES=$(grep -o "resolution=-\?[0-9]\+" "$CFG_ARGS" | head -n 1 | cut -d= -f2 || true)
     [ -n "$TRAIN_RES" ] || log_fatal "Training resolution not found in ${CFG_ARGS}"
     METRICS_EXTRA_ARGS+=("-r" "$TRAIN_RES")
 fi
