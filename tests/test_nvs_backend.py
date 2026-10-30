@@ -160,6 +160,7 @@ def test_model_trained_without_a_holdout_split_is_rejected(workspace):
     assert result.returncode != 0
     assert python_calls(workspace) == []
     assert "without a holdout split" in result.stdout + result.stderr
+    assert "Move or delete" in result.stdout + result.stderr
 
 def test_mip_splatting_needs_the_training_resolution(workspace):
     add_model(workspace, "mipsplatting", cfg="Namespace(eval=True)")

@@ -50,7 +50,7 @@ fi
 CFG_ARGS="${MODEL_DIR}/cfg_args"
 [ -f "$CFG_ARGS" ] || log_fatal "cfg_args not found in ${MODEL_DIR}; is this a trained model directory?"
 if ! grep -q "eval=True" "$CFG_ARGS"; then
-    log_fatal "Model at ${MODEL_DIR} was trained without a holdout split. Retrain with GS_EVAL_MODE=\"true\" to evaluate NVS metrics."
+    log_fatal "Model at ${MODEL_DIR} was trained without a holdout split. Move or delete it, then retrain with GS_EVAL_MODE=\"true\" to evaluate NVS metrics."
 fi
 
 # Mip-Splatting names its render folders by training resolution (test_preds_<r>), so metrics.py needs it
