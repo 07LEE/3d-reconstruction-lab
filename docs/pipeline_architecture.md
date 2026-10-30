@@ -152,6 +152,7 @@ GS_CHECKPOINT_INTERVAL=5000 ./scripts/02_train_3dgs.sh data/<scene_name>
 Running a training stage again on the same scene works in the same model directory.
 
 - When an earlier run left a checkpoint, the stage resumes from the latest one. A checkpoint that is already at the target iteration means the model is finished, so the stage reports that and ends without starting the trainer.
+- Resuming sets `TORCH_FORCE_NO_WEIGHTS_ONLY_LOAD=1` for the trainer, because newer torch versions refuse these checkpoints by default. This relies on every checkpoint in a model directory having been written by the pipeline itself.
 - A checkpoint older than the SfM sparse points is ignored and the stage trains from scratch.
 - A directory that holds a model trained with the other `GS_EVAL_MODE` setting is refused. The trainers rewrite cfg_args on every start and restore whatever checkpoint they are given, so continuing such a model would keep the test views in training while cfg_args claims a holdout split, and the NVS evaluation would accept it. Move or delete the directory to train from scratch.
 

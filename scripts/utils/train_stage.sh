@@ -143,6 +143,8 @@ train_extra_args() {
             log_info "Auto-resuming ${TRAIN_BACKEND} training from latest checkpoint: $(basename "$latest")"
             EXTRA_TRAIN_ARGS+=("--start_checkpoint" "$latest")
             RESUMED_FROM="$(basename "$latest")"
+            # torch 2.6+ refuses these checkpoints (they hold numpy scalars) unless loading is allowed; the pipeline wrote them
+            export TORCH_FORCE_NO_WEIGHTS_ONLY_LOAD=1
         fi
     fi
 }

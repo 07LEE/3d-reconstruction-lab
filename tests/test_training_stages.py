@@ -99,6 +99,7 @@ def build_workspace(root: Path, script: str) -> Path:
         f'#!{sys.executable}\n'
         'import json, os, sys\n'
         f'open("{root}/trainer.jsonl", "a").write(json.dumps({{"cwd": os.getcwd(), "args": sys.argv[1:]}}) + "\\n")\n'
+        f'open("{root}/trainer_env.jsonl", "a").write(json.dumps(os.environ.get("TORCH_FORCE_NO_WEIGHTS_ONLY_LOAD")) + "\\n")\n'
         'sys.exit(int(os.environ.get("TRAINER_EXIT", "0")))\n'
     )
     for name in ("conda", "python"):
@@ -125,6 +126,10 @@ def jsonl(path: Path) -> list:
 
 def trainer_calls(root: Path) -> list:
     return jsonl(root / "trainer.jsonl")
+
+def trainer_env(root: Path) -> list:
+    """TORCH_FORCE_NO_WEIGHTS_ONLY_LOAD as each trainer call saw it (null when it was not set)."""
+    return jsonl(root / "trainer_env.jsonl")
 
 def bench_calls(root: Path) -> list:
     return jsonl(root / "bench.jsonl")
@@ -339,6 +344,24 @@ def test_finished_model_is_not_trained_again(workspace, stage, checkpoint, env):
     assert bench_calls(workspace) == []
     assert (model / "pipeline_meta.json").read_text() == '{"stage": "earlier run"}'
     assert (model / "cfg_args").read_text() == before
+
+# Newer torch refuses the checkpoints the trainers wrote (they hold numpy scalars) unless loading is allowed.
+# Only a resumed run loads one, so only a resumed run gets the setting.
+def test_resumed_training_may_load_its_checkpoint(workspace, stage):
+    prepare_model(workspace, stage, eval_flag="False", checkpoints=("chkpnt10000.pth",))
+    assert run_stage(workspace, stage).returncode == 0
+    assert trainer_env(workspace) == ["1"]
+
+def test_fresh_training_keeps_torch_loading_strict(workspace, stage):
+    add_sfm_model(workspace)
+    assert run_stage(workspace, stage).returncode == 0
+    assert trainer_env(workspace) == [None]
+
+def test_ignored_stale_checkpoint_keeps_torch_loading_strict(workspace, stage):
+    model = prepare_model(workspace, stage, eval_flag="False", checkpoints=("chkpnt10000.pth",))
+    set_age(model / "chkpnt10000.pth", 2000)
+    assert run_stage(workspace, stage).returncode == 0
+    assert trainer_env(workspace) == [None]
 
 def test_trainer_failure_stops_the_stage(workspace, stage):
     add_sfm_model(workspace)
