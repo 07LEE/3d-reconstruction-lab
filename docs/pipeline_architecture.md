@@ -2,7 +2,7 @@
 title: Pipeline Architecture Guide
 description: Technical architecture, stage workflows, and execution guide for the 3DRC reconstruction pipeline.
 category: guide
-last_updated: 2026-10-26
+last_updated: 2026-10-30
 ---
 
 # 3DRC Pipeline Architecture Guide
@@ -147,6 +147,31 @@ By default, training scripts save intermediate model checkpoints at `10000`, `20
 GS_CHECKPOINT_INTERVAL=5000 ./scripts/02_train_3dgs.sh data/<scene_name>
 ```
 
+### Adding a Training Backend
+
+A training backend is one row in configs/backends.txt plus one stage script. The row drives the train command, the shortcut and the help text of run_3drc.sh, the model directory and evaluation repository used by the NVS evaluation, and the rasterizer build chosen by activate_backend.sh. The columns are explained at the top of the file.
+
+The stage scripts share their dataset, checkpoint and bookkeeping steps through scripts/utils/train_stage.sh, so a backend script only declares its trainer command:
+
+```bash
+source "$(dirname "$0")/utils/train_stage.sh"
+
+train_env <backend> "$@"                # config, backend environment, patch verification
+train_dataset <output_subdir> "$@"      # SfM model, images link, outputs/<scene_name>/<output_subdir>/
+train_extra_args                        # EXTRA_TRAIN_ARGS: --eval, checkpoint, save and resume arguments
+
+bench_start
+python third_party/<repo>/train.py -s "$TARGET_DATA_DIR" -m "$MODEL_OUTPUT" ... "${EXTRA_TRAIN_ARGS[@]}"
+
+train_finish <bench_stage> "<engine name>"   # timing record and pipeline_meta.json
+```
+
+- The trainer command stays in each script because its flags differ per backend. 02c_train_2dgs.sh is a minimal example.
+- `train_env` and `train_dataset` are separate so a backend can prepare its toolchain in between (PlanarGS sources the CUDA build environment there).
+- The repo column must be a submodule under third_party/, and the variant column must be one of the rasterizer builds made by scripts/00_setup_environment.sh. A backend with a rasterizer build of its own also needs entries in that script and in scripts/utils/verify_patches.sh. Submodules and patches are covered in the [Submodule Patches Guide](submodule_patches.md).
+- The Python CLI (src/cli/main.py) keeps its own backend lists, and tests/test_cli.py fails when they drift from the registry. The mesh rules in run_3drc.sh (SuGaR needs a 3dgs or planargs model, TSDF needs a 2dgs model) are not in the registry either.
+- The backend tables in tests/test_training_stages.py, tests/test_activate_backend.py and tests/test_nvs_backend.py pin each backend's command lines, so a new backend gets a row there. tests/smoke_test/run_smoke_test.sh runs every backend end to end on a GPU.
+
 ## Step 3: 3D Mesh Reconstruction (SuGaR, MILo & TSDF)
 
 ### Step 3 Overview & Engines
@@ -227,7 +252,7 @@ python -m src.mesh.eval_mesh --mesh outputs/<scene_name>/mesh/sugar/sugarfine_me
 Renders held-out test views with the backend's own `render.py --skip_train` and computes PSNR / SSIM / LPIPS with its `metrics.py`. Metrics are written to `<model_dir>/results.json` and `per_view.json`.
 
 - The model must be trained with `GS_EVAL_MODE="true"` (every 8th view held out). Models without `eval=True` in `cfg_args` are rejected.
-- The backend is inferred from the output path (`3dgs/inria_30k`, `3dgs/planargs`, `2dgs`, `scaffoldgs`, `mipsplatting`); override with `NVS_BACKEND`.
+- The backend is inferred from the model directory below outputs/<scene_name>/ (3dgs/inria_30k, 3dgs/planargs, 2dgs, scaffoldgs, mipsplatting, as listed in configs/backends.txt), so a scene or parent directory that carries a backend's name does not matter. Override with `NVS_BACKEND`.
 
 ```bash
 GS_EVAL_MODE=true ./scripts/run_3drc.sh train 2dgs data/<scene_name>   # or set GS_EVAL_MODE in configs/default_config.sh
