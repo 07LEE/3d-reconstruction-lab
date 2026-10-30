@@ -35,3 +35,26 @@ def run_cli(monkeypatch, *argv):
 def test_cli_maps_to_run_3drc_arguments(monkeypatch, captured, argv, expected):
     run_cli(monkeypatch, *argv)
     assert captured == [(expected, cli.PROJECT_ROOT)]
+
+# The CLI keeps its own backend lists, so these tests fail when it drifts from configs/backends.txt
+REGISTRY_ROWS = [line.split() for line in (cli.PROJECT_ROOT / "configs" / "backends.txt").read_text().splitlines()
+                 if line.strip() and not line.lstrip().startswith("#")]
+TRAINING_BACKENDS = [row[0] for row in REGISTRY_ROWS]
+SHORTCUT_BACKENDS = [row[0] for row in REGISTRY_ROWS if row[3] == "yes"]
+
+@pytest.mark.parametrize("backend", TRAINING_BACKENDS)
+def test_cli_accepts_every_training_backend(monkeypatch, captured, backend):
+    run_cli(monkeypatch, "train", "--method", backend)
+    run_cli(monkeypatch, "pipeline", "--train", backend)
+    assert [args for args, _ in captured] == [["train", backend], ["pipeline", "hloc", "--train", backend]]
+
+@pytest.mark.parametrize("backend", SHORTCUT_BACKENDS)
+def test_cli_has_a_shortcut_command_per_backend(monkeypatch, captured, backend):
+    run_cli(monkeypatch, backend, "--dataset", "data/room")
+    assert captured == [([backend, "data/room"], cli.PROJECT_ROOT)]
+
+@pytest.mark.parametrize("argv", [["train", "--method", "nerf"], ["pipeline", "--train", "nerf"]])
+def test_cli_rejects_an_unknown_training_backend(monkeypatch, captured, argv):
+    with pytest.raises(SystemExit):
+        run_cli(monkeypatch, *argv)
+    assert captured == []

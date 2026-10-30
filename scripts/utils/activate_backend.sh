@@ -2,7 +2,7 @@
 # 3DRC Backend Environment Activation
 #
 # Usage (sourced): source scripts/utils/activate_backend.sh && activate_backend <backend>
-# Backends: 3dgs, 2dgs, tsdf, planargs, sugar, scaffoldgs, mipsplatting, milo, grouping
+# Backends: the training backends in configs/backends.txt, plus tsdf, sugar, milo, grouping
 #
 # One shared 'gs' environment. Every backend ships its own diff_gaussian_rasterization under
 # the same module name, so each build lives in .ext/<variant>/ and is put first on PYTHONPATH
@@ -11,15 +11,16 @@
 # GS_EXT_ROOT overrides the .ext/ location (must match the one used by 00_setup_environment.sh).
 
 _ACTIVATE_BACKEND_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
+source "$(dirname "${BASH_SOURCE[0]}")/backends.sh"
 
 # diff_gaussian_rasterization build each backend needs (see GS_RASTERIZER_VARIANTS in 00_setup_environment.sh)
+# Training backends come from configs/backends.txt; the mesh and segmentation backends are listed here
 backend_rasterizer_variant() {
+    backend_variant "$1" && return
     case "$1" in
-        3dgs|2dgs|tsdf|planargs|sugar) echo "inria" ;;
-        scaffoldgs)   echo "scaffold" ;;
-        mipsplatting) echo "mipsplatting" ;;
-        milo)         echo "milo" ;;
-        grouping)     echo "grouping" ;;
+        tsdf|sugar) echo "inria" ;;
+        milo)       echo "milo" ;;
+        grouping)   echo "grouping" ;;
         *) return 1 ;;
     esac
 }

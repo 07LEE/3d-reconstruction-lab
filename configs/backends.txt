@@ -1,0 +1,14 @@
+# Training backends (Step 2). One row per backend; columns are separated by spaces.
+#   name          backend name used by run_3drc.sh and the Python CLI
+#   script        stage script under scripts/
+#   model_subdir  model directory under outputs/<scene>/
+#   shortcut      yes when "run_3drc.sh <name>" runs the same step as "run_3drc.sh train <name>"
+#   title         display name in the step header; '_' stands for a space
+#   variant       diff_gaussian_rasterization build the backend runs with (.ext/<variant>/, see activate_backend.sh)
+#   repo          upstream checkout whose render.py and metrics.py evaluate the backend's models
+# name          script                     model_subdir    shortcut  title                  variant       repo
+3dgs            02_train_3dgs.sh           3dgs/inria_30k  no        3DGS                   inria         third_party/gaussian-splatting
+planargs        02b_train_planargs.sh      3dgs/planargs   yes       PlanarGS               inria         third_party/PlanarGS
+2dgs            02c_train_2dgs.sh          2dgs            yes       2D_Gaussian_Splatting  inria         third_party/2d-gaussian-splatting
+scaffoldgs      02d_train_scaffoldgs.sh    scaffoldgs      yes       Scaffold-GS            scaffold      third_party/scaffold-gs
+mipsplatting    02e_train_mipsplatting.sh  mipsplatting    yes       Mip-Splatting          mipsplatting  third_party/mip-splatting

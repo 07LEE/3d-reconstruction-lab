@@ -29,9 +29,10 @@ def build_workspace(root: Path) -> Path:
         (root / name).mkdir(parents=True)
     root = root.resolve()
     shutil.copy(PROJECT_ROOT / "scripts" / "05_eval_nvs.sh", root / "scripts")
-    for name in ("activate_backend.sh", "common_logger.sh"):
-        shutil.copy(PROJECT_ROOT / "scripts" / "utils" / name, root / "scripts" / "utils")
-    shutil.copy(PROJECT_ROOT / "configs" / "default_config.sh", root / "configs")
+    for helper in (PROJECT_ROOT / "scripts" / "utils").glob("*.sh"):
+        shutil.copy(helper, root / "scripts" / "utils")
+    for config in (PROJECT_ROOT / "configs").iterdir():
+        shutil.copy(config, root / "configs")
     # Patch verification needs a real toolchain, so it is skipped
     (root / "scripts" / "utils" / "verify_patches.sh").write_text(":\n")
     (root / "scripts" / "utils" / "verify_patches.sh").chmod(0o755)

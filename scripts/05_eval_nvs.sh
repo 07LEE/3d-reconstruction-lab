@@ -14,6 +14,8 @@ else
     exit 1
 fi
 
+source "$(dirname "$0")/utils/backends.sh"
+
 PROJECT_ROOT=$(pwd)
 INPUT_DATASET="${1:-$DATA_DIR}"
 SCENE_NAME=$(basename "$INPUT_DATASET")
@@ -29,31 +31,20 @@ else
 fi
 MODEL_DIR="$(cd "$MODEL_DIR" && pwd)"
 
-# Backend resolution from the output layout; override with NVS_BACKEND=3dgs|planargs|2dgs|scaffoldgs|mipsplatting
+# Backend resolution from the output layout (configs/backends.txt); override with NVS_BACKEND=<backend>
 # Only the part below outputs/<scene>/ is looked at, so a scene or parent directory named like a backend cannot decide it
 MODEL_SCOPE="/${MODEL_DIR#"$PROJECT_ROOT/$OUTPUT_DIR/$SCENE_NAME/"}"
 BACKEND="${NVS_BACKEND:-}"
 if [ -z "$BACKEND" ]; then
-    case "$MODEL_SCOPE" in
-        */3dgs/planargs*) BACKEND="planargs" ;;
-        */2dgs*)          BACKEND="2dgs" ;;
-        */scaffoldgs*)    BACKEND="scaffoldgs" ;;
-        */mipsplatting*)  BACKEND="mipsplatting" ;;
-        */3dgs/*)         BACKEND="3dgs" ;;
-        *) log_fatal "Cannot infer backend from '${MODEL_DIR}'. Set NVS_BACKEND=3dgs|planargs|2dgs|scaffoldgs|mipsplatting." ;;
-    esac
+    BACKEND=$(backend_infer "$MODEL_SCOPE") || log_fatal "Cannot infer backend from '${MODEL_DIR}'. Set NVS_BACKEND=$(backend_names '|')."
 fi
 
 RENDER_EXTRA_ARGS=()
 METRICS_EXTRA_ARGS=()
-case "$BACKEND" in
-    3dgs)         REPO_DIR="third_party/gaussian-splatting" ;;
-    planargs)     REPO_DIR="third_party/PlanarGS" ;;
-    2dgs)         REPO_DIR="third_party/2d-gaussian-splatting"; RENDER_EXTRA_ARGS+=("--skip_mesh") ;;
-    scaffoldgs)   REPO_DIR="third_party/scaffold-gs" ;;
-    mipsplatting) REPO_DIR="third_party/mip-splatting" ;;
-    *) log_fatal "Unknown NVS backend: ${BACKEND}" ;;
-esac
+REPO_DIR=$(backend_repo "$BACKEND") || log_fatal "Unknown NVS backend: ${BACKEND}"
+if [ "$BACKEND" = "2dgs" ]; then
+    RENDER_EXTRA_ARGS+=("--skip_mesh")
+fi
 
 # A model trained without --eval has no test cameras; its numbers would be training-view fits.
 CFG_ARGS="${MODEL_DIR}/cfg_args"

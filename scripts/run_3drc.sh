@@ -36,17 +36,22 @@ if [ ! -x "$PYTHON_BIN" ]; then
     PYTHON_BIN="python3"
 fi
 
+source "$(dirname "$0")/utils/backends.sh"
+
 show_help() {
+    local name
     echo "3DRC Pipeline Unified CLI Interface"
     echo "Usage: ./scripts/run_3drc.sh [COMMAND] [OPTIONS]"
     echo ""
     echo "Commands:"
     echo "  data [dataset]   Run Step 0b YUV In-Memory Data Load (raw YUV session -> in-memory tensors)"
     echo "  sfm [method]     Run Step 1 Camera Pose Estimation (hloc, vggt, fastmap, sfm)"
-    echo "  train [backend]  Run Step 2 Gaussian Training (3dgs, planargs, 2dgs, scaffoldgs)"
-    echo "  planargs         Run Step 2b PlanarGS Training"
-    echo "  2dgs             Run Step 2c 2D Gaussian Splatting Training"
-    echo "  scaffoldgs       Run Step 2d Scaffold-GS Training"
+    echo "  train [backend]  Run Step 2 Gaussian Training ($(backend_names ', '))"
+    for name in $(backend_names); do
+        if backend_has_shortcut "$name"; then
+            printf '  %-16s Run Step %s %s Training\n' "$name" "$(backend_step "$name")" "$(backend_title "$name")"
+        fi
+    done
     echo "  view [type]      Run COLMAP GUI Visualization (hloc, fastmap)"
     echo "  sugar            Run Step 3 SuGaR Mesh Reconstruction"
     echo "  milo             Run Step 3b MILo Mesh Reconstruction"
@@ -122,44 +127,9 @@ case "$COMMAND" in
                 [ -n "$ARG2" ] && ARG_DATASET="$ARG2"
             fi
         fi
-        if [ "$BACKEND" = "planargs" ]; then
-            log_header "Step 2b: PlanarGS Training"
-            ./scripts/02b_train_planargs.sh ${ARG_DATASET:+"$ARG_DATASET"}
-        elif [ "$BACKEND" = "2dgs" ]; then
-            log_header "Step 2c: 2D Gaussian Splatting Training"
-            ./scripts/02c_train_2dgs.sh ${ARG_DATASET:+"$ARG_DATASET"}
-        elif [ "$BACKEND" = "scaffoldgs" ]; then
-            log_header "Step 2d: Scaffold-GS Training"
-            ./scripts/02d_train_scaffoldgs.sh ${ARG_DATASET:+"$ARG_DATASET"}
-        elif [ "$BACKEND" = "mipsplatting" ]; then
-            log_header "Step 2e: Mip-Splatting Training"
-            ./scripts/02e_train_mipsplatting.sh ${ARG_DATASET:+"$ARG_DATASET"}
-        elif [ "$BACKEND" = "3dgs" ]; then
-            log_header "Step 2: 3DGS Training"
-            ./scripts/02_train_3dgs.sh ${ARG_DATASET:+"$ARG_DATASET"}
-        else
-            log_fatal "Unknown training backend: '${BACKEND}' (expected: 3dgs, planargs, 2dgs, scaffoldgs, mipsplatting)"
-        fi
-        ;;
-    2dgs)
-        ARG_DATASET="${2:-}"
-        log_header "Step 2c: 2D Gaussian Splatting Training"
-        ./scripts/02c_train_2dgs.sh ${ARG_DATASET:+"$ARG_DATASET"}
-        ;;
-    mipsplatting)
-        ARG_DATASET="${2:-}"
-        log_header "Step 2e: Mip-Splatting Training"
-        ./scripts/02e_train_mipsplatting.sh ${ARG_DATASET:+"$ARG_DATASET"}
-        ;;
-    planargs)
-        ARG_DATASET="${2:-}"
-        log_header "Step 2b: PlanarGS Training"
-        ./scripts/02b_train_planargs.sh ${ARG_DATASET:+"$ARG_DATASET"}
-        ;;
-    scaffoldgs)
-        ARG_DATASET="${2:-}"
-        log_header "Step 2d: Scaffold-GS Training"
-        ./scripts/02d_train_scaffoldgs.sh ${ARG_DATASET:+"$ARG_DATASET"}
+        backend_exists "$BACKEND" || log_fatal "Unknown training backend: '${BACKEND}' (expected: $(backend_names ', '))"
+        log_header "$(backend_header "$BACKEND")"
+        ./scripts/"$(backend_script "$BACKEND")" ${ARG_DATASET:+"$ARG_DATASET"}
         ;;
     view)
         TYPE=${2:-"hloc"}
@@ -276,14 +246,8 @@ case "$COMMAND" in
             esac
         done
 
-        case "$TRAIN_OPT" in
-            3dgs)         TRAIN_SCRIPT="02_train_3dgs.sh";         MODEL_SUBDIR="3dgs/inria_30k" ;;
-            planargs)     TRAIN_SCRIPT="02b_train_planargs.sh";    MODEL_SUBDIR="3dgs/planargs" ;;
-            2dgs)         TRAIN_SCRIPT="02c_train_2dgs.sh";        MODEL_SUBDIR="2dgs" ;;
-            scaffoldgs)   TRAIN_SCRIPT="02d_train_scaffoldgs.sh";  MODEL_SUBDIR="scaffoldgs" ;;
-            mipsplatting) TRAIN_SCRIPT="02e_train_mipsplatting.sh"; MODEL_SUBDIR="mipsplatting" ;;
-            *) log_fatal "Unknown training backend: '${TRAIN_OPT}' (expected: 3dgs, planargs, 2dgs, scaffoldgs, mipsplatting)" ;;
-        esac
+        TRAIN_SCRIPT=$(backend_script "$TRAIN_OPT") || log_fatal "Unknown training backend: '${TRAIN_OPT}' (expected: $(backend_names ', '))"
+        MODEL_SUBDIR=$(backend_model_subdir "$TRAIN_OPT")
 
         # Reject incompatible combinations before spending time on SfM and training
         case "$MESH_OPT" in
@@ -351,7 +315,17 @@ case "$COMMAND" in
         "$PYTHON_BIN" src/utils/collect_results.py
         echo "[3DRC CLI] End-to-End Automated Pipeline Execution Finished!"
         ;;
-    help|*)
+    help)
         show_help
+        ;;
+    *)
+        # A backend name with a shortcut trains that backend: run_3drc.sh <backend> [dataset]
+        if backend_has_shortcut "$COMMAND"; then
+            ARG_DATASET="${2:-}"
+            log_header "$(backend_header "$COMMAND")"
+            ./scripts/"$(backend_script "$COMMAND")" ${ARG_DATASET:+"$ARG_DATASET"}
+        else
+            show_help
+        fi
         ;;
 esac

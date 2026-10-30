@@ -14,8 +14,10 @@ def workspace(tmp_path):
     (tmp_path / "scripts" / "utils").mkdir(parents=True)
     (tmp_path / "configs").mkdir()
     shutil.copy(PROJECT_ROOT / "scripts" / "run_3drc.sh", tmp_path / "scripts")
-    shutil.copy(PROJECT_ROOT / "scripts" / "utils" / "common_logger.sh", tmp_path / "scripts" / "utils")
-    shutil.copy(PROJECT_ROOT / "configs" / "default_config.sh", tmp_path / "configs")
+    for helper in (PROJECT_ROOT / "scripts" / "utils").glob("*.sh"):
+        shutil.copy(helper, tmp_path / "scripts" / "utils")
+    for config in (PROJECT_ROOT / "configs").iterdir():
+        shutil.copy(config, tmp_path / "configs")
     for name in STAGE_SCRIPTS.values():
         stub = tmp_path / "scripts" / name
         stub.write_text(f'#!/bin/bash\necho "{name} $*" >> calls.log\n')
