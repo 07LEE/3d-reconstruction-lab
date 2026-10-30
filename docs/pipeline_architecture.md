@@ -147,6 +147,14 @@ By default, training scripts save intermediate model checkpoints at `10000`, `20
 GS_CHECKPOINT_INTERVAL=5000 ./scripts/02_train_3dgs.sh data/<scene_name>
 ```
 
+### Reusing a Model Directory
+
+Running a training stage again on the same scene works in the same model directory.
+
+- When an earlier run left a checkpoint, the stage resumes from the latest one. A checkpoint that is already at the target iteration means the model is finished, so the stage reports that and ends without starting the trainer.
+- A checkpoint older than the SfM sparse points is ignored and the stage trains from scratch.
+- A directory that holds a model trained with the other `GS_EVAL_MODE` setting is refused. The trainers rewrite cfg_args on every start and restore whatever checkpoint they are given, so continuing such a model would keep the test views in training while cfg_args claims a holdout split, and the NVS evaluation would accept it. Move or delete the directory to train from scratch.
+
 ### Adding a Training Backend
 
 A training backend is one row in configs/backends.txt plus one stage script. The row drives the train command, the shortcut and the help text of run_3drc.sh, the model directory and evaluation repository used by the NVS evaluation, and the rasterizer build chosen by activate_backend.sh. The columns are explained at the top of the file.
@@ -252,6 +260,7 @@ python -m src.mesh.eval_mesh --mesh outputs/<scene_name>/mesh/sugar/sugarfine_me
 Renders held-out test views with the backend's own `render.py --skip_train` and computes PSNR / SSIM / LPIPS with its `metrics.py`. Metrics are written to `<model_dir>/results.json` and `per_view.json`.
 
 - The model must be trained with `GS_EVAL_MODE="true"` (every 8th view held out). Models without `eval=True` in `cfg_args` are rejected.
+- A model trained without the holdout cannot be switched over by training again in its directory, because the stage refuses that (see Reusing a Model Directory). Move or delete the directory and train with `GS_EVAL_MODE="true"` from scratch.
 - The backend is inferred from the model directory below outputs/<scene_name>/ (3dgs/inria_30k, 3dgs/planargs, 2dgs, scaffoldgs, mipsplatting, as listed in configs/backends.txt), so a scene or parent directory that carries a backend's name does not matter. Override with `NVS_BACKEND`.
 
 ```bash

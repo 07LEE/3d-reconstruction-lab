@@ -153,6 +153,22 @@ def set_age(path: Path, seconds_ago: int) -> None:
     moment = time.time() - seconds_ago
     os.utime(path, (moment, moment))
 
+def prepare_model(root: Path, stage: str, eval_flag: str | None = None, checkpoints: tuple = (), saved: bool = False) -> Path:
+    """An SfM model plus the model directory an earlier run left behind (its trainer wrote cfg_args)."""
+    add_sfm_model(root)
+    set_age(root / "data" / "room" / "sparse" / "0" / "points3D.bin", 1000)
+    model = model_path(root, stage)
+    model.mkdir(parents=True)
+    if eval_flag is not None:
+        (model / "cfg_args").write_text(f"Namespace(source_path='data/room', resolution=4, eval={eval_flag}, data_device='cpu')")
+    for name in checkpoints:
+        (model / name).parent.mkdir(exist_ok=True)
+        (model / name).touch()
+    if saved:
+        (model / "point_cloud" / "iteration_3000").mkdir(parents=True)
+        (model / "point_cloud" / "iteration_3000" / "point_cloud.ply").touch()
+    return model
+
 @pytest.fixture(params=list(STAGES))
 def stage(request):
     return request.param
@@ -247,13 +263,13 @@ def test_resumes_from_the_latest_checkpoint(workspace, stage):
     add_sfm_model(workspace)
     model = model_path(workspace, stage)
     model.mkdir(parents=True)
-    for name in ("chkpnt10000.pth", "chkpnt30000.pth"):
+    for name in ("chkpnt10000.pth", "chkpnt20000.pth"):
         (model / name).touch()
     set_age(workspace / "data" / "room" / "sparse" / "0" / "points3D.bin", 1000)
     assert run_stage(workspace, stage).returncode == 0
-    resume = ["--start_checkpoint", f"{model_arg(workspace, stage)}/chkpnt30000.pth"]
+    resume = ["--start_checkpoint", f"{model_arg(workspace, stage)}/chkpnt20000.pth"]
     assert trainer_calls(workspace) == [expected_trainer(workspace, stage, [*DEFAULT_EXTRA, *resume])]
-    assert "resumed_from=chkpnt30000.pth" in parse_bench(bench_calls(workspace)[0])["set"]
+    assert "resumed_from=chkpnt20000.pth" in parse_bench(bench_calls(workspace)[0])["set"]
 
 def test_stale_checkpoint_is_not_resumed(workspace, stage):
     add_sfm_model(workspace)
@@ -264,6 +280,65 @@ def test_stale_checkpoint_is_not_resumed(workspace, stage):
     assert run_stage(workspace, stage).returncode == 0
     assert trainer_calls(workspace) == [expected_trainer(workspace, stage, DEFAULT_EXTRA)]
     assert "resumed_from=" in parse_bench(bench_calls(workspace)[0])["set"]
+
+# The trainers rewrite cfg_args on every start, so a model that is continued on the other holdout split would
+# look like a holdout model to the NVS evaluation while its weights have seen the test views.
+@pytest.mark.parametrize("trained, mode", [("False", "true"), ("True", "false")])
+@pytest.mark.parametrize("files", [
+    {"checkpoints": ("chkpnt10000.pth",)},
+    {"checkpoints": ("checkpoints/chkpnt10000.pth",)},
+    {"saved": True},
+], ids=["checkpoint", "checkpoint-in-subdirectory", "saved-model"])
+def test_model_trained_on_the_other_holdout_split_is_refused(workspace, stage, trained, mode, files):
+    model = prepare_model(workspace, stage, eval_flag=trained, **files)
+    before = (model / "cfg_args").read_text()
+    result = run_stage(workspace, stage, GS_EVAL_MODE=mode)
+    assert result.returncode != 0
+    assert f"trained with eval={trained}" in result.stdout + result.stderr
+    assert trainer_calls(workspace) == []
+    assert bench_calls(workspace) == []
+    assert (model / "cfg_args").read_text() == before
+
+@pytest.mark.parametrize("trained, mode", [("False", "false"), ("True", "true")])
+def test_model_trained_on_the_same_holdout_split_is_resumed(workspace, stage, trained, mode):
+    prepare_model(workspace, stage, eval_flag=trained, checkpoints=("chkpnt10000.pth",))
+    assert run_stage(workspace, stage, GS_EVAL_MODE=mode).returncode == 0
+    resume = ["--start_checkpoint", f"{model_arg(workspace, stage)}/chkpnt10000.pth"]
+    extra = [*(["--eval"] if mode == "true" else []), *DEFAULT_EXTRA, *resume]
+    assert trainer_calls(workspace) == [expected_trainer(workspace, stage, extra)]
+
+def test_cfg_args_without_a_holdout_flag_does_not_block_training(workspace, stage):
+    model = prepare_model(workspace, stage, checkpoints=("chkpnt10000.pth",))
+    (model / "cfg_args").write_text("Namespace(resolution=4)")
+    result = run_stage(workspace, stage, GS_EVAL_MODE="true")
+    assert result.returncode == 0, result.stderr
+    assert len(trainer_calls(workspace)) == 1
+
+def test_cfg_args_left_by_a_start_without_a_model_does_not_block_training(workspace, stage):
+    prepare_model(workspace, stage, eval_flag="False")
+    result = run_stage(workspace, stage, GS_EVAL_MODE="true")
+    assert result.returncode == 0, result.stderr
+    assert trainer_calls(workspace) == [expected_trainer(workspace, stage, ["--eval", *DEFAULT_EXTRA])]
+
+# A trainer resumed at its last iteration trains nothing, and 3DGS-style trainers then fail to load the checkpoint
+# or leave a rewritten cfg_args behind, so a finished model is left alone.
+@pytest.mark.parametrize("checkpoint, env", [
+    ("chkpnt30000.pth", {}),
+    ("checkpoints/chkpnt30000.pth", {}),
+    ("chkpnt30000.pth", {"GS_ITERATIONS": "12000"}),
+    ("chkpnt3000.pth", {"GS_ITERATIONS": "3000"}),
+], ids=["checkpoint", "checkpoint-in-subdirectory", "beyond-the-target", "short-run"])
+def test_finished_model_is_not_trained_again(workspace, stage, checkpoint, env):
+    model = prepare_model(workspace, stage, eval_flag="False", checkpoints=(checkpoint,))
+    (model / "pipeline_meta.json").write_text('{"stage": "earlier run"}')
+    before = (model / "cfg_args").read_text()
+    result = run_stage(workspace, stage, **env)
+    assert result.returncode == 0, result.stderr
+    assert "already trained" in result.stdout + result.stderr
+    assert trainer_calls(workspace) == []
+    assert bench_calls(workspace) == []
+    assert (model / "pipeline_meta.json").read_text() == '{"stage": "earlier run"}'
+    assert (model / "cfg_args").read_text() == before
 
 def test_trainer_failure_stops_the_stage(workspace, stage):
     add_sfm_model(workspace)

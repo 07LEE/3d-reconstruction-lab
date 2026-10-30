@@ -21,10 +21,10 @@ if [ -f "${TARGET_DATA_DIR}/sparse/0/images.bin" ]; then
     cp "${TARGET_DATA_DIR}/sparse/0/"*.bin "${TARGET_DATA_DIR}/sparse/" 2>/dev/null || true
 fi
 
+train_extra_args
+
 # Execute PlanarGS Training
 log_info "Starting PlanarGS Training (Scene: $SCENE_NAME, Dataset: $INPUT_DATASET)..."
-
-train_extra_args
 
 PYTHON_BIN="${CONDA_PREFIX:-}/bin/python"
 if [ ! -x "$PYTHON_BIN" ]; then

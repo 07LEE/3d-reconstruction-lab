@@ -5,7 +5,8 @@
 # The 02*_train_*.sh scripts call these in order and run their trainer in between:
 #   train_env <backend> [dataset]                      config, backend environment, patch verification
 #   train_dataset <output_subdir> [dataset]            SfM model, images link and model output directory
-#   train_extra_args                                   holdout, checkpoint, save and resume arguments
+#   train_extra_args                                   holdout, checkpoint, save and resume arguments; stops on a model
+#                                                      trained on the other holdout split, exits when it is finished
 #   train_finish <bench_stage> <engine> [stage_label]  timing record and pipeline_meta.json
 #
 # Results are left in globals for the calling script: TRAIN_BACKEND, INPUT_DATASET, TARGET_DATA_DIR,
@@ -80,13 +81,20 @@ train_dataset() {
     fi
 }
 
+# The holdout flag a trainer recorded in a model directory's cfg_args (True or False), nothing when there is none
+_train_cfg_eval() {
+    [ -f "$1/cfg_args" ] || return 0
+    grep -o 'eval=[A-Za-z]*' "$1/cfg_args" | head -n 1 | cut -d= -f2 || true
+}
+
 train_extra_args() {
-    local max_iter="${GS_ITERATIONS:-30000}" checkpoints="" interval latest sparse_pts
+    local max_iter="${GS_ITERATIONS:-30000}" checkpoints="" interval latest sparse_pts want="False" trained done_iter
     local -a ck
 
     EXTRA_TRAIN_ARGS=()
     if [ "${GS_EVAL_MODE:-false}" = "true" ]; then
         EXTRA_TRAIN_ARGS+=("--eval")
+        want="True"
     fi
 
     if [ -n "${GS_CHECKPOINT_ITERATIONS:-}" ]; then
@@ -114,10 +122,24 @@ train_extra_args() {
         sparse_pts="${TARGET_DATA_DIR}/sparse/0/points3D.txt"
     fi
 
+    # The trainers rewrite cfg_args on every start and keep restoring the checkpoint they are given, so a model
+    # trained on one holdout split and continued on the other would pass the NVS check with test views in training
+    trained=$(_train_cfg_eval "$MODEL_OUTPUT")
+    if [ -n "$trained" ] && [ "$trained" != "$want" ] && { [ -n "$latest" ] || compgen -G "${MODEL_OUTPUT}/point_cloud/iteration_*" > /dev/null; }; then
+        log_fatal "${MODEL_OUTPUT} already holds a model trained with eval=${trained}, but GS_EVAL_MODE asks for eval=${want}. Training on top of it would mix holdout and training views. Move or delete the directory to train from scratch."
+    fi
+
     if [ -n "$latest" ]; then
         if [ -f "$sparse_pts" ] && [ "$sparse_pts" -nt "$latest" ]; then
             log_warn "Sparse point cloud ($sparse_pts) is newer than latest checkpoint ($(basename "$latest")). Invalidating outdated checkpoint and starting fresh training."
         else
+            # A trainer resumed at its last iteration does no training but still rewrites cfg_args
+            done_iter=$(basename "$latest" .pth)
+            done_iter="${done_iter#chkpnt}"
+            if [[ "$done_iter" =~ ^[0-9]+$ ]] && [ "$done_iter" -ge "$max_iter" ]; then
+                log_ok "${TRAIN_BACKEND} model in ${MODEL_OUTPUT} is already trained to ${done_iter} iterations ($(basename "$latest")). Nothing to do."
+                exit 0
+            fi
             log_info "Auto-resuming ${TRAIN_BACKEND} training from latest checkpoint: $(basename "$latest")"
             EXTRA_TRAIN_ARGS+=("--start_checkpoint" "$latest")
             RESUMED_FROM="$(basename "$latest")"
