@@ -79,7 +79,8 @@ def build_workspace(root: Path, script: str) -> Path:
                  "ext/inria", "ext/scaffold", "ext/mipsplatting", "third_party/PlanarGS", "data/room/raw_images"):
         (root / name).mkdir(parents=True)
     shutil.copy(PROJECT_ROOT / "scripts" / script, root / "scripts")
-    shutil.copy(PROJECT_ROOT / "configs" / "default_config.sh", root / "configs")
+    for config in (PROJECT_ROOT / "configs").iterdir():
+        shutil.copy(config, root / "configs")
     for helper in (PROJECT_ROOT / "scripts" / "utils").glob("*.sh"):
         if helper.name not in STUBBED_HELPERS:
             shutil.copy(helper, root / "scripts" / "utils")

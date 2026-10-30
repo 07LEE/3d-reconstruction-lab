@@ -23,8 +23,10 @@ def build_workspace(root: Path) -> None:
     (root / "scripts" / "utils").mkdir(parents=True)
     (root / "configs").mkdir()
     shutil.copy(PROJECT_ROOT / "scripts" / "run_3drc.sh", root / "scripts")
-    shutil.copy(PROJECT_ROOT / "scripts" / "utils" / "common_logger.sh", root / "scripts" / "utils")
-    shutil.copy(PROJECT_ROOT / "configs" / "default_config.sh", root / "configs")
+    for helper in (PROJECT_ROOT / "scripts" / "utils").glob("*.sh"):
+        shutil.copy(helper, root / "scripts" / "utils")
+    for config in (PROJECT_ROOT / "configs").iterdir():
+        shutil.copy(config, root / "configs")
     for name, body in STAGE_STUBS.items():
         stub = root / "scripts" / name
         stub.write_text(f'#!/bin/bash\nset -e\necho "{name} $*" >> calls.log\n{body}\n')
