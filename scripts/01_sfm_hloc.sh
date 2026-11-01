@@ -222,4 +222,8 @@ cd - > /dev/null
 bench_record "sfm_${METHOD}" "$(basename "$INPUT_DATASET")" "$SPARSE_METHOD_DIR" \
     "method=${METHOD}" "strategy=${SFM_STRATEGY}"
 
+# Trajectory and per-image quality report; a plotting failure must not fail a finished reconstruction
+python -m src.sfm.sfm_report "$SPARSE_METHOD_DIR" --image_dir "$IMAGE_DIR_TARGET" || \
+    log_warn "SfM report generation failed; rerun with: python -m src.sfm.sfm_report $INPUT_DATASET --method $METHOD"
+
 echo "SfM Reconstruction (${METHOD}) Completed! Saved to ${SPARSE_METHOD_DIR} (Active symlink: ${SPARSE_BASE_DIR}/0 -> ${METHOD})"

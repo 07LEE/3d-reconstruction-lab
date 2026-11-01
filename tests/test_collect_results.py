@@ -73,6 +73,7 @@ def test_collect_results_reads_all_sources(tmp_path):
 
     hloc = next(r for r in sfm["room"] if r.method == "hloc")
     assert (hloc.registered_images, hloc.total_images, hloc.points, hloc.active) == (95, 100, 40000, True)
+    assert hloc.timing is not None
     assert hloc.timing["elapsed_seconds"] == 600.0
 
     by_dir = {r.rel_dir: r for r in runs["room"]}
@@ -80,6 +81,7 @@ def test_collect_results_reads_all_sources(tmp_path):
     assert gs.eval_split is True
     assert gs.nvs == {"iteration": 30000, "PSNR": 27.5, "SSIM": 0.85, "LPIPS": 0.2}
     assert gs.primitives == 25
+    assert gs.timing is not None and gs.nvs_timing is not None
     assert gs.timing["elapsed_seconds"] == 3725.0  # latest stage entry wins
     assert gs.nvs_timing["elapsed_seconds"] == 61.0
 

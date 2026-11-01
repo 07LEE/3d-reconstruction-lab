@@ -99,6 +99,18 @@ SFM_STRATEGY="sequential+retrieval" ./scripts/01_sfm_hloc.sh hloc data/<multi_vi
 ./scripts/01_sfm_hloc.sh vggt
 ```
 
+### Step 1 Report
+
+After a successful reconstruction, `01_sfm_hloc.sh` writes `data/<scene>/sparse/<method>/report/sfm_report.md` with `trajectory.png` (top and side views of the camera path in capture order, viewing directions, and pose jumps) and `per_image.png` (reprojection error and observed 3D points per frame, unregistered frames marked). Capture order is the natural sort of image names, and the vertical axis is the mean camera up direction, so the side view assumes upright images. A pose jump is a step between consecutive frames of the same video longer than 5x the median step.
+
+```bash
+# Regenerate the report
+python -m src.sfm.sfm_report data/<scene> --method hloc
+
+# Open the colored sparse points, cameras and capture-order trajectory in an Open3D window
+python -m src.viz.visualize_model --model_path data/<scene> --method hloc
+```
+
 ## Step 2: 3D & 2D Gaussian Training
 
 ### Step 2 Overview & Engines

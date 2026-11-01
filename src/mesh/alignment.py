@@ -18,7 +18,7 @@ from pathlib import Path
 from typing import List, Optional, Sequence, Tuple
 
 import numpy as np
-from scipy.spatial import cKDTree
+from scipy.spatial import KDTree
 
 @dataclass
 class AlignmentResult:
@@ -131,7 +131,7 @@ def pca_initial_transforms(src: np.ndarray, tgt: np.ndarray) -> List[np.ndarray]
             transforms.append(transform)
     return transforms
 
-def score_alignment(tree: cKDTree, src: np.ndarray, transform: np.ndarray, threshold: float) -> Tuple[float, float]:
+def score_alignment(tree: KDTree, src: np.ndarray, transform: np.ndarray, threshold: float) -> Tuple[float, float]:
     """Returns (fitness, inlier RMSE): the fraction of source points within threshold of the target."""
     dists, _ = tree.query(apply_transform(transform, src))
     inliers = dists <= threshold
@@ -139,7 +139,7 @@ def score_alignment(tree: cKDTree, src: np.ndarray, transform: np.ndarray, thres
     rmse = float(np.sqrt(np.mean(dists[inliers] ** 2))) if np.any(inliers) else float("inf")
     return fitness, rmse
 
-def icp_sim3(src: np.ndarray, tree: cKDTree, init: np.ndarray, thresholds: Sequence[float],
+def icp_sim3(src: np.ndarray, tree: KDTree, init: np.ndarray, thresholds: Sequence[float],
              max_iterations: int = 30, tolerance: float = 1e-7) -> np.ndarray:
     """Scale-aware point-to-point ICP over a coarse-to-fine schedule of correspondence thresholds."""
     transform = init.copy()
@@ -148,6 +148,7 @@ def icp_sim3(src: np.ndarray, tree: cKDTree, init: np.ndarray, thresholds: Seque
         for _ in range(max_iterations):
             moved = apply_transform(transform, src)
             dists, idx = tree.query(moved, distance_upper_bound=threshold)
+            dists, idx = np.asarray(dists), np.asarray(idx)
             valid = np.isfinite(dists)
             if valid.sum() < 3:
                 break
@@ -181,7 +182,7 @@ def global_align_sim3(src: np.ndarray, tgt: np.ndarray, threshold: float,
     """
     src_full = subsample(src, max_src_points)
     tgt_full = subsample(tgt, max_tgt_points)
-    tree = cKDTree(tgt_full)
+    tree = KDTree(tgt_full)
 
     # Coarse thresholds scale with the target size so a rough PCA guess can still converge
     _, _, var_tgt = pca_frame(trim_outliers(tgt_full))

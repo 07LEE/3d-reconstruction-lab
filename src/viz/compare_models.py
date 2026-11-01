@@ -21,7 +21,7 @@ def get_reconstruction_stats(path: str | Path) -> Optional[Dict[str, Any]]:
         return None
 
     try:
-        reconstruction = pycolmap.Reconstruction(p)
+        reconstruction = pycolmap.Reconstruction(str(p))
         reconstruction.update_point_3d_errors()
 
         return {

@@ -85,26 +85,26 @@ def run_sfm_pipeline(image_dir: str | Path, output_dir: str | Path, overwrite: b
 
     print("\n[Step 1/3] Feature Extraction in progress...")
     start_extract = time.time()
-    pycolmap.extract_features(database_path, image_path, camera_mode=cam_mode, camera_model=camera_model)
+    pycolmap.extract_features(str(database_path), str(image_path), camera_mode=cam_mode, camera_model=camera_model)
     time_extract = time.time() - start_extract
     print(f"Feature Extraction elapsed: {time_extract:.2f} seconds")
 
     print("\n[Step 2/3] Feature Matching in progress...")
     start_match = time.time()
-    pycolmap.match_exhaustive(database_path)
+    pycolmap.match_exhaustive(str(database_path))
     time_match = time.time() - start_match
     print(f"Feature Matching elapsed: {time_match:.2f} seconds")
 
     print("\n[Step 3/3] Incremental Mapping in progress...")
     start_map = time.time()
-    reconstructions = pycolmap.incremental_mapping(database_path, image_path, output_path)
+    reconstructions = pycolmap.incremental_mapping(str(database_path), str(image_path), str(output_path))
     time_map = time.time() - start_map
     print(f"Incremental Mapping elapsed: {time_map:.2f} seconds")
 
     time_total = time.time() - start_total
 
     if reconstructions and len(reconstructions) > 0:
-        reconstructions[0].write(output_path)
+        reconstructions[0].write(str(output_path))
         print(f"\n[Success] Reconstruction completed successfully! Model saved at: {output_path}")
         log_performance(image_path, output_path, time_extract, time_match, time_map, time_total)
         return True

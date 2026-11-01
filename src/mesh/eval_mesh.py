@@ -67,6 +67,8 @@ def compute_mesh_hygiene_and_topology(mesh_path: str | Path, check_self_intersec
             "sliver_ratio_pct": 0.0,
             "self_intersecting_faces": 0,
         }
+    if not isinstance(tm, trimesh.Trimesh):
+        raise ValueError(f"Unsupported geometry type {type(tm).__name__}: {path_obj}")
 
     num_vertices = len(tm.vertices)
     num_faces = len(tm.faces)
@@ -101,7 +103,9 @@ def compute_mesh_hygiene_and_topology(mesh_path: str | Path, check_self_intersec
     if check_self_intersect:
         print("[Eval] Checking self-intersecting faces (may take extra time)...")
         try:
-            self_intersecting_faces = len(trimesh.invalid.inspect_self_intersections(tm))
+            o3d_mesh = o3d.geometry.TriangleMesh(o3d.utility.Vector3dVector(tm.vertices), o3d.utility.Vector3iVector(tm.faces))
+            pairs = np.asarray(o3d_mesh.get_self_intersecting_triangles())
+            self_intersecting_faces = int(len(np.unique(pairs))) if len(pairs) else 0
         except Exception as e:
             print(f"[Warn] Self-intersection check failed: {e}")
             self_intersecting_faces = -1
@@ -210,7 +214,7 @@ def resolve_transform(args: argparse.Namespace, mesh_file: Path, out_dir: Path) 
         if ref_path is None:
             print("[Warn] No SfM sparse model found for this mesh; aligning the mesh itself to GT. "
                   "Meshes aligned this way are not in a shared frame. Pass --align-ref to fix.")
-        elif cache_file is None:
+        elif cache_file is None and cache_dir is not None:
             cache_file = cache_dir / f"sim3_{ref_path.resolve().name}_{gt_path.stem}.json"
     elif args.align_ref != "mesh":
         ref_path = Path(args.align_ref)
@@ -344,7 +348,7 @@ def main() -> None:
     if hygiene_res['self_intersecting_faces'] >= 0:
         print(f"Self-Intersecting Faces: {hygiene_res['self_intersecting_faces']:,}")
 
-    if gt_res:
+    if gt_res and alignment is not None:
         print("--------------------------------------------------")
         print(f"Alignment: {alignment.get('source', 'file')} | Fitness: {alignment.get('fitness', '-')} "
               f"| Inlier RMSE: {alignment.get('inlier_rmse_m', '-')} m | Ambiguous: {alignment.get('ambiguous', '-')}")
