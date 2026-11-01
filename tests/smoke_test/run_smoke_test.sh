@@ -103,14 +103,10 @@ run_stage "Step 2c Mesh: 2DGS TSDF Mesh Extraction" \
     "outputs/${SCENE_NAME}/mesh/2dgs/tsdf_mesh.ply" \
     ./scripts/run_3drc.sh tsdf "${TARGET_DATASET}" 2dgs
 
-# 2b. PlanarGS Training & TSDF Mesh Extraction
+# 2b. PlanarGS Training (TSDF extraction supports only 2DGS models)
 run_stage "Step 2b: PlanarGS Training" \
     "outputs/${SCENE_NAME}/3dgs/planargs/point_cloud/iteration_${GS_ITERATIONS}/point_cloud.ply" \
     ./scripts/run_3drc.sh train planargs "${TARGET_DATASET}"
-
-run_stage "Step 2b Mesh: PlanarGS TSDF Mesh Extraction" \
-    "outputs/${SCENE_NAME}/mesh/planargs/tsdf_mesh.ply" \
-    ./scripts/run_3drc.sh tsdf "${TARGET_DATASET}" planargs
 
 # 2c. Inria 3DGS Training & SuGaR Mesh Reconstruction
 run_stage "Step 2: Inria 3DGS Training" \
