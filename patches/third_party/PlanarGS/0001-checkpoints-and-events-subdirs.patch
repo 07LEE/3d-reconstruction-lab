@@ -1,0 +1,30 @@
+diff --git a/planar/training_report.py b/planar/training_report.py
+index 188f095..67bd788 100644
+--- a/planar/training_report.py
++++ b/planar/training_report.py
+@@ -32,7 +32,9 @@ def prepare_output_and_logger(args):
+     # Create Tensorboard writer
+     tb_writer = None
+     if TENSORBOARD_FOUND:
+-        tb_writer = SummaryWriter(args.model_path)
++        events_dir = os.path.join(args.model_path, "events")
++        os.makedirs(events_dir, exist_ok=True)
++        tb_writer = SummaryWriter(events_dir)
+     else:
+         print("Tensorboard not available: not logging progress")
+     return tb_writer
+diff --git a/train.py b/train.py
+index 4328cca..3647e72 100644
+--- a/train.py
++++ b/train.py
+@@ -226,7 +226,9 @@ def training(dataset, opt, pipe, prp, test_iters, saving_iterations, checkpoint_
+     
+             if (iteration in checkpoint_iterations):
+                 print("\n[ITER {}] Saving Checkpoint".format(iteration))
+-                torch.save((gaussians.capture(), iteration), scene.model_path + "/chkpnt" + str(iteration) + ".pth")
++                chkpnt_dir = os.path.join(scene.model_path, "checkpoints")
++                os.makedirs(chkpnt_dir, exist_ok=True)
++                torch.save((gaussians.capture(), iteration), os.path.join(chkpnt_dir, "chkpnt" + str(iteration) + ".pth"))
+ 
+             if iteration % 500 == 0:
+                 torch.cuda.empty_cache()

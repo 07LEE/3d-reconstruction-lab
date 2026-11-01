@@ -21,6 +21,7 @@ All submodules in `third_party/` (including `gaussian-splatting`) reference offi
 | --- | --- | --- |
 | `gaussian-splatting` | `patches/third_party/gaussian-splatting/0001-colmap-camera-models.patch` | Support for `SIMPLE_RADIAL`, `RADIAL`, and `OPENCV` COLMAP camera models |
 | `gaussian-splatting` | `patches/third_party/gaussian-splatting/0002-distcuda2-scipy-fallback.patch` | `scipy.spatial.KDTree` fallback if CUDA nearest-neighbor fails |
+| `gaussian-splatting` | `patches/third_party/gaussian-splatting/0003-checkpoints-and-events-subdirs.patch` | `checkpoints/` & `events/` subdirectory isolation (ADR 0013) |
 | `diff-gaussian-rasterization` | `patches/third_party/gaussian-splatting/submodules/diff-gaussian-rasterization/0001-zero-init-state-structs.patch` | Zero-initialization of CUDA state structs in `rasterizer_impl.cu` |
 | `diff-gaussian-rasterization` | `patches/third_party/gaussian-splatting/submodules/diff-gaussian-rasterization/0002-cstdint-include.patch` | `<cstdint>` header include for GCC 13+ / GCC 14 toolchains |
 | `sugar` | `patches/third_party/sugar/0001-sugar-extension-dup-and-cpu-device.patch` | Extension fix, CPU `data_device` VRAM OOM fix, `weights_only=False` PyTorch 2.6+ fix |
@@ -31,7 +32,9 @@ All submodules in `third_party/` (including `gaussian-splatting`) reference offi
 | `2d-gaussian-splatting` | `patches/third_party/2d-gaussian-splatting/0001-colmap-camera-models.patch` | Support for `SIMPLE_RADIAL` and `RADIAL` camera models in 2DGS |
 | `2d-gaussian-splatting` | `patches/third_party/2d-gaussian-splatting/0002-mesh-utils-bounds-and-empty-fix.patch` | Empty cluster bounds guard in mesh postprocessing |
 | `2d-gaussian-splatting` | `patches/third_party/2d-gaussian-splatting/0003-matplotlib-buffer-rgba.patch` | `colormap` reads the canvas with `buffer_rgba` because matplotlib 3.10 removed `tostring_rgb` (crashed at the 7000-iteration report) |
+| `2d-gaussian-splatting` | `patches/third_party/2d-gaussian-splatting/0004-checkpoints-and-events-subdirs.patch` | `checkpoints/` & `events/` subdirectory isolation (ADR 0013) |
 | `diff-surfel-rasterization` | `patches/third_party/2d-gaussian-splatting/submodules/diff-surfel-rasterization/0001-cstdint-and-zero-init.patch` | `<cstdint>` includes, zero-init structs, and backward SH gradient dimension match |
+| `PlanarGS` | `patches/third_party/PlanarGS/0001-checkpoints-and-events-subdirs.patch` | `checkpoints/` & `events/` subdirectory isolation (ADR 0013) |
 | `scaffold-gs` | `patches/third_party/scaffold-gs/0001-rasterizer-antialiasing-compat.patch` | `antialiasing` kwarg guard and `visible_filter` fallback for dr_aa rasterizer |
 | `scaffold-gs` | `patches/third_party/scaffold-gs/0002-checkpoint-capture-and-getattr-fix.patch` | PyTorch 2.6+ `weights_only=False` fix, `[INFO]` CleanStreamFormatter logger, 10/11-element checkpoint tuple compatibility, `checkpoints/` & `events/` subdirectory isolation, and `getattr` guard for deleted `offset_denom` |
 | `mip-splatting` | `patches/third_party/mip-splatting/0001-cstdint-and-sm120-compat.patch` | PyTorch 2.6+ `weights_only=False` fix, `checkpoints/` & `events/` subdirectory isolation, and C++ `<cstdint>` headers |

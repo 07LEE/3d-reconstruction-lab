@@ -177,6 +177,22 @@ else
   fail=1
 fi
 
+# Checkpoints & TensorBoard events subdirectory patch check (ADR 0013)
+for train_spec in "3DGS:third_party/gaussian-splatting/train.py:third_party/gaussian-splatting/train.py" \
+                  "2DGS:third_party/2d-gaussian-splatting/train.py:third_party/2d-gaussian-splatting/train.py" \
+                  "PlanarGS:third_party/PlanarGS/train.py:third_party/PlanarGS/planar/training_report.py"; do
+  IFS=: read -r train_name train_py logger_py <<< "${train_spec}"
+  patch_count=$((patch_count + 1))
+  if [ -f "${REPO_ROOT}/${train_py}" ] && grep -q '"checkpoints"' "${REPO_ROOT}/${train_py}" && \
+     [ -f "${REPO_ROOT}/${logger_py}" ] && grep -q '"events"' "${REPO_ROOT}/${logger_py}"; then
+    log_check "ok" "${train_name} checkpoints/ & events/ subdirectory patch"
+    patch_passed=$((patch_passed + 1))
+  else
+    log_check "LOST" "${train_name} checkpoints/ & events/ subdirectory patch missing in ${train_py#third_party/}"
+    fail=1
+  fi
+done
+
 # Multi-environment explicit rasterizer verification
 env_count=0
 env_passed=0

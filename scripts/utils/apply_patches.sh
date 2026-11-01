@@ -37,6 +37,7 @@ apply_patch_dir "${REPO_ROOT}/third_party/milo" "${REPO_ROOT}/patches/third_part
 apply_patch_dir "${REPO_ROOT}/third_party/vggt" "${REPO_ROOT}/patches/third_party/vggt"
 apply_patch_dir "${REPO_ROOT}/third_party/2d-gaussian-splatting" "${REPO_ROOT}/patches/third_party/2d-gaussian-splatting"
 apply_patch_dir "${REPO_ROOT}/third_party/2d-gaussian-splatting/submodules/diff-surfel-rasterization" "${REPO_ROOT}/patches/third_party/2d-gaussian-splatting/submodules/diff-surfel-rasterization"
+apply_patch_dir "${REPO_ROOT}/third_party/PlanarGS" "${REPO_ROOT}/patches/third_party/PlanarGS"
 apply_patch_dir "${REPO_ROOT}/third_party/scaffold-gs" "${REPO_ROOT}/patches/third_party/scaffold-gs"
 apply_patch_dir "${REPO_ROOT}/third_party/mip-splatting" "${REPO_ROOT}/patches/third_party/mip-splatting"
 apply_patch_dir "${REPO_ROOT}/third_party/gaussian-grouping" "${REPO_ROOT}/patches/third_party/gaussian-grouping"
