@@ -101,7 +101,9 @@ def compute_mesh_hygiene_and_topology(mesh_path: str | Path, check_self_intersec
     if check_self_intersect:
         print("[Eval] Checking self-intersecting faces (may take extra time)...")
         try:
-            self_intersecting_faces = len(trimesh.invalid.inspect_self_intersections(tm))
+            o3d_mesh = o3d.geometry.TriangleMesh(o3d.utility.Vector3dVector(tm.vertices), o3d.utility.Vector3iVector(tm.faces))
+            pairs = np.asarray(o3d_mesh.get_self_intersecting_triangles())
+            self_intersecting_faces = int(len(np.unique(pairs))) if len(pairs) else 0
         except Exception as e:
             print(f"[Warn] Self-intersection check failed: {e}")
             self_intersecting_faces = -1
