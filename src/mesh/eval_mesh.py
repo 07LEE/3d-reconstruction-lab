@@ -70,14 +70,18 @@ def compute_mesh_hygiene_and_topology(mesh_path: str | Path, check_self_intersec
     if not isinstance(tm, trimesh.Trimesh):
         raise ValueError(f"Unsupported geometry type {type(tm).__name__}: {path_obj}")
 
+    # A textured OBJ (SuGaR) gives every face its own vertices; merge by position so topology is measured on the surface
+    tm.merge_vertices(merge_tex=True, merge_norm=True)
+
     num_vertices = len(tm.vertices)
     num_faces = len(tm.faces)
     is_watertight = bool(tm.is_watertight)
     is_manifold = bool(tm.is_winding_consistent)
 
-    # Connected components and Euler characteristic
+    # Connected components are counted from face labels; tm.split() builds a mesh per component and ran out of memory
     try:
-        num_connected_components = len(tm.split(only_watertight=False))
+        labels = trimesh.graph.connected_component_labels(tm.face_adjacency, node_count=num_faces)
+        num_connected_components = int(labels.max()) + 1 if num_faces else 0
     except Exception:
         num_connected_components = -1
 
