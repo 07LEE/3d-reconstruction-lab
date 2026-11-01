@@ -31,7 +31,7 @@ class YUVInMemoryDataset(Dataset):
         apply_undistort: bool = True,
         transform: Optional[Any] = None,
     ) -> None:
-        if not HAS_YUV_SENSOR:
+        if SessionDataLoader is None:
             raise ImportError(
                 "yuv_sensor package is not installed. Install via: "
                 "pip install git+https://github.com/07LEE/yuv-sensor-data-processor.git"
@@ -70,10 +70,10 @@ class YUVInMemoryDataset(Dataset):
 
     def get_camera_intrinsics(self) -> Dict[str, Any]:
         return {
-            "intrinsics": self.loader.session_meta.get("intrinsics", []),
-            "distortion": self.loader.session_meta.get("distortion", []),
-            "sensor_orientation": self.loader.session_meta.get("sensor_orientation", 0),
-            "device": self.loader.session_meta.get("device", "unknown"),
+            "intrinsics": self.loader.session_config.get("intrinsics", []),
+            "distortion": self.loader.session_config.get("distortion", []),
+            "sensor_orientation": self.loader.session_config.get("sensor_orientation", 0),
+            "device": self.loader.session_config.get("device", "unknown"),
         }
 
 
