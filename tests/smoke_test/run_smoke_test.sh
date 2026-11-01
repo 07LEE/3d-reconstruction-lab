@@ -90,42 +90,42 @@ fi
 # 1. Step 1: SfM Camera Pose Estimation (hloc)
 run_stage "Step 1: SfM Pose Estimation (hloc)" \
     "${TARGET_DATASET}/sparse/0/cameras.*" \
-    ./scripts/run_3drc.sh sfm hloc "${TARGET_DATASET}"
+    ./scripts/run_3drc.sh sfm hloc --dataset "${TARGET_DATASET}"
 
 # 2. Step 2 & 3: Mesh Backends (Longer execution path priority)
 
 # 2a. 2DGS Training & TSDF Mesh Extraction
 run_stage "Step 2c: 2DGS Training" \
     "outputs/${SCENE_NAME}/2dgs/point_cloud/iteration_${GS_ITERATIONS}/point_cloud.ply" \
-    ./scripts/run_3drc.sh train 2dgs "${TARGET_DATASET}"
+    ./scripts/run_3drc.sh train 2dgs --dataset "${TARGET_DATASET}"
 
 run_stage "Step 2c Mesh: 2DGS TSDF Mesh Extraction" \
     "outputs/${SCENE_NAME}/mesh/2dgs/tsdf_mesh.ply" \
-    ./scripts/run_3drc.sh tsdf "${TARGET_DATASET}" 2dgs
+    ./scripts/run_3drc.sh tsdf --dataset "${TARGET_DATASET}" --source-model 2dgs
 
 # 2b. PlanarGS Training (TSDF extraction supports only 2DGS models)
 run_stage "Step 2b: PlanarGS Training" \
     "outputs/${SCENE_NAME}/3dgs/planargs/point_cloud/iteration_${GS_ITERATIONS}/point_cloud.ply" \
-    ./scripts/run_3drc.sh train planargs "${TARGET_DATASET}"
+    ./scripts/run_3drc.sh train planargs --dataset "${TARGET_DATASET}"
 
 # 2c. Inria 3DGS Training & SuGaR Mesh Reconstruction
 run_stage "Step 2: Inria 3DGS Training" \
     "outputs/${SCENE_NAME}/3dgs/inria_30k/point_cloud/iteration_${GS_ITERATIONS}/point_cloud.ply" \
-    ./scripts/run_3drc.sh train 3dgs "${TARGET_DATASET}"
+    ./scripts/run_3drc.sh train 3dgs --dataset "${TARGET_DATASET}"
 
 run_stage "Step 3: SuGaR Mesh Reconstruction" \
     "outputs/${SCENE_NAME}/mesh/sugar_*/*.ply" \
-    ./scripts/run_3drc.sh sugar "${TARGET_DATASET}"
+    ./scripts/run_3drc.sh sugar --dataset "${TARGET_DATASET}"
 
 # 3b. Scaffold-GS Training
 run_stage "Step 2d: Scaffold-GS Training" \
     "outputs/${SCENE_NAME}/scaffoldgs/point_cloud/iteration_${GS_ITERATIONS}/point_cloud.ply" \
-    ./scripts/run_3drc.sh train scaffoldgs "${TARGET_DATASET}"
+    ./scripts/run_3drc.sh train scaffoldgs --dataset "${TARGET_DATASET}"
 
 # 3c. Mip-Splatting Training
 run_stage "Step 2e: Mip-Splatting Training" \
     "outputs/${SCENE_NAME}/mipsplatting/point_cloud/iteration_${GS_ITERATIONS}/point_cloud.ply" \
-    ./scripts/run_3drc.sh train mipsplatting "${TARGET_DATASET}"
+    ./scripts/run_3drc.sh train mipsplatting --dataset "${TARGET_DATASET}"
 
 # 4. Summary & Verification Output
 echo "=========================================================================="

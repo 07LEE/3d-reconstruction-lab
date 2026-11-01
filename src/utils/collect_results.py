@@ -158,7 +158,8 @@ def collect_sfm(root: Path, scene: str, stage_by_dir: Dict[str, Dict[str, Any]])
 
 def collect_mesh_evals(run_dir: Path, root: Path) -> List[Dict[str, Any]]:
     evals = []
-    for result_file in sorted(run_dir.glob("eval/**/eval_results.json")):
+    # eval_mesh writes eval/ next to the mesh, which can sit below the run directory (SuGaR: refined_mesh/<scene>/)
+    for result_file in sorted(run_dir.glob("**/eval/**/eval_results.json")):
         data = load_json(result_file)
         if not isinstance(data, dict):
             continue

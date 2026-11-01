@@ -29,10 +29,12 @@ CUDA, PyTorch, and GPU generation details are in [GPU, CUDA and PyTorch Support]
 # 2. Put your scene images in data/<scene_name>/raw_images/
 
 # 3. Run everything: SfM -> training -> mesh -> mesh evaluation -> results report
-./scripts/run_3drc.sh pipeline data/<scene_name> hloc --train 2dgs --mesh tsdf
+./scripts/run_3drc.sh pipeline --dataset data/<scene_name> --method hloc --train 2dgs --mesh tsdf
 ```
 
 For an Android YUV capture session, extract the frames with the `yuv-sensor` CLI and point `raw_images` at its `extracted_frames_undistorted` output ([ADR 0019](docs/adr/0019-defer-in-memory-yuv-ingestion.md)).
+
+Every command takes the scene as `--dataset data/<scene_name>` (`-d`); without it the scene comes from `SCENE_NAME` or, with a warning, the most recently modified folder in `data/`. `./scripts/run_3drc.sh help` lists the commands and `<command> --help` their options; `python 3drc.py` takes the same arguments ([ADR 0022](docs/adr/0022-python-cli-as-the-canonical-entry-point.md)).
 
 `pipeline` options: SuGaR needs `--train 3dgs|planargs`, TSDF needs `--train 2dgs`, MILo works with any backend. Mesh evaluation uses `data/<scene_name>/lidar.pcd` (or `lidar.ply`) as ground truth when present; `--gt` overrides it.
 
@@ -40,23 +42,23 @@ For an Android YUV capture session, extract the frames with the `yuv-sensor` CLI
 
 ```bash
 # Step 1: camera poses
-./scripts/run_3drc.sh sfm hloc data/<scene_name>
+./scripts/run_3drc.sh sfm hloc --dataset data/<scene_name>
 
 # Step 2: Gaussian training
-./scripts/run_3drc.sh train 3dgs data/<scene_name>        # also: planargs, 2dgs, scaffoldgs, mipsplatting
+./scripts/run_3drc.sh train 3dgs --dataset data/<scene_name>   # also: planargs, 2dgs, scaffoldgs, mipsplatting
 
 # Step 3: mesh
-./scripts/run_3drc.sh sugar data/<scene_name>
-./scripts/run_3drc.sh milo data/<scene_name>
-./scripts/run_3drc.sh tsdf data/<scene_name>
+./scripts/run_3drc.sh sugar --dataset data/<scene_name>
+./scripts/run_3drc.sh milo --dataset data/<scene_name>
+./scripts/run_3drc.sh tsdf --dataset data/<scene_name>
 
 # Step 4: segmentation
-./scripts/run_3drc.sh grouping data/<scene_name>
+./scripts/run_3drc.sh grouping --dataset data/<scene_name>
 
 # Step 5: evaluation
-./scripts/run_3drc.sh eval outputs/<scene_name>/mesh/milo/mesh_cleaned_largest.ply
-./scripts/run_3drc.sh eval outputs/<scene_name>/mesh/2dgs/tsdf_mesh.ply data/<scene_name>/lidar.pcd
-./scripts/run_3drc.sh nvs data/<scene_name> 3dgs/inria_30k   # model trained with GS_EVAL_MODE="true"
+./scripts/run_3drc.sh eval --mesh outputs/<scene_name>/mesh/milo/mesh_cleaned_largest.ply
+./scripts/run_3drc.sh eval --mesh outputs/<scene_name>/mesh/2dgs/tsdf_mesh.ply --gt data/<scene_name>/lidar.pcd
+./scripts/run_3drc.sh nvs --dataset data/<scene_name> --model 3dgs/inria_30k   # model trained with GS_EVAL_MODE="true"
 
 # Results
 ./scripts/run_3drc.sh outputs                                 # list generated artifacts

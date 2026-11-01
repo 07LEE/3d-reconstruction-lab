@@ -49,8 +49,9 @@ def build_workspace(root: Path) -> None:
     })
     sugar = root / "outputs" / scene / "mesh" / "sugar"
     write_json(sugar / "pipeline_meta.json", {"stage": "Stage 3 (Mesh Extraction)", "engine": "SuGaR", "active_sfm": "hloc"})
-    write_json(sugar / "eval" / "sugarfine_mesh" / "eval_results.json", {
-        "mesh_path": "outputs/room/mesh/sugar/sugarfine_mesh.obj",
+    # eval_mesh writes next to the mesh, which SuGaR keeps under refined_mesh/<scene>/
+    write_json(sugar / "refined_mesh" / scene / "eval" / "sugarfine_mesh" / "eval_results.json", {
+        "mesh_path": "outputs/room/mesh/sugar/refined_mesh/room/sugarfine_mesh.obj",
         "metrics_version": 2,
         "hygiene": {"num_vertices": 500, "num_faces": 900, "is_watertight": True, "sliver_ratio_pct": 0.5},
         "accuracy": {"chamfer_l1_m": 0.0345, "hausdorff_95_m": 0.08, "gt_coverage_pct": 88.0,
