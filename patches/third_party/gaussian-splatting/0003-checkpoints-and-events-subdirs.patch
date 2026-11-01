@@ -1,0 +1,26 @@
+diff --git a/train.py b/train.py
+index 8206903..5ae6760 100644
+--- a/train.py
++++ b/train.py
+@@ -187,7 +187,9 @@ def training(dataset, opt, pipe, testing_iterations, saving_iterations, checkpoi
+ 
+             if (iteration in checkpoint_iterations):
+                 print("\n[ITER {}] Saving Checkpoint".format(iteration))
+-                torch.save((gaussians.capture(), iteration), scene.model_path + "/chkpnt" + str(iteration) + ".pth")
++                chkpnt_dir = os.path.join(scene.model_path, "checkpoints")
++                os.makedirs(chkpnt_dir, exist_ok=True)
++                torch.save((gaussians.capture(), iteration), os.path.join(chkpnt_dir, "chkpnt" + str(iteration) + ".pth"))
+ 
+ def prepare_output_and_logger(args):    
+     if not args.model_path:
+@@ -206,7 +208,9 @@ def prepare_output_and_logger(args):
+     # Create Tensorboard writer
+     tb_writer = None
+     if TENSORBOARD_FOUND:
+-        tb_writer = SummaryWriter(args.model_path)
++        events_dir = os.path.join(args.model_path, "events")
++        os.makedirs(events_dir, exist_ok=True)
++        tb_writer = SummaryWriter(events_dir)
+     else:
+         print("Tensorboard not available: not logging progress")
+     return tb_writer

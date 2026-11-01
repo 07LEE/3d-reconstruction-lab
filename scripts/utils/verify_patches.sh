@@ -131,6 +131,17 @@ else
   fail=1
 fi
 
+# 8b. SuGaR iteration_to_load option check (03_train_sugar.sh passes -i)
+SUGAR_PIPELINE="${REPO_ROOT}/third_party/sugar/train_full_pipeline.py"
+patch_count=$((patch_count + 1))
+if [ -f "${SUGAR_PIPELINE}" ] && grep -q "iteration_to_load" "${SUGAR_PIPELINE}"; then
+  log_check "ok" "SuGaR iteration_to_load option in train_full_pipeline.py"
+  patch_passed=$((patch_passed + 1))
+else
+  log_check "LOST" "SuGaR iteration_to_load option missing in train_full_pipeline.py"
+  fail=1
+fi
+
 # 9. Milo KDTree fallback & cstdint check
 MILO_MODEL="${REPO_ROOT}/third_party/milo/milo/scene/gaussian_model.py"
 MILO_RAST_H="${REPO_ROOT}/third_party/milo/submodules/diff-gaussian-rasterization/cuda_rasterizer/rasterizer_impl.h"
@@ -176,6 +187,33 @@ else
   log_check "LOST" "Scaffold-GS checkpoint capture patch missing in scene/gaussian_model.py"
   fail=1
 fi
+
+# PlanarGS missing planar prior guard check
+PLANARGS_MODEL="${REPO_ROOT}/third_party/PlanarGS/scene/gaussian_model.py"
+patch_count=$((patch_count + 1))
+if [ -f "${PLANARGS_MODEL}" ] && grep -q "if planarmasks is None or prior_depth is None:" "${PLANARGS_MODEL}"; then
+  log_check "ok" "PlanarGS missing planar prior guard in scene/gaussian_model.py"
+  patch_passed=$((patch_passed + 1))
+else
+  log_check "LOST" "PlanarGS missing planar prior guard missing in scene/gaussian_model.py"
+  fail=1
+fi
+
+# Checkpoints & TensorBoard events subdirectory patch check (ADR 0013)
+for train_spec in "3DGS:third_party/gaussian-splatting/train.py:third_party/gaussian-splatting/train.py" \
+                  "2DGS:third_party/2d-gaussian-splatting/train.py:third_party/2d-gaussian-splatting/train.py" \
+                  "PlanarGS:third_party/PlanarGS/train.py:third_party/PlanarGS/planar/training_report.py"; do
+  IFS=: read -r train_name train_py logger_py <<< "${train_spec}"
+  patch_count=$((patch_count + 1))
+  if [ -f "${REPO_ROOT}/${train_py}" ] && grep -q '"checkpoints"' "${REPO_ROOT}/${train_py}" && \
+     [ -f "${REPO_ROOT}/${logger_py}" ] && grep -q '"events"' "${REPO_ROOT}/${logger_py}"; then
+    log_check "ok" "${train_name} checkpoints/ & events/ subdirectory patch"
+    patch_passed=$((patch_passed + 1))
+  else
+    log_check "LOST" "${train_name} checkpoints/ & events/ subdirectory patch missing in ${train_py#third_party/}"
+    fail=1
+  fi
+done
 
 # Multi-environment explicit rasterizer verification
 env_count=0
