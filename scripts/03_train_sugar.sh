@@ -28,13 +28,19 @@ SCENE_NAME=$(basename "$INPUT_DATASET")
 if [ -n "${2:-}" ]; then
     GS_SUBDIR="$2"
 else
-    # Auto-detect existing 3DGS model output directory or fallback
-    LATEST_3DGS=$(ls -d "$PROJECT_ROOT/${OUTPUT_DIR}/${SCENE_NAME}/3dgs/"* 2>/dev/null | tail -n 1 || true)
-    if [ -n "$LATEST_3DGS" ]; then
-        GS_SUBDIR="3dgs/$(basename "$LATEST_3DGS")"
-    else
-        GS_SUBDIR="3dgs/inria_30k"
+    # Prefer the Inria 3DGS model; otherwise take the only model under 3dgs/ (an alphabetical pick chose planargs over inria_30k)
+    GS_SUBDIR="3dgs/inria_30k"
+    if [ ! -d "$PROJECT_ROOT/${OUTPUT_DIR}/${SCENE_NAME}/${GS_SUBDIR}" ]; then
+        mapfile -t GS_CANDIDATES < <(find "$PROJECT_ROOT/${OUTPUT_DIR}/${SCENE_NAME}/3dgs" -mindepth 1 -maxdepth 1 -type d 2>/dev/null | sort)
+        if [ "${#GS_CANDIDATES[@]}" -eq 1 ]; then
+            GS_SUBDIR="3dgs/$(basename "${GS_CANDIDATES[0]}")"
+        elif [ "${#GS_CANDIDATES[@]}" -gt 1 ]; then
+            echo "[FATAL] Several 3DGS models found and no 3dgs/inria_30k; pass one as the second argument:"
+            printf '  %s\n' "${GS_CANDIDATES[@]#"$PROJECT_ROOT/${OUTPUT_DIR}/${SCENE_NAME}/"}"
+            exit 1
+        fi
     fi
+    echo "[INFO] Source Gaussian model: ${GS_SUBDIR}"
 fi
 
 if [ -d "$GS_SUBDIR" ]; then

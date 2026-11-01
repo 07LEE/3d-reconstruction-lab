@@ -27,6 +27,7 @@ All submodules in `third_party/` (including `gaussian-splatting`) reference offi
 | `sugar` | `patches/third_party/sugar/0001-sugar-extension-dup-and-cpu-device.patch` | Extension fix, CPU `data_device` VRAM OOM fix, `weights_only=False` PyTorch 2.6+ fix |
 | `sugar` | `patches/third_party/sugar/0002-rasterizer-antialiasing-arg.patch` | `antialiasing=False` in `GaussianRasterizationSettings` and tolerance for the extra `invdepths` output of the Inria rasterizer |
 | `sugar` | `patches/third_party/sugar/0003-iteration-to-load-option.patch` | `-i/--iteration_to_load` option so `train_full_pipeline.py` loads the 3DGS iteration that `03_train_sugar.sh` passes instead of a fixed 7000 |
+| `sugar` | `patches/third_party/sugar/0004-planargs-img-name-pair.patch` | Joins the `[stem, extension]` pair that PlanarGS writes as `img_name` in `cameras.json`, so SuGaR can load a PlanarGS model |
 | `milo` | `patches/third_party/milo/0001-cstdint-and-cmake-fixes.patch` | `<cstdint>` includes for GCC 13+ in rasterizers and CMake 4.4 CXX standard / pybind11 tag fixes |
 | `milo` | `patches/third_party/milo/0002-cub-max-functor-for-cuda13.patch` | Local max functor in `diff-gaussian-rasterization_ms` instead of `cub::Max`, which CUDA 13 removed |
 | `vggt` | `patches/third_party/vggt/0001-pycolmap-313-compat.patch` | PyCOLMAP 3.13+ API compatibility and temporary directory handling |

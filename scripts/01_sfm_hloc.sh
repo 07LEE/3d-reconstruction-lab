@@ -114,31 +114,12 @@ if [ -d "${INPUT_DATASET}/cache/sfm" ]; then
     cp -r "${INPUT_DATASET}/cache/sfm"/* "$SPARSE_METHOD_DIR/" 2>/dev/null || true
     # If COLMAP created submodels in models/, promote the largest submodel by registered image count (num_reg_images)
     if [ -d "${INPUT_DATASET}/cache/sfm/models" ]; then
-        PROMOTION_INFO=$(python3 -c '
-import pycolmap, sys, glob, os
-models_dir = sys.argv[1]
-# The largest model is written to the sfm root; only the smaller ones land in models/.
-candidates = [os.path.dirname(models_dir)] + sorted(glob.glob(os.path.join(models_dir, "*")))
-best_model = ""
-max_imgs = -1
-for m in candidates:
-    if os.path.isdir(m):
-        try:
-            rec = pycolmap.Reconstruction(m)
-            num_imgs = rec.num_reg_images()
-            if num_imgs > max_imgs:
-                max_imgs = num_imgs
-                best_model = m
-        except Exception:
-            pass
-if best_model:
-    print(f"{best_model}|{max_imgs}")
-' "${INPUT_DATASET}/cache/sfm/models" 2>/dev/null || true)
+        PROMOTION_INFO=$(python -m src.sfm.sparse_outputs largest-model "${INPUT_DATASET}/cache/sfm" 2>/dev/null || true)
 
         if [ -n "$PROMOTION_INFO" ]; then
             BEST_MODEL=$(echo "$PROMOTION_INFO" | cut -d'|' -f1)
             REG_COUNT=$(echo "$PROMOTION_INFO" | cut -d'|' -f2)
-            if [ "$BEST_MODEL" = "${INPUT_DATASET}/cache/sfm" ]; then
+            if [ "$BEST_MODEL" = "root" ]; then
                 log_info "Largest model is the sfm root ($REG_COUNT registered images); keeping it in ${SPARSE_METHOD_DIR}."
             elif [ -n "$BEST_MODEL" ] && [ -d "$BEST_MODEL" ]; then
                 log_info "Promoting submodel $(basename "$BEST_MODEL") ($REG_COUNT registered images) to root of ${SPARSE_METHOD_DIR}..."
@@ -181,37 +162,8 @@ if [ "$HAS_CAMERAS" = false ] || [ "$HAS_IMAGES" = false ] || [ "$HAS_POINTS" = 
 fi
 
 # Write metadata json
-TIMESTAMP=$(date +"%Y-%m-%d %H:%M:%S")
-python3 -c "
-import json, os
-from pathlib import Path
-
-img_dir = Path('$IMAGE_DIR_TARGET')
-img_files = sorted([f.name for f in img_dir.iterdir() if f.suffix.lower() in ['.jpg', '.png', '.jpeg']]) if img_dir.is_dir() else []
-prefix_counts = {}
-for name in img_files:
-    stem = Path(name).stem
-    if '_' in stem:
-        parts = stem.rsplit('_', 1)
-        p = parts[0] if parts[1].isdigit() else stem.split('_', 1)[0]
-    else:
-        p = 'single'
-    prefix_counts[p] = prefix_counts.get(p, 0) + 1
-
-metadata = {
-    'method': '$METHOD',
-    'timestamp': '$TIMESTAMP',
-    'strategy': '$SFM_STRATEGY',
-    'overlap': int('$SFM_OVERLAP') if '$SFM_OVERLAP'.isdigit() else '$SFM_OVERLAP',
-    'retrieval_k': int('$SFM_RETRIEVAL_K') if '$SFM_RETRIEVAL_K'.isdigit() else '$SFM_RETRIEVAL_K',
-    'camera_model': os.environ.get('CAMERA_MODEL', 'SIMPLE_RADIAL'),
-    'camera_mode': os.environ.get('CAMERA_MODE', 'SINGLE'),
-    'num_images_total': len(img_files),
-    'video_prefixes': prefix_counts
-}
-with open('$SPARSE_METHOD_DIR/sfm_info.json', 'w') as f:
-    json.dump(metadata, f, indent=2)
-"
+python -m src.sfm.sparse_outputs write-info "$SPARSE_METHOD_DIR" --image_dir "$IMAGE_DIR_TARGET" --method "$METHOD" \
+    --strategy "${SFM_STRATEGY:-}" --overlap "${SFM_OVERLAP:-}" --retrieval_k "${SFM_RETRIEVAL_K:-}"
 
 # Create / Update active symlink sparse/0 -> method only after verification succeeds
 cd "$SPARSE_BASE_DIR"
