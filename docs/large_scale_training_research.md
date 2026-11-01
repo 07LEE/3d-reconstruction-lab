@@ -1,7 +1,7 @@
 ---
 title: Large-Scale Scene Training Research Notes
 description: Published approaches for Gaussian scenes that do not fit on one 16GB GPU, and a small-scale validation plan for 3DRC.
-category: guide
+category: research
 last_updated: 2026-10-30
 ---
 

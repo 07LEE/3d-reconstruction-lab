@@ -1,7 +1,7 @@
 ---
 title: GPU, CUDA and PyTorch Support
 description: Verified hardware configuration, supported GPU generations, CUDA toolkit and driver requirements, and how to re-check them.
-category: guide
+category: setup
 last_updated: 2026-10-29
 ---
 

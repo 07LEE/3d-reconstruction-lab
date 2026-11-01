@@ -1,7 +1,7 @@
 ---
 title: Submodule Patches and Environment Integrity Guide
 description: Tracked submodule patches in patches/ and environment verification system details.
-category: guide
+category: setup
 last_updated: 2026-08-14
 ---
 

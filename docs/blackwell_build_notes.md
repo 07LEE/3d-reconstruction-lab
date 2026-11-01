@@ -1,7 +1,7 @@
 ---
 title: Blackwell (sm_120) CUDA C++ Build and Optimization Notes
 description: Root cause analysis, troubleshooting matrix, and native CUBIN compilation guide for NVIDIA Blackwell RTX 50 Series.
-category: guide
+category: setup
 last_updated: 2026-08-09
 ---
 

@@ -88,11 +88,23 @@ Each stage records its runtime and environment fingerprint to `outputs/benchmark
 
 All submodules in `third_party/` reference official upstream repositories directly; custom changes are versioned patch files in `patches/`.
 
+### Guide
+
 - [Pipeline Architecture Guide](docs/pipeline_architecture.md): End-to-end workflow from dataset preparation (Step 0) to evaluation (Step 5).
+
+### Setup
+
 - [Conda Environments](docs/environments.md): The `3drc` and unified `gs` environments, how to build them, and the variables that configure them.
 - [GPU, CUDA and PyTorch Support](docs/gpu_support.md): Verified configuration, supported GPU generations, CUDA toolkit and driver requirements.
 - [Blackwell (sm_120) Build Notes](docs/blackwell_build_notes.md): Troubleshooting matrix and native `sm_120` CUBIN build guide for RTX 50 Series.
 - [Submodule Patches Guide](docs/submodule_patches.md): Patch catalog, `apply_patches.sh`, and `verify_patches.sh`.
+
+### Research
+
+- [SfM Basics and the 3DRC SfM Methods](docs/sfm_basics.md): hloc stages and swappable components, SuperGlue vs LightGlue, and how hloc, COLMAP, FastMap and VGGT differ.
 - [Mesh Evaluation Methods](docs/mesh_evaluation_methods.md): How published papers evaluate meshes and obtain ground truth, compared with 3DRC.
 - [Large-Scale Training Research Notes](docs/large_scale_training_research.md): Open questions and a validation plan for scenes that do not fit on one GPU.
+
+### Decisions
+
 - [Architecture Decision Records (ADR)](docs/adr/): Architecture decisions with operational writing rules.

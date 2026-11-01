@@ -1,7 +1,7 @@
 ---
 title: Mesh Evaluation Methods in the Literature
 description: How benchmarks and reconstruction papers evaluate meshes, how their ground truth was obtained, and how 3DRC compares.
-category: guide
+category: research
 last_updated: 2026-10-26
 ---
 

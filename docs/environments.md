@@ -1,7 +1,7 @@
 ---
 title: Conda Environments
 description: The 3drc and unified gs Conda environments, how to build them, and the environment variables that select them.
-category: guide
+category: setup
 last_updated: 2026-10-29
 ---
 
