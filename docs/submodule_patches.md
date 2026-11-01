@@ -36,6 +36,7 @@ All submodules in `third_party/` (including `gaussian-splatting`) reference offi
 | `2d-gaussian-splatting` | `patches/third_party/2d-gaussian-splatting/0004-checkpoints-and-events-subdirs.patch` | `checkpoints/` & `events/` subdirectory isolation (ADR 0013) |
 | `diff-surfel-rasterization` | `patches/third_party/2d-gaussian-splatting/submodules/diff-surfel-rasterization/0001-cstdint-and-zero-init.patch` | `<cstdint>` includes, zero-init structs, and backward SH gradient dimension match |
 | `PlanarGS` | `patches/third_party/PlanarGS/0001-checkpoints-and-events-subdirs.patch` | `checkpoints/` & `events/` subdirectory isolation (ADR 0013) |
+| `PlanarGS` | `patches/third_party/PlanarGS/0002-skip-views-without-planar-priors.patch` | `plane_initdensify` skips a view whose planar mask or depth prior is missing instead of crashing |
 | `scaffold-gs` | `patches/third_party/scaffold-gs/0001-rasterizer-antialiasing-compat.patch` | `antialiasing` kwarg guard and `visible_filter` fallback for dr_aa rasterizer |
 | `scaffold-gs` | `patches/third_party/scaffold-gs/0002-checkpoint-capture-and-getattr-fix.patch` | PyTorch 2.6+ `weights_only=False` fix, `[INFO]` CleanStreamFormatter logger, 10/11-element checkpoint tuple compatibility, `checkpoints/` & `events/` subdirectory isolation, and `getattr` guard for deleted `offset_denom` |
 | `mip-splatting` | `patches/third_party/mip-splatting/0001-cstdint-and-sm120-compat.patch` | PyTorch 2.6+ `weights_only=False` fix, `checkpoints/` & `events/` subdirectory isolation, and C++ `<cstdint>` headers |

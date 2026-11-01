@@ -188,6 +188,17 @@ else
   fail=1
 fi
 
+# PlanarGS missing planar prior guard check
+PLANARGS_MODEL="${REPO_ROOT}/third_party/PlanarGS/scene/gaussian_model.py"
+patch_count=$((patch_count + 1))
+if [ -f "${PLANARGS_MODEL}" ] && grep -q "if planarmasks is None or prior_depth is None:" "${PLANARGS_MODEL}"; then
+  log_check "ok" "PlanarGS missing planar prior guard in scene/gaussian_model.py"
+  patch_passed=$((patch_passed + 1))
+else
+  log_check "LOST" "PlanarGS missing planar prior guard missing in scene/gaussian_model.py"
+  fail=1
+fi
+
 # Checkpoints & TensorBoard events subdirectory patch check (ADR 0013)
 for train_spec in "3DGS:third_party/gaussian-splatting/train.py:third_party/gaussian-splatting/train.py" \
                   "2DGS:third_party/2d-gaussian-splatting/train.py:third_party/2d-gaussian-splatting/train.py" \

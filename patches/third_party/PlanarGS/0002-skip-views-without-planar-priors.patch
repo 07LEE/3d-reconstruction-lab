@@ -1,0 +1,18 @@
+diff --git a/scene/gaussian_model.py b/scene/gaussian_model.py
+index 39941d8..23b2131 100644
+--- a/scene/gaussian_model.py
++++ b/scene/gaussian_model.py
+@@ -500,9 +500,11 @@ class GaussianModel:
+         # distCUDA2) muessen sie auf der GPU sein.
+         planarmasks = viewpoint_cam.planarmask
+         prior_depth = viewpoint_cam.priordepth
+-        if planarmasks is not None and not planarmasks.is_cuda:
++        if planarmasks is None or prior_depth is None:
++            return
++        if not planarmasks.is_cuda:
+             planarmasks = planarmasks.cuda()
+-        if prior_depth is not None and not prior_depth.is_cuda:
++        if not prior_depth.is_cuda:
+             prior_depth = prior_depth.cuda()
+         R = torch.from_numpy(viewpoint_cam.R).float().cuda()
+         T = torch.from_numpy(viewpoint_cam.T).float().cuda()
