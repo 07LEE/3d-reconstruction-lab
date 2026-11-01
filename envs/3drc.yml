@@ -14,6 +14,7 @@ dependencies:
   - opencv>=4.6.0
   - matplotlib>=3.5.0
   - pycolmap>=3.13.0
+  - colmap>=3.13.0
   - pyyaml
   - plyfile
   - open3d
