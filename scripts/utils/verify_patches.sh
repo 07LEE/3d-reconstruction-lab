@@ -131,6 +131,17 @@ else
   fail=1
 fi
 
+# 8b. SuGaR iteration_to_load option check (03_train_sugar.sh passes -i)
+SUGAR_PIPELINE="${REPO_ROOT}/third_party/sugar/train_full_pipeline.py"
+patch_count=$((patch_count + 1))
+if [ -f "${SUGAR_PIPELINE}" ] && grep -q "iteration_to_load" "${SUGAR_PIPELINE}"; then
+  log_check "ok" "SuGaR iteration_to_load option in train_full_pipeline.py"
+  patch_passed=$((patch_passed + 1))
+else
+  log_check "LOST" "SuGaR iteration_to_load option missing in train_full_pipeline.py"
+  fail=1
+fi
+
 # 9. Milo KDTree fallback & cstdint check
 MILO_MODEL="${REPO_ROOT}/third_party/milo/milo/scene/gaussian_model.py"
 MILO_RAST_H="${REPO_ROOT}/third_party/milo/submodules/diff-gaussian-rasterization/cuda_rasterizer/rasterizer_impl.h"

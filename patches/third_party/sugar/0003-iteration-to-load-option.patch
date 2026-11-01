@@ -1,0 +1,22 @@
+diff --git a/train_full_pipeline.py b/train_full_pipeline.py
+index be9d005..9976bd7 100644
+--- a/train_full_pipeline.py
++++ b/train_full_pipeline.py
+@@ -22,6 +22,8 @@ if __name__ == "__main__":
+     parser.add_argument('--gs_output_dir', type=str, default=None,
+                         help='(Optional) If None, will automatically train a vanilla Gaussian Splatting model at the beginning of the training. '
+                         'Else, skips the vanilla Gaussian Splatting optimization and use the checkpoint in the provided directory.')
++    parser.add_argument('-i', '--iteration_to_load', type=int, default=7000,
++                        help='Iteration of the vanilla 3DGS model to load.')
+     
+     # Regularization for coarse SuGaR
+     parser.add_argument('-r', '--regularization_type', type=str,
+@@ -136,7 +138,7 @@ if __name__ == "__main__":
+         f"python train.py \
+             -s {args.scene_path} \
+             -c {gs_checkpoint_dir} \
+-            -i 7_000 \
++            -i {args.iteration_to_load} \
+             -r {args.regularization_type} \
+             -l {args.surface_level} \
+             -v {args.n_vertices_in_mesh} \
