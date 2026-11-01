@@ -190,8 +190,8 @@ train_finish <bench_stage> "<engine name>"   # timing record and pipeline_meta.j
 - The trainer command stays in each script because its flags differ per backend. 02c_train_2dgs.sh is a minimal example.
 - `train_env` and `train_dataset` are separate so a backend can prepare its toolchain in between (PlanarGS sources the CUDA build environment there).
 - The repo column must be a submodule under third_party/, and the variant column must be one of the rasterizer builds made by scripts/00_setup_environment.sh. A backend with a rasterizer build of its own also needs entries in that script and in scripts/utils/verify_patches.sh. Submodules and patches are covered in the [Submodule Patches Guide](submodule_patches.md).
-- The Python CLI (src/cli/main.py) keeps its own backend lists, and tests/test_cli.py fails when they drift from the registry. The mesh rules in run_3drc.sh (SuGaR needs a 3dgs or planargs model, TSDF needs a 2dgs model) are not in the registry either.
-- The backend tables in tests/test_training_stages.py, tests/test_activate_backend.py and tests/test_nvs_backend.py pin each backend's command lines, so a new backend gets a row there. tests/smoke_test/run_smoke_test.sh runs every backend end to end on a GPU.
+- The Python CLI (src/cli/main.py) keeps its own backend lists, and tests/cli/test_cli.py fails when they drift from the registry. The mesh rules in run_3drc.sh (SuGaR needs a 3dgs or planargs model, TSDF needs a 2dgs model) are not in the registry either.
+- The backend tables in tests/scripts/test_training_stages.py, tests/scripts/test_activate_backend.py and tests/scripts/test_nvs_backend.py pin each backend's command lines, so a new backend gets a row there. tests/smoke_test/run_smoke_test.sh runs every backend end to end on a GPU.
 
 ## Step 3: 3D Mesh Reconstruction (SuGaR, MILo & TSDF)
 

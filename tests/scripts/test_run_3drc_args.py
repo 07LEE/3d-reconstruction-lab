@@ -4,7 +4,7 @@ from pathlib import Path
 
 import pytest
 
-PROJECT_ROOT = Path(__file__).resolve().parents[1]
+PROJECT_ROOT = Path(__file__).resolve().parents[2]
 
 # Mesh stage scripts are replaced by stubs that log the arguments they receive
 STAGE_SCRIPTS = {"sugar": "03_train_sugar.sh", "tsdf": "03c_mesh_tsdf.sh"}

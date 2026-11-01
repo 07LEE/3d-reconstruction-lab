@@ -6,7 +6,7 @@ from pathlib import Path
 
 import pytest
 
-PROJECT_ROOT = Path(__file__).resolve().parents[1]
+PROJECT_ROOT = Path(__file__).resolve().parents[2]
 
 # Backend -> model directory under outputs/<scene>/, the repository whose render.py and metrics.py run,
 # the rasterizer build it activates, its extra arguments, and the directory the evaluation runs from

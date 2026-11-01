@@ -4,7 +4,7 @@ from pathlib import Path
 
 from src.utils.log_benchmark import _normalize_output_dir, record_stage_timing
 
-PROJECT_ROOT = Path(__file__).resolve().parents[1]
+PROJECT_ROOT = Path(__file__).resolve().parents[2]
 
 def test_record_stage_timing_appends_entry_with_relative_output_dir(tmp_path):
     bench = tmp_path / "outputs" / "benchmark_timings.json"

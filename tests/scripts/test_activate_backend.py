@@ -3,7 +3,7 @@ from pathlib import Path
 
 import pytest
 
-PROJECT_ROOT = Path(__file__).resolve().parents[1]
+PROJECT_ROOT = Path(__file__).resolve().parents[2]
 HELPER = PROJECT_ROOT / "scripts" / "utils" / "activate_backend.sh"
 BACKENDS = ["3dgs", "2dgs", "tsdf", "planargs", "sugar", "scaffoldgs", "mipsplatting", "milo", "grouping"]
 

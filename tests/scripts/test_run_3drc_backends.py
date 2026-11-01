@@ -5,7 +5,7 @@ from pathlib import Path
 
 import pytest
 
-PROJECT_ROOT = Path(__file__).resolve().parents[1]
+PROJECT_ROOT = Path(__file__).resolve().parents[2]
 
 # Training backend -> stage script, the header run_3drc.sh prints, and the model directory under outputs/<scene>/
 BACKENDS = {

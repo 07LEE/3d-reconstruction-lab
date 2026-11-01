@@ -8,7 +8,7 @@ from pathlib import Path
 
 import pytest
 
-PROJECT_ROOT = Path(__file__).resolve().parents[1]
+PROJECT_ROOT = Path(__file__).resolve().parents[2]
 
 # Per stage script: where the model goes and the trainer command it runs.
 # {root}, {model} and {iters} are filled in per test; PlanarGS runs from its own directory with absolute paths.
