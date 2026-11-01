@@ -1,7 +1,7 @@
 """SfM reconstruction report: camera trajectory plots and per-image quality statistics.
 
-Writes <model_dir>/report/sfm_report.md with trajectory.png and per_image.png, or opens the
-cameras, trajectory and sparse points in an Open3D window with --show.
+Writes <model_dir>/report/sfm_report.md with trajectory.png and per_image.png. The interactive
+Open3D view of the same cameras and trajectory is src/viz/visualize_model.py.
 """
 
 from __future__ import annotations
@@ -359,40 +359,6 @@ def build_report(model: SparseModel, stats: Dict[str, Any], all_images: Sequence
     return "\n".join(lines)
 
 
-def show_open3d(model: SparseModel, stats: Dict[str, Any]) -> None:
-    """Opens cameras, the capture-order trajectory and sparse points in an Open3D window."""
-    import open3d as o3d
-    from matplotlib.cm import ScalarMappable
-    from matplotlib.colors import Normalize
-
-    track = model.track
-    geometries = []
-    pcd = o3d.geometry.PointCloud(o3d.utility.Vector3dVector(_crop_to_cameras(model.points, track.centers, margin=2.0)))
-    geometries.append(pcd.paint_uniform_color([0.6, 0.6, 0.6]))
-
-    mapper = ScalarMappable(norm=Normalize(0, max(len(track.names) - 1, 1)), cmap="viridis")
-    order_colors = np.asarray(mapper.to_rgba(np.arange(len(track.names))))[:, :3]
-    lines = [[i - 1, i] for i in range(1, len(track.names)) if track.groups[i] == track.groups[i - 1]]
-    traj = o3d.geometry.LineSet(o3d.utility.Vector3dVector(track.centers), o3d.utility.Vector2iVector(lines))
-    traj.colors = o3d.utility.Vector3dVector(order_colors[[i for _, i in lines]])
-    geometries.append(traj)
-
-    size = 2 * stats["median_step"] if stats["median_step"] > 0 else 0.05
-    for i in range(len(track.names)):
-        right = np.cross(track.forward[i], track.up[i])
-        apex, f, u = track.centers[i], track.forward[i] * size, track.up[i] * size * 0.75
-        r = right * size
-        corners = [apex + f + r + u, apex + f - r + u, apex + f - r - u, apex + f + r - u]
-        frustum = o3d.geometry.LineSet(
-            o3d.utility.Vector3dVector([apex] + corners),
-            o3d.utility.Vector2iVector([[0, 1], [0, 2], [0, 3], [0, 4], [1, 2], [2, 3], [3, 4], [4, 1]]),
-        )
-        frustum.paint_uniform_color(order_colors[i])
-        geometries.append(frustum)
-    # draw_geometries comes from open3d's compiled bindings, which Pylance cannot see
-    o3d.visualization.draw_geometries(geometries, window_name="SfM cameras and trajectory")  # pyright: ignore[reportAttributeAccessIssue]
-
-
 def resolve_paths(target: str | Path, method: Optional[str], image_dir: Optional[str]) -> Tuple[Path, Optional[Path]]:
     """Accepts a model directory or a dataset directory (data/<scene>) and returns (model_dir, image_dir)."""
     target = Path(target)
@@ -442,14 +408,9 @@ def main() -> None:
     parser.add_argument("--method", default=None, help="SfM method subdirectory under sparse/ (default: active sparse/0)")
     parser.add_argument("--image_dir", default=None, help="Input image directory, used to list unregistered images")
     parser.add_argument("--out_dir", default=None, help="Report directory (default: <model_dir>/report)")
-    parser.add_argument("--show", action="store_true", help="Open an interactive Open3D window instead of writing the report")
     args = parser.parse_args()
 
     model_dir, image_dir = resolve_paths(args.target, args.method, args.image_dir)
-    if args.show:
-        model = load_model(model_dir)
-        show_open3d(model, trajectory_stats(model.track))
-        return
     report_path = write_report(model_dir, image_dir, Path(args.out_dir) if args.out_dir else None)
     print(f"SfM report written to {report_path}")
 
