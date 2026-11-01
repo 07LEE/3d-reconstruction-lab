@@ -44,19 +44,10 @@ def test_registered_backends_can_be_activated():
               f'for name in {names}; do backend_rasterizer_variant "$name" > /dev/null; done')
     assert subprocess.run(["bash", "-c", script]).returncode == 0
 
-def test_lookups_read_the_registry():
-    result = shell('backend_names ", "; backend_script 2dgs; backend_model_subdir planargs; backend_step 3dgs; '
-                   'backend_title 2dgs; backend_header 2dgs; backend_header mipsplatting')
+def test_names_can_be_joined_with_a_separator():
+    result = shell('backend_names ", "')
     assert result.returncode == 0, result.stderr
-    assert result.stdout.splitlines() == [
-        "3dgs, planargs, 2dgs, scaffoldgs, mipsplatting",
-        "02c_train_2dgs.sh",
-        "3dgs/planargs",
-        "2",
-        "2D Gaussian Splatting",
-        "Step 2c: 2D Gaussian Splatting Training",
-        "Step 2e: Mip-Splatting Training",
-    ]
+    assert result.stdout.strip() == "3dgs, planargs, 2dgs, scaffoldgs, mipsplatting"
 
 def test_variant_and_repo_lookups():
     result = shell('backend_variant planargs; backend_variant scaffoldgs; backend_repo 2dgs; backend_repo mipsplatting')
@@ -81,15 +72,7 @@ def test_paths_without_a_model_directory_are_not_inferred():
 def test_names_are_space_separated_by_default():
     assert shell("backend_names").stdout.split() == ["3dgs", "planargs", "2dgs", "scaffoldgs", "mipsplatting"]
 
-def test_only_the_default_backend_lacks_a_shortcut():
-    result = shell('for name in $(backend_names); do backend_has_shortcut "$name" || echo "$name"; done')
-    assert result.stdout.split() == ["3dgs"]
-
-@pytest.mark.parametrize("call", [
-    "backend_exists nerf", "backend_script nerf", "backend_model_subdir nerf", "backend_step nerf",
-    "backend_title nerf", "backend_header nerf", "backend_has_shortcut nerf", "backend_variant nerf",
-    "backend_repo nerf",
-])
+@pytest.mark.parametrize("call", ["backend_variant nerf", "backend_repo nerf"])
 def test_unknown_backends_fail_every_lookup(call):
     assert shell(call).returncode != 0
 
@@ -98,8 +81,8 @@ def test_comments_and_blank_lines_are_ignored(tmp_path):
     (tmp_path / "configs").mkdir()
     shutil.copy(PROJECT_ROOT / "scripts" / "utils" / "backends.sh", tmp_path / "scripts" / "utils")
     (tmp_path / "configs" / "backends.txt").write_text(
-        "# comment\n\n   # indented comment\nalpha  01_a.sh  a  yes  Alpha_One\n\nbeta  02b_b.sh  b  no  Beta\n"
+        "# comment\n\n   # indented comment\nalpha  01_a.sh  a  yes  Alpha_One  va  repo_a\n\nbeta  02b_b.sh  b  no  Beta  vb  repo_b\n"
     )
-    result = shell('backend_names; backend_header alpha; backend_header beta', root=tmp_path)
+    result = shell('backend_names; backend_variant beta', root=tmp_path)
     assert result.returncode == 0, result.stderr
-    assert result.stdout.splitlines() == ["alpha beta", "Step 1: Alpha One Training", "Step 2b: Beta Training"]
+    assert result.stdout.splitlines() == ["alpha beta", "vb"]

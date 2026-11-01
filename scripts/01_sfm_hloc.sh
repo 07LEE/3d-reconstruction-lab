@@ -4,18 +4,10 @@ set -euo pipefail
 # [Step 01] hloc SuperPoint+SuperGlue SfM Pipeline
 # High-precision camera pose estimation for large-scale high-resolution datasets
 
-# Arguments are (method, dataset) or (dataset, method); pass the dataset to the config
-CONFIG_SCENE_ARG=""
-for arg in "$@"; do
-    if [ -d "$arg" ] || [[ "$arg" == data/* ]]; then
-        CONFIG_SCENE_ARG="$arg"
-        break
-    fi
-done
-
+# Usage: 01_sfm_hloc.sh [method] [dataset]; the config picks the scene from the dataset
 CONFIG_PATH="configs/default_config.sh"
 if [ -f "$CONFIG_PATH" ]; then
-    source "$CONFIG_PATH" ${CONFIG_SCENE_ARG:+"$CONFIG_SCENE_ARG"}
+    source "$CONFIG_PATH" ${2:+"$2"}
 else
     echo "[FATAL] Configuration file not found at $CONFIG_PATH!"
     exit 1
@@ -30,23 +22,8 @@ if [ -f "$CONDA_PATH/etc/profile.d/conda.sh" ]; then
     [ "${CONDA_DEFAULT_ENV:-}" = "3drc" ] || { echo "[FATAL] Conda environment '3drc' not found or activation failed. Run: ./scripts/00_setup_environment.sh --env 3drc"; exit 1; }
 fi
 
-ARG1="${1:-}"
-ARG2="${2:-}"
-ARG_DATASET=""
-ARG_METHOD=""
-
-if [ -n "$ARG1" ]; then
-    if [ -d "$ARG1" ] || [[ "$ARG1" == data/* ]]; then
-        ARG_DATASET="$ARG1"
-        [ -n "$ARG2" ] && ARG_METHOD="$ARG2"
-    else
-        ARG_METHOD="$ARG1"
-        [ -n "$ARG2" ] && ARG_DATASET="$ARG2"
-    fi
-fi
-
-METHOD="${ARG_METHOD:-$SFM_METHOD}"
-INPUT_DATASET="${ARG_DATASET:-$DATA_DIR}"
+METHOD="${1:-$SFM_METHOD}"
+INPUT_DATASET="${2:-$DATA_DIR}"
 
 IMAGE_DIR_TARGET="${INPUT_DATASET}/raw_images"
 if [ ! -d "$IMAGE_DIR_TARGET" ]; then

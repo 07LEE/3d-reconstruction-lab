@@ -2,15 +2,9 @@
 # 3DRC Training Backend Lookups
 #
 # Usage (sourced): source scripts/utils/backends.sh
-# configs/backends.txt lists the training backends and explains its columns.
+# configs/backends.txt lists the training backends and explains its columns. The CLI reads the
+# command-related columns itself (src/cli/main.py); these lookups serve the stage scripts.
 #   backend_names [separator]    every backend name, joined by the separator (default: a space)
-#   backend_exists <name>        succeeds for a listed backend
-#   backend_script <name>        stage script under scripts/
-#   backend_model_subdir <name>  model directory under outputs/<scene>/
-#   backend_has_shortcut <name>  succeeds when "run_3drc.sh <name>" trains that backend
-#   backend_step <name>          step label taken from the script name, e.g. 2c
-#   backend_title <name>         display name, e.g. 2D Gaussian Splatting
-#   backend_header <name>        e.g. "Step 2c: 2D Gaussian Splatting Training"
 #   backend_variant <name>       diff_gaussian_rasterization build the backend runs with
 #   backend_repo <name>          checkout whose render.py and metrics.py evaluate the backend's models
 #   backend_infer <path>         backend whose models live under the path
@@ -25,41 +19,6 @@ _backend_column() {
 
 backend_names() {
     awk -v sep="${1:- }" '/^[[:space:]]*#/ { next } NF { printf "%s%s", out, $1; out = sep } END { print "" }' "$_BACKENDS_FILE"
-}
-
-backend_exists() {
-    _backend_column "$1" 1 > /dev/null
-}
-
-backend_script() {
-    _backend_column "$1" 2
-}
-
-backend_model_subdir() {
-    _backend_column "$1" 3
-}
-
-backend_has_shortcut() {
-    [ "$(_backend_column "$1" 4)" = "yes" ]
-}
-
-backend_step() {
-    local script
-    script=$(backend_script "$1") || return 1
-    script="${script%%_*}"
-    echo "${script#0}"
-}
-
-backend_title() {
-    local title
-    title=$(_backend_column "$1" 5) || return 1
-    echo "${title//_/ }"
-}
-
-backend_header() {
-    local step title
-    step=$(backend_step "$1") && title=$(backend_title "$1") || return 1
-    echo "Step ${step}: ${title} Training"
 }
 
 backend_variant() {
