@@ -41,7 +41,7 @@ class YUVInMemoryDataset(Dataset):
         self.apply_undistort = apply_undistort
         self.transform = transform
 
-        self.loader = SessionDataLoader(self.session_dir)
+        self.loader = SessionDataLoader(str(self.session_dir))
         self.num_frames = len(self.loader.frames_df)
 
     def __len__(self) -> int:

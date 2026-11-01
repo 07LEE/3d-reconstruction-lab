@@ -67,6 +67,8 @@ def compute_mesh_hygiene_and_topology(mesh_path: str | Path, check_self_intersec
             "sliver_ratio_pct": 0.0,
             "self_intersecting_faces": 0,
         }
+    if not isinstance(tm, trimesh.Trimesh):
+        raise ValueError(f"Unsupported geometry type {type(tm).__name__}: {path_obj}")
 
     num_vertices = len(tm.vertices)
     num_faces = len(tm.faces)
@@ -212,7 +214,7 @@ def resolve_transform(args: argparse.Namespace, mesh_file: Path, out_dir: Path) 
         if ref_path is None:
             print("[Warn] No SfM sparse model found for this mesh; aligning the mesh itself to GT. "
                   "Meshes aligned this way are not in a shared frame. Pass --align-ref to fix.")
-        elif cache_file is None:
+        elif cache_file is None and cache_dir is not None:
             cache_file = cache_dir / f"sim3_{ref_path.resolve().name}_{gt_path.stem}.json"
     elif args.align_ref != "mesh":
         ref_path = Path(args.align_ref)
@@ -346,7 +348,7 @@ def main() -> None:
     if hygiene_res['self_intersecting_faces'] >= 0:
         print(f"Self-Intersecting Faces: {hygiene_res['self_intersecting_faces']:,}")
 
-    if gt_res:
+    if gt_res and alignment is not None:
         print("--------------------------------------------------")
         print(f"Alignment: {alignment.get('source', 'file')} | Fitness: {alignment.get('fitness', '-')} "
               f"| Inlier RMSE: {alignment.get('inlier_rmse_m', '-')} m | Ambiguous: {alignment.get('ambiguous', '-')}")

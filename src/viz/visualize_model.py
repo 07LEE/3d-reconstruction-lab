@@ -27,7 +27,7 @@ def visualize_reconstruction(model_path: str | Path) -> None:
         return
 
     print(f"--- Loading reconstruction from: {path} ---")
-    reconstruction = pycolmap.Reconstruction(path)
+    reconstruction = pycolmap.Reconstruction(str(path))
 
     # 1. Prepare 3D Points
     points3d = reconstruction.points3D
@@ -55,7 +55,8 @@ def visualize_reconstruction(model_path: str | Path) -> None:
 
     # 3. Launch Visualization
     print("\nTip: Use mouse to rotate, scroll to zoom.")
-    o3d.visualization.draw_geometries(
+    # draw_geometries comes from open3d's compiled bindings, which Pylance cannot see
+    o3d.visualization.draw_geometries(  # pyright: ignore[reportAttributeAccessIssue]
         geometries,
         window_name=f"3DRC Visualization - {path.name}",
         width=1280,
