@@ -15,6 +15,7 @@ dependencies:
   - matplotlib>=3.5.0
   - pycolmap>=3.13.0
   - colmap>=3.13.0
+  - pytest
   - pyyaml
   - plyfile
   - open3d
