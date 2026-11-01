@@ -38,3 +38,4 @@ This directory documents key architectural decisions, rationale, and context for
 - 0019-defer-in-memory-yuv-ingestion.md: Defer In-Memory YUV Ingestion, Use Disk Extraction as Interim Path
 - 0020-unified-gs-environment-on-cuda-13-2.md: Build the Unified gs Environment on CUDA 13.2 (torch cu130)
 - 0021-remove-split-gs-environment-mode.md: Remove the Split gs_* Environment Mode
+- 0022-python-cli-as-the-canonical-entry-point.md: Python CLI as the Canonical Entry Point

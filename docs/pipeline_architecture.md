@@ -60,7 +60,7 @@ Datasets must follow the standard COLMAP / Inria directory structure (`images/`,
 
 ### Scene Selection
 
-Each step resolves the scene in this order: the dataset path argument (`data/<scene_name>`), the `SCENE_NAME` environment variable, then the most recently modified directory in `data/`. The last fallback prints a warning because any write into `data/<scene>/` (e.g. the SfM cache) changes which scene it picks. Set `REQUIRE_SCENE=true` to make a missing scene an error instead.
+Commands are run with `./scripts/run_3drc.sh <command>` or `python 3drc.py <command>`; both go to src/cli/main.py, which parses the arguments once and calls the stage scripts with fixed positional arguments ([ADR 0022](adr/0022-python-cli-as-the-canonical-entry-point.md)). The scene is resolved once per command in this order: `--dataset data/<scene_name>`, the `SCENE_NAME` environment variable, then the most recently modified directory in `data/`. The last fallback prints a warning because any write into `data/<scene>/` (e.g. the SfM cache) changes which scene it picks. Set `REQUIRE_SCENE=true` to make a missing scene an error instead.
 
 ### Download & Preprocessing Commands
 
@@ -170,7 +170,7 @@ Running a training stage again on the same scene works in the same model directo
 
 ### Adding a Training Backend
 
-A training backend is one row in configs/backends.txt plus one stage script. The row drives the train command, the shortcut and the help text of run_3drc.sh, the model directory and evaluation repository used by the NVS evaluation, and the rasterizer build chosen by activate_backend.sh. The columns are explained at the top of the file.
+A training backend is one row in configs/backends.txt plus one stage script. The row drives the train command, the shortcut and the help text of the CLI (src/cli/main.py), the model directory and evaluation repository used by the NVS evaluation, and the rasterizer build chosen by activate_backend.sh. The columns are explained at the top of the file.
 
 The stage scripts share their dataset, checkpoint and bookkeeping steps through scripts/utils/train_stage.sh, so a backend script only declares its trainer command:
 
@@ -190,7 +190,7 @@ train_finish <bench_stage> "<engine name>"   # timing record and pipeline_meta.j
 - The trainer command stays in each script because its flags differ per backend. 02c_train_2dgs.sh is a minimal example.
 - `train_env` and `train_dataset` are separate so a backend can prepare its toolchain in between (PlanarGS sources the CUDA build environment there).
 - The repo column must be a submodule under third_party/, and the variant column must be one of the rasterizer builds made by scripts/00_setup_environment.sh. A backend with a rasterizer build of its own also needs entries in that script and in scripts/utils/verify_patches.sh. Submodules and patches are covered in the [Submodule Patches Guide](submodule_patches.md).
-- The Python CLI (src/cli/main.py) keeps its own backend lists, and tests/cli/test_cli.py fails when they drift from the registry. The mesh rules in run_3drc.sh (SuGaR needs a 3dgs or planargs model, TSDF needs a 2dgs model) are not in the registry either.
+- The mesh rules (SuGaR needs a 3dgs or planargs model, TSDF needs a 2dgs model) are not in the registry; they are MESH_SOURCES in src/cli/main.py.
 - The backend tables in tests/scripts/test_training_stages.py, tests/scripts/test_activate_backend.py and tests/scripts/test_nvs_backend.py pin each backend's command lines, so a new backend gets a row there. tests/smoke_test/run_smoke_test.sh runs every backend end to end on a GPU.
 
 ## Step 3: 3D Mesh Reconstruction (SuGaR, MILo & TSDF)
@@ -277,8 +277,8 @@ Renders held-out test views with the backend's own `render.py --skip_train` and 
 - The backend is inferred from the model directory below outputs/<scene_name>/ (3dgs/inria_30k, 3dgs/planargs, 2dgs, scaffoldgs, mipsplatting, as listed in configs/backends.txt), so a scene or parent directory that carries a backend's name does not matter. Override with `NVS_BACKEND`.
 
 ```bash
-GS_EVAL_MODE=true ./scripts/run_3drc.sh train 2dgs data/<scene_name>   # or set GS_EVAL_MODE in configs/default_config.sh
-./scripts/run_3drc.sh nvs data/<scene_name> 2dgs
+GS_EVAL_MODE=true ./scripts/run_3drc.sh train 2dgs --dataset data/<scene_name>   # or set GS_EVAL_MODE in configs/default_config.sh
+./scripts/run_3drc.sh nvs --dataset data/<scene_name> --model 2dgs
 ```
 
 ## Results Aggregation (`src/utils/collect_results.py`)

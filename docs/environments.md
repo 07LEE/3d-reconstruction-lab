@@ -20,7 +20,7 @@ The seven per-backend `gs_*` environments of ADR 0001 differed mostly in which `
 ```bash
 ./scripts/00_setup_environment.sh               # 3drc + gs (creates cuda132 when missing), builds .ext/{inria,scaffold,mipsplatting,milo,grouping}
 ./scripts/utils/verify_patches.sh --verbose     # checks each backend loads its own rasterizer
-./scripts/run_3drc.sh train 3dgs data/<scene_name>
+./scripts/run_3drc.sh train 3dgs --dataset data/<scene_name>
 ```
 
 `gs` is built with torch `2.11.0+cu130` and the CUDA 13.2 toolkit from `cuda132`. See [ADR 0020](adr/0020-unified-gs-environment-on-cuda-13-2.md) and [GPU, CUDA and PyTorch Support](gpu_support.md).
