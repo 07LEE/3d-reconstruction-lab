@@ -1,0 +1,15 @@
+diff --git a/sugar_scene/cameras.py b/sugar_scene/cameras.py
+--- a/sugar_scene/cameras.py
++++ b/sugar_scene/cameras.py
+@@ -33,6 +33,11 @@
+     
+     with open(gs_output_path + 'cameras.json') as f:
+         unsorted_camera_transforms = json.load(f)
++
++    # PlanarGS stores img_name as the [stem, extension] pair from os.path.splitext
++    for camera_transform in unsorted_camera_transforms:
++        if isinstance(camera_transform['img_name'], list):
++            camera_transform['img_name'] = ''.join(camera_transform['img_name'])
+         
+     # Remove indices
+     if len(remove_indices) > 0:

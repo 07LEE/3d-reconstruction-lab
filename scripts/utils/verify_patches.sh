@@ -142,6 +142,17 @@ else
   fail=1
 fi
 
+# 8c. SuGaR PlanarGS img_name pair check (PlanarGS writes img_name as [stem, extension])
+SUGAR_CAMERAS="${REPO_ROOT}/third_party/sugar/sugar_scene/cameras.py"
+patch_count=$((patch_count + 1))
+if [ -f "${SUGAR_CAMERAS}" ] && grep -q "isinstance(camera_transform\['img_name'\], list)" "${SUGAR_CAMERAS}"; then
+  log_check "ok" "SuGaR PlanarGS img_name pair handling in cameras.py"
+  patch_passed=$((patch_passed + 1))
+else
+  log_check "LOST" "SuGaR PlanarGS img_name pair handling missing in cameras.py"
+  fail=1
+fi
+
 # 9. Milo KDTree fallback & cstdint check
 MILO_MODEL="${REPO_ROOT}/third_party/milo/milo/scene/gaussian_model.py"
 MILO_RAST_H="${REPO_ROOT}/third_party/milo/submodules/diff-gaussian-rasterization/cuda_rasterizer/rasterizer_impl.h"
